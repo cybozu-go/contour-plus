@@ -35,14 +35,23 @@ deletes corresponding `DNSEndpoint` and/or `Certificate`.
 
 This way, DNS records can be managed and TLS certificates can be issued automatically.
 
-Details
--------
+### Access CRDs
 
-cert-manager provides Go types and API to manage `Certificate` resource.
+Contour provides Go types and API to manage `IngressRoute` resource:
+
+- [`ContourV1beta1Client`](https://github.com/heptio/contour/blob/master/apis/generated/clientset/versioned/typed/contour/v1beta1/contour_client.go)
+- [`IngressRoute`](https://github.com/heptio/contour/blob/03dcee7fedf52ba28852d75ff7752ec7ec0ae36c/apis/contour/v1beta1/ingressroute.go#L164)
+
+cert-manager provides Go types and API to manage `Certificate` resource:
+
+- [`Certificate`](https://github.com/jetstack/cert-manager/blob/3201d126d0441298805b8ff6165afebae4ce1550/pkg/apis/certmanager/v1alpha1/types_certificate.go#L32)
+- [`CertmanagerV1alpha1Client`](https://github.com/jetstack/cert-manager/blob/8752770769d6d641c5ef6703b0a9b0bf11c2cf01/pkg/client/clientset/versioned/typed/certmanager/v1alpha1/certmanager_client.go#L86)
 
 ExternalDNS provides Go types for `DNSEndpoint`, but does not provide strictly-typed
 API client.  Therefore, `contour-plus` uses [kubebuilder][] to generate strictly-typed
 API client for itself.
+
+- [`DNSEndpoint`](https://github.com/kubernetes-incubator/external-dns/blob/d1bc8fe147f0ffd7cc4be3e9c6f693186b0aa0bf/endpoint/endpoint.go#L191)
 
 [IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md
 [ExternalDNS]: https://github.com/kubernetes-incubator/external-dns
