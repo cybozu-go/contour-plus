@@ -1,4 +1,8 @@
 
+# disable Go module
+GO111MODULE=off
+export GO111MODULE
+
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 
