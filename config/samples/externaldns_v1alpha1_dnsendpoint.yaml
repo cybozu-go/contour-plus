@@ -1,0 +1,7 @@
+apiVersion: externaldns.contour-plus.cybozu.com/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: dnsendpoint-sample
+spec:
+  # Add fields here
+  foo: bar

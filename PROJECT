@@ -1,0 +1,3 @@
+version: "2"
+domain: contour-plus.cybozu.com
+repo: github.com/cybozu-go/contour-plus
