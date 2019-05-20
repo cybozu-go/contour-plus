@@ -29,6 +29,11 @@ import (
 // it is then stored in a persistent storage via serialization
 type Labels map[string]string
 
+// NewLabels returns empty Labels
+func NewLabels() Labels {
+	return map[string]string{}
+}
+
 // TTL is a structure defining the TTL of a DNS record
 type TTL int64
 
@@ -162,6 +167,39 @@ type DNSEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []DNSEndpoint `json:"items"`
+}
+
+// Find returns DNSEndpoint with the specified DNS name
+func (l *DNSEndpointList) Find(dnsName string) *DNSEndpoint {
+	for _, de := range l.Items {
+		for _, e := range de.Spec.Endpoints {
+			if e.DNSName == dnsName {
+				return &de
+			}
+		}
+	}
+	return nil
+}
+
+// NewEndpoint initialization method to be used to create an endpoint
+func NewEndpoint(dnsName, recordType string, targets ...string) *Endpoint {
+	return NewEndpointWithTTL(dnsName, recordType, TTL(0), targets...)
+}
+
+// NewEndpointWithTTL initialization method to be used to create an endpoint with a TTL struct
+func NewEndpointWithTTL(dnsName, recordType string, ttl TTL, targets ...string) *Endpoint {
+	cleanTargets := make([]string, len(targets))
+	for idx, target := range targets {
+		cleanTargets[idx] = strings.TrimSuffix(target, ".")
+	}
+
+	return &Endpoint{
+		DNSName:    strings.TrimSuffix(dnsName, "."),
+		Targets:    cleanTargets,
+		RecordType: recordType,
+		Labels:     NewLabels(),
+		RecordTTL:  ttl,
+	}
 }
 
 func init() {

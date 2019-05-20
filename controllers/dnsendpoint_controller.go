@@ -17,12 +17,14 @@ package controllers
 
 import (
 	"context"
-
-	"github.com/go-logr/logr"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 
 	externaldnsv1alpha1 "github.com/cybozu-go/contour-plus/api/v1alpha1"
+	"github.com/go-logr/logr"
+	"github.com/heptio/contour/apis/contour/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // DNSEndpointReconciler reconciles a DNSEndpoint object
@@ -33,18 +35,56 @@ type DNSEndpointReconciler struct {
 
 // +kubebuilder:rbac:groups=externaldns.contour-plus.cybozu.com,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=externaldns.contour-plus.cybozu.com,resources=dnsendpoints/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=contour.heptio.com,resources=dnsendpoints,verbs=get;list
+// +kubebuilder:rbac:groups=contour.heptio.com,resources=dnsendpoints/status,verbs=get
+// +kubebuilder:rbac:groups=,resources=services,verbs=get;list
 
 func (r *DNSEndpointReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("dnsendpoint", req.NamespacedName)
+	ctx := context.Background()
+	log := r.Log.WithValues("dnsendpoint", req.NamespacedName)
 
-	// your logic here
+	var deList externaldnsv1alpha1.DNSEndpointList
+	if err := r.List(ctx, &deList, client.InNamespace(req.Name)); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
-	return ctrl.Result{}, nil
+	var irList v1beta1.IngressRouteList
+	if err := r.List(ctx, &irList, client.InNamespace(req.Name)); err != nil {
+		log.Error(err, "unable to fetch IngressRouteList")
+		return ctrl.Result{}, err
+	}
+
+	for _, ir := range irList.Items {
+		if deList.Find(ir.Spec.VirtualHost.Fqdn) == nil {
+			endpoint := externaldnsv1alpha1.NewEndpoint(ir.Spec.VirtualHost.Fqdn, "A", "0.0.0.0")
+			dnsEndpoint := externaldnsv1alpha1.DNSEndpoint{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1alpha1",
+					Kind:       "DNSEndpoint",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      ir.Name,
+					Namespace: ir.Namespace,
+				},
+				Spec: externaldnsv1alpha1.DNSEndpointSpec{
+					Endpoints: []*externaldnsv1alpha1.Endpoint{endpoint},
+				},
+			}
+			err := r.Create(ctx, &dnsEndpoint)
+			if err != nil {
+				log.Error(err, "unable to create DNSEndpoint for IngressRoute", "DNSEndpoint", dnsEndpoint)
+				return ctrl.Result{}, err
+			}
+			log.V(1).Info("created DNSEndpoint for IngressRoute", "DNSEndpoint", dnsEndpoint)
+		}
+
+	}
+	return ctrl.Result{RequeueAfter: time.Hour}, nil
 }
 
 func (r *DNSEndpointReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&externaldnsv1alpha1.DNSEndpoint{}).
+		For(&v1beta1.IngressRoute{}).
+		Owns(&externaldnsv1alpha1.DNSEndpoint{}).
 		Complete(r)
 }
