@@ -10,6 +10,9 @@ import (
 
 	"github.com/cybozu-go/contour-plus/controllers"
 	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
+	certmanagerv1alpha1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	"github.com/kubernetes-incubator/external-dns/endpoint"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,8 +26,21 @@ var (
 )
 
 func init() {
-
 	contourv1beta1.AddToScheme(scheme)
+
+	// ExternalDNS does not implement AddToScheme
+	groupVersion := ctrl.GroupVersion{
+		Group:   "externaldns.k8s.io",
+		Version: "v1alpha1",
+	}
+	scheme.AddKnownTypes(groupVersion,
+		&endpoint.DNSEndpoint{},
+		&endpoint.DNSEndpointList{},
+	)
+	metav1.AddToGroupVersion(scheme, groupVersion)
+
+	certmanagerv1alpha1.AddToScheme(scheme)
+
 	// +kubebuilder:scaffold:scheme
 }
 
