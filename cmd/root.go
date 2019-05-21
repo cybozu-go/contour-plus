@@ -64,10 +64,10 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	fs := rootCmd.Flags()
-	fs.String("metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	fs.String("metrics-addr", ":8080", "Bind address for the metrics endpoint")
 	fs.StringSlice("crds", []string{dnsEndpointCRD, certificateCRD}, "List of CRD names to be created")
-	fs.String("name-prefix", "", "Prefix of DNSEndpoint and Certificate names")
-	fs.String("service-name", "", "NamespacedName of Contour LoadBalancer Service")
+	fs.String("name-prefix", "", "Prefix of CRD names to be created")
+	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	err = viper.BindPFlags(fs)
 	if err != nil {
 		panic(err)
@@ -77,13 +77,21 @@ func init() {
 		panic(err)
 	}
 	viper.SetEnvPrefix("cp")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 }
 
 var rootCmd = &cobra.Command{
 	Use:   "contour-plus",
 	Short: "contour-plus is a custom controller for Contour IngressRoute",
-	Long:  `contour-plus is a custom controller for Contour IngressRoute`,
+	Long: `contour-plus is a custom controller for Contour IngressRoute.
+	
+In addition to flags, the following environment variables are read:
+
+	CP_METRICS_ADDR      Bind address for the metrics endpoint
+	CP_CRDS              Comma-separated list of CRD names
+	CP_NAME_PREFIX       Prefix of CRD names to be created
+	CP_SERVICE_NAME      NamespacedName of the Contour LoadBalancer Service`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		return subMain()
@@ -111,14 +119,15 @@ func subMain() error {
 		return errors.New("service-name should be valid string as namespaced-name")
 	}
 
+	fmt.Println(viper.GetString("name-prefix"))
+	viper.Debug()
+	os.Exit(0)
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: scheme, MetricsBindAddress: viper.GetString("metrics-addr")})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		return err
 	}
-
-	viper.Debug()
-	os.Exit(0)
 
 	err = (&controllers.IngressRouteReconciler{
 		Client: mgr.GetClient(),
