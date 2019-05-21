@@ -119,10 +119,6 @@ func subMain() error {
 		return errors.New("service-name should be valid string as namespaced-name")
 	}
 
-	fmt.Println(viper.GetString("name-prefix"))
-	viper.Debug()
-	os.Exit(0)
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: scheme, MetricsBindAddress: viper.GetString("metrics-addr")})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -132,6 +128,7 @@ func subMain() error {
 	err = (&controllers.IngressRouteReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("IngressRoute"),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)
 	if err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "IngressRoute")
