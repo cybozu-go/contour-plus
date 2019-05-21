@@ -56,65 +56,57 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	}
 
 	// Get list of IngressRoute
-	var irList contourv1beta1.IngressRouteList
-	err = client.IgnoreNotFound(r.List(ctx, &irList, client.InNamespace(req.Namespace)))
+	var ir contourv1beta1.IngressRoute
+	irKey := client.ObjectKey{
+		Namespace: req.Namespace,
+		Name:      req.Name,
+	}
+	err = client.IgnoreNotFound(r.Get(ctx, irKey, &ir))
 	if err != nil {
 		log.Error(err, "unable to list IngressRoute resources")
 		return ctrl.Result{}, err
 	}
 
 	// Create DNSEndpoint from IngressRoute if do not exist
-	for _, ir := range irList.Items {
-		var de endpoint.DNSEndpoint
-		key := client.ObjectKey{
-			Namespace: ir.Namespace,
-			Name:      ir.Name,
+	var de endpoint.DNSEndpoint
+	err = r.Get(ctx, irKey, &de)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			log.Error(err, "unable to get a DNSEndpoint")
+			return ctrl.Result{}, err
 		}
-		err = r.Get(ctx, key, &de)
+		de := newDNSEndpoint(req, ir.Spec.VirtualHost.Fqdn, serviceIPs)
+		err = ctrl.SetControllerReference(&ir, de, r.Scheme)
 		if err != nil {
-			if !errors.IsNotFound(err) {
-				log.Error(err, "unable to get a DNSEndpoint")
-				return ctrl.Result{}, err
-			}
-			de := newDNSEndpoint(req, ir.Spec.VirtualHost.Fqdn, serviceIPs)
-			err = ctrl.SetControllerReference(&ir, de, r.Scheme)
-			if err != nil {
-				log.Error(err, "unable to set owner reference for DNSEndpoint")
-				return ctrl.Result{}, err
-			}
-			err = r.Create(ctx, de)
-			if err != nil {
-				log.Error(err, "unable to create a DNSEndpoint")
-				return ctrl.Result{}, err
-			}
+			log.Error(err, "unable to set owner reference for DNSEndpoint")
+			return ctrl.Result{}, err
+		}
+		err = r.Create(ctx, de)
+		if err != nil {
+			log.Error(err, "unable to create a DNSEndpoint")
+			return ctrl.Result{}, err
 		}
 	}
 
 	// Create Certificate from IngressRoute if do not exist
-	for _, ir := range irList.Items {
-		var crt certmanagerv1alpha1.Certificate
-		key := client.ObjectKey{
-			Namespace: ir.Namespace,
-			Name:      ir.Name,
+	var crt certmanagerv1alpha1.Certificate
+	err = r.Get(ctx, irKey, &crt)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			log.Error(err, "unable to get a Certificate")
+			return ctrl.Result{}, err
 		}
-		err = r.Get(ctx, key, &crt)
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				log.Error(err, "unable to get a Certificate")
-				return ctrl.Result{}, err
-			}
 
-			certificate := newCertificate(req)
-			err = ctrl.SetControllerReference(&ir, certificate, r.Scheme)
-			if err != nil {
-				log.Error(err, "unable to set owner reference for Certificate")
-				return ctrl.Result{}, err
-			}
-			err = r.Create(ctx, certificate)
-			if err != nil {
-				log.Error(err, "unable to create a Certificate")
-				return ctrl.Result{}, err
-			}
+		certificate := newCertificate(req)
+		err = ctrl.SetControllerReference(&ir, certificate, r.Scheme)
+		if err != nil {
+			log.Error(err, "unable to set owner reference for Certificate")
+			return ctrl.Result{}, err
+		}
+		err = r.Create(ctx, certificate)
+		if err != nil {
+			log.Error(err, "unable to create a Certificate")
+			return ctrl.Result{}, err
 		}
 	}
 
