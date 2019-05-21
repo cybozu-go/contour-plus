@@ -1,0 +1,3 @@
+version: "2"
+domain: heptio.com
+repo: github.com/heptio/contour
