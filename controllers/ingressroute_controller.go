@@ -17,8 +17,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // IngressRouteReconciler reconciles a IngressRoute object
@@ -33,8 +37,8 @@ type IngressRouteReconciler struct {
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=certmanager.k8s.io,resources=certificate,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:resources=services,verbs=get;watch
-// +kubebuilder:rbac:resources=services/status,verbs=get;watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;watch
+// +kubebuilder:rbac:groups="",resources=services/status,verbs=get;watch
 
 func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -55,13 +59,13 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		serviceIPs = append(serviceIPs, net.ParseIP(ing.IP))
 	}
 
-	// Get list of IngressRoute
+	// Get IngressRoute
 	var ir contourv1beta1.IngressRoute
-	irKey := client.ObjectKey{
+	objKey := client.ObjectKey{
 		Namespace: req.Namespace,
 		Name:      req.Name,
 	}
-	err = client.IgnoreNotFound(r.Get(ctx, irKey, &ir))
+	err = client.IgnoreNotFound(r.Get(ctx, objKey, &ir))
 	if err != nil {
 		log.Error(err, "unable to list IngressRoute resources")
 		return ctrl.Result{}, err
@@ -69,7 +73,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 	// Create DNSEndpoint from IngressRoute if do not exist
 	var de endpoint.DNSEndpoint
-	err = r.Get(ctx, irKey, &de)
+	err = r.Get(ctx, objKey, &de)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			log.Error(err, "unable to get a DNSEndpoint")
@@ -90,7 +94,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 	// Create Certificate from IngressRoute if do not exist
 	var crt certmanagerv1alpha1.Certificate
-	err = r.Get(ctx, irKey, &crt)
+	err = r.Get(ctx, objKey, &crt)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			log.Error(err, "unable to get a Certificate")
@@ -166,7 +170,23 @@ func newDNSEndpoint(req ctrl.Request, hostname string, ips []net.IP) *endpoint.D
 }
 
 func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	listIRs := handler.ToRequestsFunc(
+		func(a handler.MapObject) []reconcile.Request {
+			ctx := context.Background()
+			var irList contourv1beta1.IngressRouteList
+			_ = r.List(ctx, &irList)
+			var requests []reconcile.Request
+			for _, ir := range irList.Items {
+				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
+					Name:      ir.GetObjectMeta().GetName(),
+					Namespace: ir.GetObjectMeta().GetNamespace(),
+				}})
+			}
+			return requests
+		})
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&contourv1beta1.IngressRoute{}).
+		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
 		Complete(r)
 }
