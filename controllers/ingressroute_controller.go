@@ -8,7 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
 	certmanagerv1alpha1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
-	"github.com/jetstack/cert-manager/test/unit/gen"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +29,7 @@ type IngressRouteReconciler struct {
 	Log               logr.Logger
 	Scheme            *runtime.Scheme
 	ServiceKey        client.ObjectKey
+	IssuerKey         client.ObjectKey
 	Prefix            string
 	CreateDNSEndpoint bool
 	CreateCertificate bool
@@ -130,37 +130,24 @@ func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *c
 		return nil
 	}
 
-	// Create Certificate from IngressRoute if do not exist
-	objKey := client.ObjectKey{
-		Namespace: ir.Namespace,
-		Name:      r.Prefix + ir.Name,
-	}
-	var crt certmanagerv1alpha1.Certificate
-	err := r.Get(ctx, objKey, &crt)
+	crt := &certmanagerv1alpha1.Certificate{}
+	crt.SetNamespace(ir.Namespace)
+	crt.SetName(r.Prefix + ir.Name)
+
+	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
+		crt.Spec.DNSNames = []string{ir.Spec.VirtualHost.Fqdn}
+		crt.Spec.ACME.Config = []certmanagerv1alpha1.DomainSolverConfig{{
+			Domains: []string{ir.Spec.VirtualHost.Fqdn},
+		}}
+		crt.Spec.IssuerRef.Name = "letsencrypt-production"
+		return ctrl.SetControllerReference(ir, crt, r.Scheme)
+	})
 	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-
-		certificate := newCertificate(objKey)
-		err = ctrl.SetControllerReference(ir, certificate, r.Scheme)
-		if err != nil {
-			return err
-		}
-		err = r.Create(ctx, certificate)
-		if err != nil {
-			return err
-		}
+		return err
 	}
+
+	log.Info("Certificate successfully reconciled", "operation", op)
 	return nil
-}
-
-func newCertificate(objKey client.ObjectKey) *certmanagerv1alpha1.Certificate {
-	// TODO: set certificate's field
-	crt := gen.Certificate(objKey.Name)
-
-	crt.SetNamespace(objKey.Namespace)
-	return crt
 }
 
 func makeEndpoints(hostname string, ips []net.IP) []*endpoint.Endpoint {
@@ -232,5 +219,6 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&endpoint.DNSEndpoint{}).
 		Owns(&certmanagerv1alpha1.Certificate{}).
 		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
+		Watches(&source.Kind{Type: &certmanagerv1alpha1.Issuer{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
 		Complete(r)
 }

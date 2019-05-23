@@ -89,10 +89,12 @@ var rootCmd = &cobra.Command{
 	
 In addition to flags, the following environment variables are read:
 
-	CP_METRICS_ADDR      Bind address for the metrics endpoint
-	CP_CRDS              Comma-separated list of CRD names
-	CP_NAME_PREFIX       Prefix of CRD names to be created
-	CP_SERVICE_NAME      NamespacedName of the Contour LoadBalancer Service`,
+	CP_METRICS_ADDR          Bind address for the metrics endpoint
+	CP_CRDS                  Comma-separated list of CRD names
+	CP_NAME_PREFIX           Prefix of CRD names to be created
+	CP_SERVICE_NAME          NamespacedName of the Contour LoadBalancer Service
+	CP_DEFAULT_ISSUER_NAME   Issuer name used by default
+	CP_DEFAULT_ISSUER_KIND   Issuer kind used by default`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		return subMain()
