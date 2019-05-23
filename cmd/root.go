@@ -12,6 +12,7 @@ import (
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -40,8 +41,7 @@ func Execute() {
 }
 
 func init() {
-	err := contourv1beta1.AddToScheme(scheme)
-	if err != nil {
+	if err := contourv1beta1.AddToScheme(scheme); err != nil {
 		panic(err)
 	}
 
@@ -56,8 +56,12 @@ func init() {
 	)
 	metav1.AddToGroupVersion(scheme, groupVersion)
 
-	err = certmanagerv1alpha1.AddToScheme(scheme)
-	if err != nil {
+	if err := certmanagerv1alpha1.AddToScheme(scheme); err != nil {
+		panic(err)
+	}
+
+	// for corev1.Service
+	if err := corev1.AddToScheme(scheme); err != nil {
 		panic(err)
 	}
 
@@ -70,16 +74,13 @@ func init() {
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
 	fs.String("default-issuer-kind", certmanagerv1alpha1.IssuerKind, "Issuer kind used by default")
-	err = viper.BindPFlags(fs)
-	if err != nil {
+	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
-	err = cobra.MarkFlagRequired(fs, "service-name")
-	if err != nil {
+	if err := cobra.MarkFlagRequired(fs, "service-name"); err != nil {
 		panic(err)
 	}
-	err = cobra.MarkFlagRequired(fs, "default-issuer-name")
-	if err != nil {
+	if err := cobra.MarkFlagRequired(fs, "default-issuer-name"); err != nil {
 		panic(err)
 	}
 	viper.SetEnvPrefix("cp")
