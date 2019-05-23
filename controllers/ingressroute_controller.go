@@ -1,7 +1,3 @@
-/*
-.
-*/
-
 package controllers
 
 import (
@@ -17,9 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -254,36 +248,35 @@ func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
 func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	listIRs := handler.ToRequestsFunc(
 		func(a handler.MapObject) []reconcile.Request {
+			if a.Meta.GetNamespace() != r.ServiceKey.Namespace {
+				return nil
+			}
+			if a.Meta.GetName() != r.ServiceKey.Name {
+				return nil
+			}
+
 			ctx := context.Background()
 			var irList contourv1beta1.IngressRouteList
-			_ = r.List(ctx, &irList)
-			var requests []reconcile.Request
-			for _, ir := range irList.Items {
-				requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{
+			err := r.List(ctx, &irList)
+			if err != nil {
+				r.Log.Error(err, "listing IngressRoute failed")
+				return nil
+			}
+
+			requests := make([]reconcile.Request, len(irList.Items))
+			for i, ir := range irList.Items {
+				requests[i] = reconcile.Request{NamespacedName: types.NamespacedName{
 					Name:      ir.GetObjectMeta().GetName(),
 					Namespace: ir.GetObjectMeta().GetNamespace(),
-				}})
+				}}
 			}
 			return requests
 		})
-
-	svc := &unstructured.Unstructured{}
-	svc.SetNamespace(r.ServiceKey.Namespace)
-	svc.SetName(r.ServiceKey.Name)
-	svc.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "",
-		Version: "v1",
-		Kind:    "Service",
-	})
-	inf, err := mgr.GetCache().GetInformer(svc)
-	if err != nil {
-		return err
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&contourv1beta1.IngressRoute{}).
 		Owns(&endpoint.DNSEndpoint{}).
 		Owns(&certmanagerv1alpha1.Certificate{}).
-		Watches(&source.Informer{Informer: inf}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
+		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
 		Complete(r)
 }
