@@ -48,6 +48,7 @@ type IngressRouteReconciler struct {
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;watch
 // +kubebuilder:rbac:groups="",resources=services/status,verbs=get
 
+// Reconcile creates/updates CRDs from given IngressRoute
 func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("ingressroute", req.NamespacedName)
@@ -133,17 +134,30 @@ func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *c
 		}
 	}
 
-	// Update DNSEndpoint if service IPs are changed
-	ipv4Targets, ipv6Targets := ipsToTargets(serviceIPs)
-	for _, endpoint := range de.Spec.Endpoints {
-		if !endpoint.Targets.Same(ipv4Targets) && !endpoint.Targets.Same(ipv6Targets) {
-			de := newDNSEndpoint(objKey, ir.Spec.VirtualHost.Fqdn, serviceIPs)
-			err = r.Update(ctx, de)
-			if err != nil {
-				log.Error(err, "unable to update DNSEndpoint")
-				return err
+	needUpdateDNSEndpoint := func(de endpoint.DNSEndpoint, ips []net.IP, dnsName string) bool {
+		ipv4Targets, ipv6Targets := ipsToTargets(ips)
+		for _, ep := range de.Spec.Endpoints {
+			if !ep.Targets.Same(ipv4Targets) && !ep.Targets.Same(ipv6Targets) {
+				return true
 			}
-			break
+			if ep.DNSName != dnsName {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Update DNSEndpoint if service IPs are changed or DNS name is changed
+	if needUpdateDNSEndpoint(de, serviceIPs, ir.Spec.VirtualHost.Fqdn) {
+		de := newDNSEndpoint(objKey, ir.Spec.VirtualHost.Fqdn, serviceIPs)
+		err = ctrl.SetControllerReference(ir, de, r.Scheme)
+		if err != nil {
+			return err
+		}
+		err = r.Update(ctx, de)
+		if err != nil {
+			log.Error(err, "unable to update DNSEndpoint")
+			return err
 		}
 	}
 	return nil
@@ -236,6 +250,7 @@ func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
 	return ipv4Targets, ipv6Targets
 }
 
+// SetupWithManager setup controller manager
 func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	listIRs := handler.ToRequestsFunc(
 		func(a handler.MapObject) []reconcile.Request {
