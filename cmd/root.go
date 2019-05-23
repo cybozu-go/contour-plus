@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
@@ -105,18 +106,26 @@ func subMain() error {
 	if len(crds) == 0 {
 		return errors.New("at least one service need to be enabled")
 	}
+	var createDNSEndpoint, createCertificate bool
 	for _, crd := range crds {
 		switch crd {
 		case dnsEndpointCRD:
+			createDNSEndpoint = true
 		case certificateCRD:
+			createCertificate = true
 		default:
 			return errors.New("unsupported CRD: " + crd)
 		}
 	}
 
 	serviceName := viper.GetString("service-name")
-	if !strings.Contains(serviceName[1:len(serviceName)-2], "/") {
+	nsname := strings.Split(serviceName, "/")
+	if len(nsname) != 2 || nsname[0] == "" || nsname[1] == "" {
 		return errors.New("service-name should be valid string as namespaced-name")
+	}
+	serviceKey := client.ObjectKey{
+		Namespace: nsname[0],
+		Name:      nsname[1],
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: scheme, MetricsBindAddress: viper.GetString("metrics-addr")})
@@ -126,9 +135,13 @@ func subMain() error {
 	}
 
 	err = (&controllers.IngressRouteReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("IngressRoute"),
-		Scheme: mgr.GetScheme(),
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
+		Scheme:            mgr.GetScheme(),
+		ServiceKey:        serviceKey,
+		Prefix:            viper.GetString("name-prefix"),
+		CreateDNSEndpoint: createDNSEndpoint,
+		CreateCertificate: createCertificate,
 	}).SetupWithManager(mgr)
 	if err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "IngressRoute")

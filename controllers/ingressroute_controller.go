@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"net"
 
 	"github.com/go-logr/logr"
@@ -14,7 +15,7 @@ import (
 	"github.com/jetstack/cert-manager/test/unit/gen"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -28,9 +29,12 @@ import (
 // IngressRouteReconciler reconciles a IngressRoute object
 type IngressRouteReconciler struct {
 	client.Client
-	Log        logr.Logger
-	Scheme     *runtime.Scheme
-	ServiceKey client.ObjectKey
+	Log               logr.Logger
+	Scheme            *runtime.Scheme
+	ServiceKey        client.ObjectKey
+	Prefix            string
+	CreateDNSEndpoint bool
+	CreateCertificate bool
 }
 
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes,verbs=get;list;watch
@@ -43,14 +47,45 @@ type IngressRouteReconciler struct {
 func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("ingressroute", req.NamespacedName)
-	var serviceIPs []net.IP
+
+	// Get IngressRoute
+	ir := new(contourv1beta1.IngressRoute)
+	objKey := client.ObjectKey{
+		Namespace: req.Namespace,
+		Name:      req.Name,
+	}
+	err := client.IgnoreNotFound(r.Get(ctx, objKey, ir))
+	if err != nil {
+		log.Error(err, "unable to get IngressRoute resources")
+		return ctrl.Result{}, err
+	}
+
+	err = r.createDNSEndpoint(ctx, ir, log)
+	if err != nil {
+		log.Error(err, "unable to create/update DNSEndpoint")
+		return ctrl.Result{}, err
+	}
+
+	err = r.createCertificate(ctx, ir, log)
+	if err != nil {
+		log.Error(err, "unable to create/update Certificate")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *IngressRouteReconciler) createDNSEndpoint(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
+	if !r.CreateDNSEndpoint {
+		return nil
+	}
 
 	// Get IP list of loadbalancer Service
+	var serviceIPs []net.IP
 	var svc corev1.Service
 	err := client.IgnoreNotFound(r.Get(ctx, r.ServiceKey, &svc))
 	if err != nil {
 		log.Error(err, "unable to get services")
-		return ctrl.Result{}, err
+		return err
 	}
 	for _, ing := range svc.Status.LoadBalancer.Ingress {
 		if len(ing.IP) == 0 {
@@ -59,73 +94,75 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		serviceIPs = append(serviceIPs, net.ParseIP(ing.IP))
 	}
 
-	// Get IngressRoute
-	var ir contourv1beta1.IngressRoute
-	objKey := client.ObjectKey{
-		Namespace: req.Namespace,
-		Name:      req.Name,
-	}
-	err = client.IgnoreNotFound(r.Get(ctx, objKey, &ir))
-	if err != nil {
-		log.Error(err, "unable to list IngressRoute resources")
-		return ctrl.Result{}, err
+	if len(serviceIPs) == 0 {
+		log.Info("no IP address", "service", r.ServiceKey)
+		return errors.New("no IP address for service " + r.ServiceKey.String())
 	}
 
 	// Create DNSEndpoint from IngressRoute if do not exist
+	objKey := client.ObjectKey{
+		Namespace: ir.Namespace,
+		Name:      r.Prefix + ir.Name,
+	}
 	var de endpoint.DNSEndpoint
 	err = r.Get(ctx, objKey, &de)
 	if err != nil {
-		if !errors.IsNotFound(err) {
-			log.Error(err, "unable to get a DNSEndpoint")
-			return ctrl.Result{}, err
+		if !k8serrors.IsNotFound(err) {
+			return err
 		}
-		de := newDNSEndpoint(req, ir.Spec.VirtualHost.Fqdn, serviceIPs)
-		err = ctrl.SetControllerReference(&ir, de, r.Scheme)
+		de := newDNSEndpoint(objKey, ir.Spec.VirtualHost.Fqdn, serviceIPs)
+		err = ctrl.SetControllerReference(ir, de, r.Scheme)
 		if err != nil {
-			log.Error(err, "unable to set owner reference for DNSEndpoint")
-			return ctrl.Result{}, err
+			return err
 		}
 		err = r.Create(ctx, de)
 		if err != nil {
-			log.Error(err, "unable to create a DNSEndpoint")
-			return ctrl.Result{}, err
+			return err
 		}
+	}
+
+	return nil
+}
+
+func (r *IngressRouteReconciler) createCertificate(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
+	if !r.CreateCertificate {
+		return nil
 	}
 
 	// Create Certificate from IngressRoute if do not exist
+	objKey := client.ObjectKey{
+		Namespace: ir.Namespace,
+		Name:      r.Prefix + ir.Name,
+	}
 	var crt certmanagerv1alpha1.Certificate
-	err = r.Get(ctx, objKey, &crt)
+	err := r.Get(ctx, objKey, &crt)
 	if err != nil {
-		if !errors.IsNotFound(err) {
-			log.Error(err, "unable to get a Certificate")
-			return ctrl.Result{}, err
+		if !k8serrors.IsNotFound(err) {
+			return err
 		}
 
-		certificate := newCertificate(req)
-		err = ctrl.SetControllerReference(&ir, certificate, r.Scheme)
+		certificate := newCertificate(objKey)
+		err = ctrl.SetControllerReference(ir, certificate, r.Scheme)
 		if err != nil {
-			log.Error(err, "unable to set owner reference for Certificate")
-			return ctrl.Result{}, err
+			return err
 		}
 		err = r.Create(ctx, certificate)
 		if err != nil {
-			log.Error(err, "unable to create a Certificate")
-			return ctrl.Result{}, err
+			return err
 		}
 	}
-
-	return ctrl.Result{}, nil
+	return nil
 }
 
-func newCertificate(req ctrl.Request) *certmanagerv1alpha1.Certificate {
+func newCertificate(objKey client.ObjectKey) *certmanagerv1alpha1.Certificate {
 	// TODO: set certificate's field
-	crt := gen.Certificate(req.Name)
+	crt := gen.Certificate(objKey.Name)
 
-	crt.SetNamespace(req.Namespace)
+	crt.SetNamespace(objKey.Namespace)
 	return crt
 }
 
-func newDNSEndpoint(req ctrl.Request, hostname string, ips []net.IP) *endpoint.DNSEndpoint {
+func newDNSEndpoint(objKey client.ObjectKey, hostname string, ips []net.IP) *endpoint.DNSEndpoint {
 	ipv4Targets := endpoint.Targets{}
 	ipv6Targets := endpoint.Targets{}
 	for _, ip := range ips {
@@ -148,7 +185,7 @@ func newDNSEndpoint(req ctrl.Request, hostname string, ips []net.IP) *endpoint.D
 		endpoints = append(endpoints, &endpoint.Endpoint{
 			DNSName:    hostname,
 			Targets:    ipv6Targets,
-			RecordType: "AAA",
+			RecordType: "AAAA",
 			RecordTTL:  180,
 		})
 	}
@@ -159,8 +196,8 @@ func newDNSEndpoint(req ctrl.Request, hostname string, ips []net.IP) *endpoint.D
 			Kind:       "DNSEndpoint",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:       req.Name,
-			Namespace:  req.Namespace,
+			Name:       objKey.Name,
+			Namespace:  objKey.Namespace,
 			Generation: 1,
 		},
 		Spec: endpoint.DNSEndpointSpec{
@@ -187,6 +224,8 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&contourv1beta1.IngressRoute{}).
+		Owns(&endpoint.DNSEndpoint{}).
+		Owns(&certmanagerv1alpha1.Certificate{}).
 		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
 		Complete(r)
 }
