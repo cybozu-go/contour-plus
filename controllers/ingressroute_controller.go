@@ -17,7 +17,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,11 +40,11 @@ type IngressRouteReconciler struct {
 }
 
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes,verbs=get;list;watch
-// +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=certmanager.k8s.io,resources=certificate,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;watch
-// +kubebuilder:rbac:groups="",resources=services/status,verbs=get;watch
+// +kubebuilder:rbac:groups="",resources=services/status,verbs=get
 
 func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -222,10 +224,23 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return requests
 		})
 
+	svc := &unstructured.Unstructured{}
+	svc.SetNamespace(r.ServiceKey.Namespace)
+	svc.SetName(r.ServiceKey.Name)
+	svc.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    "Service",
+	})
+	inf, err := mgr.GetCache().GetInformer(svc)
+	if err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&contourv1beta1.IngressRoute{}).
 		Owns(&endpoint.DNSEndpoint{}).
 		Owns(&certmanagerv1alpha1.Certificate{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
+		Watches(&source.Informer{Informer: inf}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
 		Complete(r)
 }
