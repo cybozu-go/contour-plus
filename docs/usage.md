@@ -42,7 +42,9 @@ You can specify the following annotations on IngressRoute in order to trigger CR
 - `contour-plus.cybozu.com/exclude: "true"` - If this annotation is annotated, contour-plus does not generate CRD resources from the IngressRoute.
 - `certmanager.k8s.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this Ingressroute from. The Issuer must be in the same namespace as the IngressRoute.
 - `certmanager.k8s.io/cluster-issuer` - The name of a ClusterIssuer to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
-- `kubernetes.io/tls-acme: "true"` - This annotation requires additional configuration of the ingress-shim (see above). Namely, a default issuer must be specified as arguments to the ingress-shim container.
+- `kubernetes.io/tls-acme: "true"` - If this annotation is annotated, contour-plus generate Certificate automatically from IngressRoute.
+
+If both of `certmanager.k8s.io/issuer` and `certmanager.k8s.io/cluster-issuer` are annotated, cluster-issuer takes precedence.
 
 [Contour]: https://github.com/heptio/contour
 [IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md

@@ -22,8 +22,7 @@ import (
 )
 
 const (
-	dnsEndpointCRD = "DNSEndpoint"
-	certificateCRD = "Certificate"
+	dnsEndpointKind = "DNSEndpoint"
 )
 
 var (
@@ -66,14 +65,20 @@ func init() {
 
 	fs := rootCmd.Flags()
 	fs.String("metrics-addr", ":8080", "Bind address for the metrics endpoint")
-	fs.StringSlice("crds", []string{dnsEndpointCRD, certificateCRD}, "List of CRD names to be created")
+	fs.StringSlice("crds", []string{dnsEndpointKind, certmanagerv1alpha1.CertificateKind}, "List of CRD names to be created")
 	fs.String("name-prefix", "", "Prefix of CRD names to be created")
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
+	fs.String("default-issuer-name", "", "Issuer name used by default")
+	fs.String("default-issuer-kind", certmanagerv1alpha1.IssuerKind, "Issuer kind used by default")
 	err = viper.BindPFlags(fs)
 	if err != nil {
 		panic(err)
 	}
 	err = cobra.MarkFlagRequired(fs, "service-name")
+	if err != nil {
+		panic(err)
+	}
+	err = cobra.MarkFlagRequired(fs, "default-issuer-name")
 	if err != nil {
 		panic(err)
 	}
@@ -111,9 +116,9 @@ func subMain() error {
 	var createDNSEndpoint, createCertificate bool
 	for _, crd := range crds {
 		switch crd {
-		case dnsEndpointCRD:
+		case dnsEndpointKind:
 			createDNSEndpoint = true
-		case certificateCRD:
+		case certmanagerv1alpha1.CertificateKind:
 			createCertificate = true
 		default:
 			return errors.New("unsupported CRD: " + crd)
@@ -130,6 +135,13 @@ func subMain() error {
 		Name:      nsname[1],
 	}
 
+	defaultIssuerKind := viper.GetString("default-issuer-name")
+	switch defaultIssuerKind {
+	case certmanagerv1alpha1.IssuerKind, certmanagerv1alpha1.ClusterIssuerKind:
+	default:
+		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: scheme, MetricsBindAddress: viper.GetString("metrics-addr")})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -142,6 +154,8 @@ func subMain() error {
 		Scheme:            mgr.GetScheme(),
 		ServiceKey:        serviceKey,
 		Prefix:            viper.GetString("name-prefix"),
+		DefaultIssuerName: viper.GetString("default-issuer-name"),
+		DefaultIssuerKind: defaultIssuerKind,
 		CreateDNSEndpoint: createDNSEndpoint,
 		CreateCertificate: createCertificate,
 	}).SetupWithManager(mgr)

@@ -21,7 +21,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-const excludeKey = "contour-plus.cybozu.com/exclude"
+const (
+	excludeAnnotation           = "contour-plus.cybozu.com/exclude"
+	testACMETLSAnnotation       = "kubernetes.io/tls-acme"
+	issuerNameAnnotation        = "certmanager.k8s.io/issuer"
+	clusterIssuerNameAnnotation = "certmanager.k8s.io/cluster-issuer"
+)
 
 // IngressRouteReconciler reconciles a IngressRoute object
 type IngressRouteReconciler struct {
@@ -31,6 +36,8 @@ type IngressRouteReconciler struct {
 	ServiceKey        client.ObjectKey
 	IssuerKey         client.ObjectKey
 	Prefix            string
+	DefaultIssuerName string
+	DefaultIssuerKind string
 	CreateDNSEndpoint bool
 	CreateCertificate bool
 }
@@ -61,7 +68,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return ctrl.Result{}, err
 	}
 
-	if ir.Annotations[excludeKey] == "true" {
+	if ir.Annotations[excludeAnnotation] == "true" {
 		return ctrl.Result{}, nil
 	}
 
@@ -129,17 +136,39 @@ func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *c
 	if !r.CreateCertificate {
 		return nil
 	}
+	if ir.Annotations[testACMETLSAnnotation] != "true" {
+		log.Info(`skip to reconcile certificate, because "kubernetes.io/tls-acme" is not "true"`)
+		return nil
+	}
 
 	crt := &certmanagerv1alpha1.Certificate{}
 	crt.SetNamespace(ir.Namespace)
 	crt.SetName(r.Prefix + ir.Name)
 
+	issuerName, issuerKind := func() (string, string) {
+		name := ""
+		kind := ""
+		annotations := ir.Annotations
+		if ir.Annotations == nil {
+			annotations = map[string]string{}
+		}
+		if issuerName, ok := annotations[issuerNameAnnotation]; ok {
+			name = issuerName
+			kind = certmanagerv1alpha1.IssuerKind
+		}
+		if issuerName, ok := annotations[clusterIssuerNameAnnotation]; ok {
+			name = issuerName
+			kind = certmanagerv1alpha1.ClusterIssuerKind
+		}
+		return name, kind
+	}()
+
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
 		crt.Spec.DNSNames = []string{ir.Spec.VirtualHost.Fqdn}
-		crt.Spec.ACME.Config = []certmanagerv1alpha1.DomainSolverConfig{{
-			Domains: []string{ir.Spec.VirtualHost.Fqdn},
-		}}
-		crt.Spec.IssuerRef.Name = "letsencrypt-production"
+		crt.Spec.SecretName = ir.Spec.VirtualHost.TLS.SecretName
+		crt.Spec.CommonName = ir.Spec.VirtualHost.Fqdn
+		crt.Spec.IssuerRef.Name = issuerName
+		crt.Spec.IssuerRef.Kind = issuerKind
 		return ctrl.SetControllerReference(ir, crt, r.Scheme)
 	})
 	if err != nil {
