@@ -67,13 +67,13 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 	err = r.reconcileDNSEndpoint(ctx, ir, log)
 	if err != nil {
-		log.Error(err, "unable to create/update DNSEndpoint")
+		log.Error(err, "unable to reconcile DNSEndpoint")
 		return ctrl.Result{}, err
 	}
 
 	err = r.reconcileCertificate(ctx, ir, log)
 	if err != nil {
-		log.Error(err, "unable to create/update Certificate")
+		log.Error(err, "unable to reconcile Certificate")
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -84,17 +84,19 @@ func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *c
 		return nil
 	}
 
+	fqdn := ir.Spec.VirtualHost.Fqdn
+	if len(fqdn) == 0 {
+		return nil
+	}
+
 	// Get IP list of loadbalancer Service
 	var serviceIPs []net.IP
 	var svc corev1.Service
 	err := r.Get(ctx, r.ServiceKey, &svc)
-	if k8serrors.IsNotFound(err) {
-		log.Info("service is not found")
-		return nil
-	} else if err != nil {
-		log.Error(err, "unable to get services")
+	if err != nil {
 		return err
 	}
+
 	for _, ing := range svc.Status.LoadBalancer.Ingress {
 		if len(ing.IP) == 0 {
 			continue
@@ -102,58 +104,24 @@ func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *c
 		serviceIPs = append(serviceIPs, net.ParseIP(ing.IP))
 	}
 	if len(serviceIPs) == 0 {
-		log.Info("no IP address", "service", r.ServiceKey)
 		return errors.New("no IP address for service " + r.ServiceKey.String())
 	}
 
-	// Create DNSEndpoint from IngressRoute if do not exist
-	objKey := client.ObjectKey{
-		Namespace: ir.Namespace,
-		Name:      r.Prefix + ir.Name,
+	de := &endpoint.DNSEndpoint{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ir.Namespace,
+			Name:      r.Prefix + ir.Name,
+		},
 	}
-	var de endpoint.DNSEndpoint
-	err = r.Get(ctx, objKey, &de)
+	op, err := ctrl.CreateOrUpdate(ctx, r.Client, de, func() error {
+		de.Spec.Endpoints = makeEndpoints(fqdn, serviceIPs)
+		return ctrl.SetControllerReference(ir, de, r.Scheme)
+	})
 	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return err
-		}
-		de := newDNSEndpoint(objKey, ir.Spec.VirtualHost.Fqdn, serviceIPs)
-		err = ctrl.SetControllerReference(ir, de, r.Scheme)
-		if err != nil {
-			return err
-		}
-		err = r.Create(ctx, de)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
-	needUpdateDNSEndpoint := func(de endpoint.DNSEndpoint, ips []net.IP, dnsName string) bool {
-		ipv4Targets, ipv6Targets := ipsToTargets(ips)
-		for _, ep := range de.Spec.Endpoints {
-			if !ep.Targets.Same(ipv4Targets) && !ep.Targets.Same(ipv6Targets) {
-				return true
-			}
-			if ep.DNSName != dnsName {
-				return true
-			}
-		}
-		return false
-	}
-
-	// Update DNSEndpoint if service IPs are changed or DNS name is changed
-	if needUpdateDNSEndpoint(de, serviceIPs, ir.Spec.VirtualHost.Fqdn) {
-		de := newDNSEndpoint(objKey, ir.Spec.VirtualHost.Fqdn, serviceIPs)
-		err = ctrl.SetControllerReference(ir, de, r.Scheme)
-		if err != nil {
-			return err
-		}
-		err = r.Update(ctx, de)
-		if err != nil {
-			log.Error(err, "unable to update DNSEndpoint")
-			return err
-		}
-	}
+	log.Info("DNSEndpoint successfully reconciled", "operation", op)
 	return nil
 }
 
@@ -195,7 +163,7 @@ func newCertificate(objKey client.ObjectKey) *certmanagerv1alpha1.Certificate {
 	return crt
 }
 
-func newDNSEndpoint(objKey client.ObjectKey, hostname string, ips []net.IP) *endpoint.DNSEndpoint {
+func makeEndpoints(hostname string, ips []net.IP) []*endpoint.Endpoint {
 	ipv4Targets, ipv6Targets := ipsToTargets(ips)
 	var endpoints []*endpoint.Endpoint
 	if len(ipv4Targets) != 0 {
@@ -203,7 +171,7 @@ func newDNSEndpoint(objKey client.ObjectKey, hostname string, ips []net.IP) *end
 			DNSName:    hostname,
 			Targets:    ipv4Targets,
 			RecordType: endpoint.RecordTypeA,
-			RecordTTL:  180,
+			RecordTTL:  3600,
 		})
 	}
 	if len(ipv6Targets) != 0 {
@@ -211,24 +179,10 @@ func newDNSEndpoint(objKey client.ObjectKey, hostname string, ips []net.IP) *end
 			DNSName:    hostname,
 			Targets:    ipv6Targets,
 			RecordType: "AAAA",
-			RecordTTL:  180,
+			RecordTTL:  3600,
 		})
 	}
-
-	return &endpoint.DNSEndpoint{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1alpha1",
-			Kind:       "DNSEndpoint",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       objKey.Name,
-			Namespace:  objKey.Namespace,
-			Generation: 1,
-		},
-		Spec: endpoint.DNSEndpointSpec{
-			Endpoints: endpoints,
-		},
-	}
+	return endpoints
 }
 
 func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
@@ -237,9 +191,9 @@ func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
 	for _, ip := range ips {
 		if ip.To4() != nil {
 			ipv4Targets = append(ipv4Targets, ip.String())
-		} else if ip.To16() != nil {
-			ipv6Targets = append(ipv6Targets, ip.String())
+			continue
 		}
+		ipv6Targets = append(ipv6Targets, ip.String())
 	}
 	return ipv4Targets, ipv6Targets
 }

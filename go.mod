@@ -8,6 +8,7 @@ replace k8s.io/client-go => k8s.io/client-go v11.0.0+incompatible
 
 require (
 	cloud.google.com/go v0.38.0 // indirect
+	github.com/evanphx/json-patch v4.2.0+incompatible // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1 // indirect
 	github.com/golang/protobuf v1.3.1 // indirect
