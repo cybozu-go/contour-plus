@@ -33,6 +33,12 @@ How it works
 contour-plus should be deployed with Deployment.  It monitors events for [IngressRoute][] and
 creates / updates / deletes [DNSEndpoint][] and/or [Certificate][].
 
+### Excluding IngressRoute from contour-plus targets
+
+You can exclude an IngressRoute from contour-plus targets by adding the following annotation.
+
+- `contour-plus.cybozu.com/exclude`: `true`
+
 [Contour]: https://github.com/heptio/contour
 [IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md
 [DNSEndpoint]: https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source.md

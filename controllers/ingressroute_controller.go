@@ -28,6 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+const excludeKey = "contour-plus.cybozu.com/exclude"
+
 // IngressRouteReconciler reconciles a IngressRoute object
 type IngressRouteReconciler struct {
 	client.Client
@@ -56,19 +58,25 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		Namespace: req.Namespace,
 		Name:      req.Name,
 	}
-	err := client.IgnoreNotFound(r.Get(ctx, objKey, ir))
-	if err != nil {
+	err := r.Get(ctx, objKey, ir)
+	if k8serrors.IsNotFound(err) {
+		return ctrl.Result{}, nil
+	} else if err != nil {
 		log.Error(err, "unable to get IngressRoute resources")
 		return ctrl.Result{}, err
 	}
 
-	err = r.createDNSEndpoint(ctx, ir, log)
+	if ir.Annotations[excludeKey] == "true" {
+		return ctrl.Result{}, nil
+	}
+
+	err = r.reconcileDNSEndpoint(ctx, ir, log)
 	if err != nil {
 		log.Error(err, "unable to create/update DNSEndpoint")
 		return ctrl.Result{}, err
 	}
 
-	err = r.createCertificate(ctx, ir, log)
+	err = r.reconcileCertificate(ctx, ir, log)
 	if err != nil {
 		log.Error(err, "unable to create/update Certificate")
 		return ctrl.Result{}, err
@@ -76,7 +84,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	return ctrl.Result{}, nil
 }
 
-func (r *IngressRouteReconciler) createDNSEndpoint(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
+func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
 	if !r.CreateDNSEndpoint {
 		return nil
 	}
@@ -84,8 +92,11 @@ func (r *IngressRouteReconciler) createDNSEndpoint(ctx context.Context, ir *cont
 	// Get IP list of loadbalancer Service
 	var serviceIPs []net.IP
 	var svc corev1.Service
-	err := client.IgnoreNotFound(r.Get(ctx, r.ServiceKey, &svc))
-	if err != nil {
+	err := r.Get(ctx, r.ServiceKey, &svc)
+	if k8serrors.IsNotFound(err) {
+		log.Info("service is not found")
+		return nil
+	} else if err != nil {
 		log.Error(err, "unable to get services")
 		return err
 	}
@@ -95,7 +106,6 @@ func (r *IngressRouteReconciler) createDNSEndpoint(ctx context.Context, ir *cont
 		}
 		serviceIPs = append(serviceIPs, net.ParseIP(ing.IP))
 	}
-
 	if len(serviceIPs) == 0 {
 		log.Info("no IP address", "service", r.ServiceKey)
 		return errors.New("no IP address for service " + r.ServiceKey.String())
@@ -123,10 +133,23 @@ func (r *IngressRouteReconciler) createDNSEndpoint(ctx context.Context, ir *cont
 		}
 	}
 
+	// Update DNSEndpoint if service IPs are changed
+	ipv4Targets, ipv6Targets := ipsToTargets(serviceIPs)
+	for _, endpoint := range de.Spec.Endpoints {
+		if !endpoint.Targets.Same(ipv4Targets) && !endpoint.Targets.Same(ipv6Targets) {
+			de := newDNSEndpoint(objKey, ir.Spec.VirtualHost.Fqdn, serviceIPs)
+			err = r.Update(ctx, de)
+			if err != nil {
+				log.Error(err, "unable to update DNSEndpoint")
+				return err
+			}
+			break
+		}
+	}
 	return nil
 }
 
-func (r *IngressRouteReconciler) createCertificate(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
+func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
 	if !r.CreateCertificate {
 		return nil
 	}
@@ -165,15 +188,7 @@ func newCertificate(objKey client.ObjectKey) *certmanagerv1alpha1.Certificate {
 }
 
 func newDNSEndpoint(objKey client.ObjectKey, hostname string, ips []net.IP) *endpoint.DNSEndpoint {
-	ipv4Targets := endpoint.Targets{}
-	ipv6Targets := endpoint.Targets{}
-	for _, ip := range ips {
-		if ip.To4() != nil {
-			ipv4Targets = append(ipv4Targets, ip.String())
-		} else if ip.To16() != nil {
-			ipv6Targets = append(ipv6Targets, ip.String())
-		}
-	}
+	ipv4Targets, ipv6Targets := ipsToTargets(ips)
 	var endpoints []*endpoint.Endpoint
 	if len(ipv4Targets) != 0 {
 		endpoints = append(endpoints, &endpoint.Endpoint{
@@ -206,6 +221,19 @@ func newDNSEndpoint(objKey client.ObjectKey, hostname string, ips []net.IP) *end
 			Endpoints: endpoints,
 		},
 	}
+}
+
+func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
+	ipv4Targets := endpoint.Targets{}
+	ipv6Targets := endpoint.Targets{}
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			ipv4Targets = append(ipv4Targets, ip.String())
+		} else if ip.To16() != nil {
+			ipv6Targets = append(ipv6Targets, ip.String())
+		}
+	}
+	return ipv4Targets, ipv6Targets
 }
 
 func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
