@@ -42,14 +42,13 @@ type IngressRouteReconciler struct {
 	CreateCertificate bool
 }
 
+// Reconcile creates/updates CRDs from given IngressRoute
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=certmanager.k8s.io,resources=certificate,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;watch
 // +kubebuilder:rbac:groups="",resources=services/status,verbs=get
-
-// Reconcile creates/updates CRDs from given IngressRoute
 func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("ingressroute", req.NamespacedName)
