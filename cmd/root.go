@@ -73,14 +73,11 @@ func init() {
 	fs.String("name-prefix", "", "Prefix of CRD names to be created")
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
-	fs.String("default-issuer-kind", certmanagerv1alpha1.IssuerKind, "Issuer kind used by default")
+	fs.String("default-issuer-kind", certmanagerv1alpha1.ClusterIssuerKind, "Issuer kind used by default")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
 	if err := cobra.MarkFlagRequired(fs, "service-name"); err != nil {
-		panic(err)
-	}
-	if err := cobra.MarkFlagRequired(fs, "default-issuer-name"); err != nil {
 		panic(err)
 	}
 	viper.SetEnvPrefix("cp")
@@ -136,7 +133,7 @@ func subMain() error {
 		Name:      nsname[1],
 	}
 
-	defaultIssuerKind := viper.GetString("default-issuer-name")
+	defaultIssuerKind := viper.GetString("default-issuer-kind")
 	switch defaultIssuerKind {
 	case certmanagerv1alpha1.IssuerKind, certmanagerv1alpha1.ClusterIssuerKind:
 	default:

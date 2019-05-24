@@ -132,53 +132,6 @@ func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *c
 	return nil
 }
 
-func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
-	if !r.CreateCertificate {
-		return nil
-	}
-	if ir.Annotations[testACMETLSAnnotation] != "true" {
-		log.Info(`skip to reconcile certificate, because "kubernetes.io/tls-acme" is not "true"`)
-		return nil
-	}
-
-	crt := &certmanagerv1alpha1.Certificate{}
-	crt.SetNamespace(ir.Namespace)
-	crt.SetName(r.Prefix + ir.Name)
-
-	issuerName, issuerKind := func() (string, string) {
-		name := ""
-		kind := ""
-		annotations := ir.Annotations
-		if ir.Annotations == nil {
-			annotations = map[string]string{}
-		}
-		if issuerName, ok := annotations[issuerNameAnnotation]; ok {
-			name = issuerName
-			kind = certmanagerv1alpha1.IssuerKind
-		}
-		if issuerName, ok := annotations[clusterIssuerNameAnnotation]; ok {
-			name = issuerName
-			kind = certmanagerv1alpha1.ClusterIssuerKind
-		}
-		return name, kind
-	}()
-
-	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
-		crt.Spec.DNSNames = []string{ir.Spec.VirtualHost.Fqdn}
-		crt.Spec.SecretName = ir.Spec.VirtualHost.TLS.SecretName
-		crt.Spec.CommonName = ir.Spec.VirtualHost.Fqdn
-		crt.Spec.IssuerRef.Name = issuerName
-		crt.Spec.IssuerRef.Kind = issuerKind
-		return ctrl.SetControllerReference(ir, crt, r.Scheme)
-	})
-	if err != nil {
-		return err
-	}
-
-	log.Info("Certificate successfully reconciled", "operation", op)
-	return nil
-}
-
 func makeEndpoints(hostname string, ips []net.IP) []*endpoint.Endpoint {
 	ipv4Targets, ipv6Targets := ipsToTargets(ips)
 	var endpoints []*endpoint.Endpoint
@@ -212,6 +165,58 @@ func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
 		ipv6Targets = append(ipv6Targets, ip.String())
 	}
 	return ipv4Targets, ipv6Targets
+}
+
+func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
+	if !r.CreateCertificate {
+		return nil
+	}
+	if ir.Annotations[testACMETLSAnnotation] != "true" {
+		return nil
+	}
+
+	fqdn := ir.Spec.VirtualHost.Fqdn
+	if len(fqdn) == 0 {
+		return nil
+	}
+	if len(ir.Spec.VirtualHost.TLS.SecretName) == 0 {
+		return nil
+	}
+
+	crt := &certmanagerv1alpha1.Certificate{}
+	crt.SetNamespace(ir.Namespace)
+	crt.SetName(r.Prefix + ir.Name)
+
+	issuerName := r.DefaultIssuerName
+	issuerKind := r.DefaultIssuerKind
+	if name, ok := ir.Annotations[issuerNameAnnotation]; ok {
+		issuerName = name
+		issuerKind = certmanagerv1alpha1.IssuerKind
+	}
+	if name, ok := ir.Annotations[clusterIssuerNameAnnotation]; ok {
+		issuerName = name
+		issuerKind = certmanagerv1alpha1.ClusterIssuerKind
+	}
+
+	if issuerName == "" {
+		log.Info("no issuer name")
+		return nil
+	}
+
+	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
+		crt.Spec.DNSNames = []string{fqdn}
+		crt.Spec.SecretName = ir.Spec.VirtualHost.TLS.SecretName
+		crt.Spec.CommonName = fqdn
+		crt.Spec.IssuerRef.Name = issuerName
+		crt.Spec.IssuerRef.Kind = issuerKind
+		return ctrl.SetControllerReference(ir, crt, r.Scheme)
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Info("Certificate successfully reconciled", "operation", op)
+	return nil
 }
 
 // SetupWithManager setup controller manager

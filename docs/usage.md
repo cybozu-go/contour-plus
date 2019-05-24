@@ -12,13 +12,13 @@ contour-plus takes following command-line flags or environment variables.
 If both is specified, command-line flags take precedence.
 
 | Flag                  | Envvar                   | Default                   | Description                                                   |
-| --------------        | -----------------        | ------------------------- | ------------------------------------------------------------- |
+| --------------------- | ------------------------ | ------------------------- | ------------------------------------------------------------- |
 | `metrics-addr`        | `CP_METRICS_ADDR`        | :8080                     | Bind address for the metrics endpoint                         |
 | `crds`                | `CP_CRDS`                | `DNSEndpoint,Certificate` | Comma-separated list of CRDs to be created                    |
 | `name-prefix`         | `CP_NAME_PREFIX`         | ""                        | Prefix of CRD names to be created                             |
 | `service-name`        | `CP_SERVICE_NAME`        | ""                        | NamespacedName of the Contour LoadBalancer Service (required) |
 | `default-issuer-name` | `CP_DEFAULT_ISSUER_NAME` | ""                        | Issuer name used by default                                   |
-| `default-issuer-kind` | `CP_DEFAULT_ISSUER_KIND` | `Issuer`                  | Issuer kind used by default                                   |
+| `default-issuer-kind` | `CP_DEFAULT_ISSUER_KIND` | `ClusterIssuer`           | Issuer kind used by default                                   |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an IngressRoute is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
@@ -41,10 +41,10 @@ You can specify the following annotations on IngressRoute in order to trigger CR
 
 - `contour-plus.cybozu.com/exclude: "true"` - If this annotation is annotated, contour-plus does not generate CRD resources from the IngressRoute.
 - `certmanager.k8s.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this Ingressroute from. The Issuer must be in the same namespace as the IngressRoute.
-- `certmanager.k8s.io/cluster-issuer` - The name of a ClusterIssuer to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
+- `certmanager.k8s.io/cluster-issuer` - The name of a [ClusterIssuer][Issuer] to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
 - `kubernetes.io/tls-acme: "true"` - If this annotation is annotated, contour-plus generate Certificate automatically from IngressRoute.
 
-If both of `certmanager.k8s.io/issuer` and `certmanager.k8s.io/cluster-issuer` are annotated, cluster-issuer takes precedence.
+If both of `certmanager.k8s.io/issuer` and `certmanager.k8s.io/cluster-issuer` exist, `cluster-issuer` takes precedence.
 
 [Contour]: https://github.com/heptio/contour
 [IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md
