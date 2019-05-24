@@ -2,8 +2,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"k8s.io/client-go/kubernetes/scheme"
 	"time"
 
@@ -62,24 +60,6 @@ func testReconcile() {
 
 		By("getting DNSEndpoint")
 		de := &endpoint.DNSEndpoint{}
-		Eventually(func() error {
-			services := contourv1beta1.IngressRouteList{}
-			err := k8sClient.List(context.Background(), &services)
-			if err != nil {
-				fmt.Println("failed to list")
-				return err
-			}
-			if len(services.Items) == 0 {
-				return errors.New("empty")
-			}
-			for _, item := range services.Items {
-				fmt.Println("~~~")
-				fmt.Println("name:", item.Name)
-				fmt.Println("namespace:", item.Namespace)
-				fmt.Println("~~~")
-			}
-			return nil
-		}, time.Second*5).Should(Succeed())
 		objKey := client.ObjectKey{
 			Name:      prefix + irKey.Name,
 			Namespace: irKey.Namespace,

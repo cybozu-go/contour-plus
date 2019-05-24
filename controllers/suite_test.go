@@ -53,7 +53,8 @@ var _ = BeforeSuite(func(done Done) {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "third")},
 	}
-	cfg, err := testEnv.Start()
+	var err error
+	cfg, err = testEnv.Start()
 	Expect(err).ToNot(HaveOccurred())
 	Expect(cfg).ToNot(BeNil())
 
@@ -72,11 +73,15 @@ var _ = BeforeSuite(func(done Done) {
 			Namespace: serviceKey.Namespace,
 			Name:      serviceKey.Name,
 		},
-		Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 8080}}},
+		Spec: corev1.ServiceSpec{
+			Ports:          []corev1.ServicePort{{Port: 8080}},
+			LoadBalancerIP: "10.0.0.0",
+			Type:           corev1.ServiceTypeLoadBalancer,
+		},
 		Status: corev1.ServiceStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{{
-					IP: "1.2.3.4",
+					IP: "10.0.0.0",
 				}},
 			},
 		},
@@ -105,6 +110,7 @@ func startTestManager(mgr manager.Manager) (chan struct{}, *sync.WaitGroup) {
 	}()
 	return stop, wg
 }
+
 func setupManager(mgr *manager.Manager, scheme *runtime.Scheme, client client.Client) error {
 	reconciler := &IngressRouteReconciler{
 		Client:            client,
