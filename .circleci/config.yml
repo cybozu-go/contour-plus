@@ -1,0 +1,25 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: quay.io/cybozu/golang:1.12-bionic
+    working_directory: /work
+    steps:
+      - checkout
+      - run:
+          name: Setup kubebuilder
+          command: |
+            os=$(go env GOOS)
+            arch=$(go env GOARCH)
+            kubebuilder=2.0.0-alpha.2
+            curl -sL https://go.kubebuilder.io/dl/${kubebuilder}/${os}/${arch} | tar -xz -C /tmp/
+            mv /tmp/kubebuilder_${kubebuilder}_${os}_${arch} /usr/local/kubebuilder
+            curl -o /usr/local/kubebuilder/bin/kustomize -sL https://go.kubebuilder.io/kustomize/${os}/${arch}
+            chmod a+x /usr/local/kubebuilder/bin/kustomize
+      - run: make test
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - build
