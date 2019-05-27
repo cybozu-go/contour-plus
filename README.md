@@ -7,29 +7,31 @@
 Contour Plus
 ============
 
-Contour Plus enhances [Contour][] for external-dns and cert-manager.
+Contour Plus enhances [Contour][] for [ExternalDNS][] and [cert-manager][].
 
-**Project Status**: Initial Development
+**Project Status**: Testing for GA
 
 Supported environments
 ----------------------
 
 - Kubernetes
-  - 1.14+
+  - 1.14
 - Contour
-  - 0.12.0+
+  - 0.12
+- ExternalDNS
+  - 0.5
+- cert-manager
+  - 0.8
+
+Other versions may or may not work.
 
 Features
 --------
 
-**TBD**
+- Create/update/delete [DNSEndpoint][] for ExternalDNS according to FQDN in [IngressRoute][].
+- Create/update/delete [Certificate][] for cert-manager when [IngressRoute][] is annotated with `kubernetes.io/tls-acme: true`.
 
-Programs
---------
-
-This repository contains these programs:
-
-- `contour-plus`: Kubernetes controller to operate with [ExternalDNS][] and [cert-manager][]
+Other features are described in [docs/usage.md](docs/usage.md).
 
 Documentation
 -------------
@@ -41,3 +43,6 @@ Documentation
 [Contour]: https://github.com/heptio/contour
 [ExternalDNS]: https://github.com/kubernetes-incubator/external-dns
 [cert-manager]: https://github.com/jetstack/cert-manager
+[IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md
+[DNSEndpoint]: https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source.md
+[Certificate]: http://docs.cert-manager.io/en/latest/reference/certificates.html

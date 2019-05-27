@@ -19,7 +19,7 @@ jobs:
             mv /tmp/kubebuilder_${kubebuilder}_${os}_${arch} /usr/local/kubebuilder
             curl -o /usr/local/kubebuilder/bin/kustomize -sL https://go.kubebuilder.io/kustomize/${os}/${arch}
             chmod a+x /usr/local/kubebuilder/bin/kustomize
-      - run: GO111MODULE=off go get github.com/jstemmer/go-junit-report
+      - run: go install -mod=vendor github.com/jstemmer/go-junit-report
       - run:
           name: Run tests
           command: |
@@ -30,9 +30,62 @@ jobs:
           destination: raw-test-output
       - store_test_results: # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
           path: /tmp/test-results
+      - run: make
+      - persist_to_workspace:
+          root: /work/bin
+          paths:
+            - contour-plus
+  docker:
+    docker:
+      - image: docker:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Copy binary
+          command: |
+            mkdir -p bin
+            cp /tmp/workspace/contour-plus bin
+            chmod a+x bin/contour-plus
+      - run: docker build -t quay.io/cybozu/contour-plus:latest .
+      - run:
+          name: Push image to quay.io
+          command: |
+            if [ "$CIRCLE_TAG" = "" ]; then exit 0; fi
+            docker login -u $QUAY_USER -p $QUAY_PASSWORD quay.io
+            echo "pushing image ..."
+            TAG=$(echo $CIRCLE_TAG | cut -c 2-)
+            docker tag quay.io/cybozu/contour-plus:latest quay.io/cybozu/contour-plus:$TAG
+            docker push quay.io/cybozu/contour-plus:$TAG
+            if echo $TAG | grep -q -e - ; then
+                echo ===== Skip pushing branch tags for pre-release $TAG =====
+                exit 0
+            fi
+            docker push quay.io/cybozu/contour-plus:latest
 
 workflows:
   version: 2
   main:
     jobs:
       - build
+      - docker:
+          requires:
+            - build
+  release:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+      - docker:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
