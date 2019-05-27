@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
@@ -11,54 +11,45 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	dnsName        = "test.example.com"
+	testSecretName = "test-secret"
+)
+
 func testReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
-		scm := scheme.Scheme
-		Expect(setupScheme(scm)).ShouldNot(HaveOccurred())
-
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scm})
-		Expect(err).ShouldNot(HaveOccurred())
-
-		Expect(setupReconciler(&mgr, scm, mgr.GetClient())).ShouldNot(HaveOccurred())
-
-		stopMgr := startTestManager(mgr)
-		defer func() {
-			stopMgr()
-		}()
-
+		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: "test-ns"},
-		}))
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{
-			Name:      "foo",
-			Namespace: "test-ns",
-		}
-		dnsName := "test.example.com"
-		Expect(k8sClient.Create(context.Background(), &contourv1beta1.IngressRoute{
-			ObjectMeta: v1.ObjectMeta{
-				Namespace: irKey.Namespace,
-				Name:      irKey.Name,
-				Annotations: map[string]string{
-					testACMETLSAnnotation: "true",
-				},
-			},
-			Spec: contourv1beta1.IngressRouteSpec{
-				VirtualHost: &contourv1beta1.VirtualHost{
-					Fqdn: dnsName,
-					TLS:  &contourv1beta1.TLS{SecretName: "test-secret"},
-				},
-				Routes: []contourv1beta1.Route{},
-			},
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		scm, mgr := setupManager()
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		prefix := "test-"
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			prefix:            prefix,
+			defaultIssuerName: "test-issuer",
+			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			createDNSEndpoint: true,
+			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
-		By("getting DNSEndpoint")
+		By("creating IngressRoute")
+		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+
+		By("getting DNSEndpoint with prefixed name")
 		de := &endpoint.DNSEndpoint{}
 		objKey := client.ObjectKey{
 			Name:      prefix + irKey.Name,
@@ -70,14 +61,193 @@ func testReconcile() {
 		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{"10.0.0.0"}))
 		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
 
-		By("getting Certificate")
+		By("getting Certificate with prefixed name")
 		crt := &certmanagerv1alpha1.Certificate{}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		fmt.Println("aaaaaaaaaaaaaaaaaa")
-		fmt.Println(crt.Spec.SecretName)
-		fmt.Println("aaaaaaaaaaaaaaaaaa")
 	})
+
+	It("should create Certificate with specified IssuerKind", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		By("setup manager with ClusterIssuer")
+		scm, mgr := setupManager()
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			defaultIssuerName: "test-issuer",
+			defaultIssuerKind: certmanagerv1alpha1.ClusterIssuerKind,
+			createCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating IngressRoute")
+		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		certificate := &certmanagerv1alpha1.Certificate{}
+		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, certificate)
+		}, 5*time.Second).Should(Succeed())
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha1.ClusterIssuerKind))
+		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("test-issuer"))
+	})
+
+	It("should create Certificate with Issuer specified in annotations", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		By("setup manager")
+		scm, mgr := setupManager()
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			defaultIssuerName: "test-issuer",
+			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			createCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating IngressRoute with annotations")
+		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		ingressRoute := newDummyIngressRoute(irKey)
+		ingressRoute.Annotations[issuerNameAnnotation] = "custom-issuer"
+		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		certificate := &certmanagerv1alpha1.Certificate{}
+		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, certificate)
+		}, 5*time.Second).Should(Succeed())
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha1.IssuerKind))
+		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
+	})
+
+	It("should create DNSEndpoint, but should not create Certificate", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		By("disabling the feature to create Certificate")
+		scm, mgr := setupManager()
+
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			defaultIssuerName: "test-issuer",
+			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			createDNSEndpoint: true,
+			createCertificate: false,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating IngressRoute")
+		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+
+		By("getting DNSEndpoint")
+		de := &endpoint.DNSEndpoint{}
+		objKey := client.ObjectKey{
+			Name:      irKey.Name,
+			Namespace: irKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, de)
+		}, 5*time.Second).Should(Succeed())
+		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{dummyLoadBalancerIP}))
+		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+
+		By("confirming that Certificate does not exist")
+		crt := &certmanagerv1alpha1.Certificate{}
+		Eventually(func() error {
+			err := k8sClient.Get(context.Background(), objKey, crt)
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			return errors.New("error is not NotFound:" + err.Error())
+		}).Should(Succeed())
+	})
+
+	It("should create Certificate, but should not create DNSEndpoint", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		By("disabling the feature to create DNSEndpoint")
+		scm, mgr := setupManager()
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			defaultIssuerName: "test-issuer",
+			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			createDNSEndpoint: false,
+			createCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating IngressRoute")
+		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		certificate := &certmanagerv1alpha1.Certificate{}
+		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, certificate)
+		}, 5*time.Second).Should(Succeed())
+		Expect(certificate.Spec.SecretName).Should(Equal(testSecretName))
+
+		By("confirming that DNSEndpoint does not exist")
+		de := &endpoint.DNSEndpoint{}
+		Eventually(func() error {
+			err := k8sClient.Get(context.Background(), objKey, de)
+			if k8serrors.IsNotFound(err) {
+				return nil
+			}
+			return errors.New("error is not NotFound:" + err.Error())
+		}).Should(Succeed())
+	})
+}
+
+func newDummyIngressRoute(irKey client.ObjectKey) *contourv1beta1.IngressRoute {
+	return &contourv1beta1.IngressRoute{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: irKey.Namespace,
+			Name:      irKey.Name,
+			Annotations: map[string]string{
+				testACMETLSAnnotation: "true",
+			},
+		},
+		Spec: contourv1beta1.IngressRouteSpec{
+			VirtualHost: &contourv1beta1.VirtualHost{
+				Fqdn: dnsName,
+				TLS:  &contourv1beta1.TLS{SecretName: testSecretName},
+			},
+			Routes: []contourv1beta1.Route{},
+		},
+	}
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"math/rand"
 	"path/filepath"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,7 +36,18 @@ var (
 	serviceKey = client.ObjectKey{Namespace: "test-ns", Name: "test-svc"}
 )
 
-const prefix = "test-"
+const (
+	testNamespacePrefix = "test-ns-"
+	dummyLoadBalancerIP = "10.0.0.0"
+)
+
+type reconcilerOptions struct {
+	prefix            string
+	defaultIssuerName string
+	defaultIssuerKind string
+	createDNSEndpoint bool
+	createCertificate bool
+}
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -73,13 +86,13 @@ var _ = BeforeSuite(func() {
 		},
 		Spec: corev1.ServiceSpec{
 			Ports:          []corev1.ServicePort{{Port: 8080}},
-			LoadBalancerIP: "10.0.0.0",
+			LoadBalancerIP: dummyLoadBalancerIP,
 			Type:           corev1.ServiceTypeLoadBalancer,
 		},
 		Status: corev1.ServiceStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: []corev1.LoadBalancerIngress{{
-					IP: "10.0.0.0",
+					IP: dummyLoadBalancerIP,
 				}},
 			},
 		},
@@ -115,19 +128,19 @@ func startTestManager(mgr manager.Manager) (stop func()) {
 	return
 }
 
-func setupReconciler(mgr *manager.Manager, scheme *runtime.Scheme, client client.Client) error {
+func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcilerOptions) error {
 	reconciler := &IngressRouteReconciler{
-		Client:            client,
+		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
 		Scheme:            scheme,
 		ServiceKey:        serviceKey,
-		Prefix:            prefix,
-		DefaultIssuerName: "test-issuer",
-		DefaultIssuerKind: certmanagerv1alpha1.ClusterIssuerKind,
-		CreateDNSEndpoint: true,
-		CreateCertificate: true,
+		Prefix:            opts.prefix,
+		DefaultIssuerName: opts.defaultIssuerName,
+		DefaultIssuerKind: opts.defaultIssuerKind,
+		CreateDNSEndpoint: opts.createDNSEndpoint,
+		CreateCertificate: opts.createCertificate,
 	}
-	return reconciler.SetupWithManager(*mgr)
+	return reconciler.SetupWithManager(mgr)
 }
 
 func setupScheme(scm *runtime.Scheme) error {
@@ -150,4 +163,22 @@ func setupScheme(scm *runtime.Scheme) error {
 	}
 
 	return corev1.AddToScheme(scm)
+}
+
+func setupManager() (*runtime.Scheme, manager.Manager) {
+	scm := scheme.Scheme
+	Expect(setupScheme(scm)).ShouldNot(HaveOccurred())
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scm})
+	Expect(err).ShouldNot(HaveOccurred())
+	return scm, mgr
+}
+
+func randomString(n int) string {
+	var letter = []rune("abcdefghijklmnopqrstuvwxyz")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letter[rand.Intn(len(letter))]
+	}
+	return string(b)
 }
