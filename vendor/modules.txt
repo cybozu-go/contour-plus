@@ -61,7 +61,6 @@ github.com/imdario/mergo
 github.com/inconshreveable/mousetrap
 # github.com/jetstack/cert-manager v0.7.2
 github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1
-github.com/jetstack/cert-manager/test/unit/gen
 github.com/jetstack/cert-manager/pkg/apis/certmanager
 # github.com/json-iterator/go v1.1.6
 github.com/json-iterator/go
@@ -253,9 +252,9 @@ k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
 k8s.io/api/admission/v1beta1
 # k8s.io/apiextensions-apiserver v0.0.0-20190409022649-727a075fdec8
+k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
-k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
 # k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
@@ -265,11 +264,11 @@ k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/types
 k8s.io/apimachinery/pkg/runtime/schema
 k8s.io/apimachinery/pkg/api/resource
+k8s.io/apimachinery/pkg/util/intstr
 k8s.io/apimachinery/pkg/conversion
 k8s.io/apimachinery/pkg/fields
 k8s.io/apimachinery/pkg/labels
 k8s.io/apimachinery/pkg/selection
-k8s.io/apimachinery/pkg/util/intstr
 k8s.io/apimachinery/pkg/util/runtime
 k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/pkg/conversion/queryparams

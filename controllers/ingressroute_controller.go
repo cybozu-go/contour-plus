@@ -103,13 +103,12 @@ func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *c
 		return err
 	}
 
-	//for _, ing := range svc.Status.LoadBalancer.Ingress {
-	//	if len(ing.IP) == 0 {
-	//		continue
-	//	}
-	//	serviceIPs = append(serviceIPs, net.ParseIP(ing.IP))
-	//}
-	serviceIPs = append(serviceIPs, net.ParseIP(svc.Spec.LoadBalancerIP))
+	for _, ing := range svc.Status.LoadBalancer.Ingress {
+		if len(ing.IP) == 0 {
+			continue
+		}
+		serviceIPs = append(serviceIPs, net.ParseIP(ing.IP))
+	}
 	if len(serviceIPs) == 0 {
 		return errors.New("no IP address for service " + r.ServiceKey.String())
 	}

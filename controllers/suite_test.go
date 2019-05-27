@@ -2,9 +2,7 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
@@ -69,7 +67,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(k8sClient).ToNot(BeNil())
 
 	By("creating IngressRoute loadbalancer service")
-	Expect(k8sClient.Create(context.Background(), &corev1.Service{
+	svc := &corev1.Service{
 		ObjectMeta: ctrl.ObjectMeta{
 			Namespace: serviceKey.Namespace,
 			Name:      serviceKey.Name,
@@ -86,14 +84,9 @@ var _ = BeforeSuite(func(done Done) {
 				}},
 			},
 		},
-	})).ShouldNot(HaveOccurred())
-	svc := corev1.Service{}
-	err = k8sClient.Get(context.Background(), serviceKey, &svc)
-	Expect(err).ToNot(HaveOccurred())
-	fmt.Println("1111111111")
-	fmt.Println(svc.Status.LoadBalancer.Ingress)
-	fmt.Println("2222222222")
-
+	}
+	Expect(k8sClient.Create(context.Background(), svc)).ShouldNot(HaveOccurred())
+	Expect(k8sClient.Status().Update(context.Background(), svc)).ShouldNot(HaveOccurred())
 	close(done)
 }, 60)
 
@@ -107,24 +100,30 @@ var _ = Describe("Test contour-plus", func() {
 	Context("contour-plus", testReconcile)
 })
 
-func startTestManager(mgr manager.Manager) (chan struct{}, *sync.WaitGroup) {
-	stop := make(chan struct{})
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
+func startTestManager(mgr manager.Manager) (stop func()) {
+	ch := make(chan struct{})
+	waitCh := make(chan struct{})
+	stop = func() {
+		close(ch)
+		<-waitCh
+	}
 	go func() {
-		defer wg.Done()
-		Expect(mgr.Start(stop)).NotTo(HaveOccurred())
+		err := mgr.Start(ch)
+		if err != nil {
+			panic(err)
+		}
+		close(waitCh)
 	}()
-	return stop, wg
+	return
 }
 
-func setupManager(mgr *manager.Manager, scheme *runtime.Scheme, client client.Client) error {
+func setupReconciler(mgr *manager.Manager, scheme *runtime.Scheme, client client.Client) error {
 	reconciler := &IngressRouteReconciler{
 		Client:            client,
 		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
 		Scheme:            scheme,
 		ServiceKey:        serviceKey,
-		Prefix:            "test-",
+		Prefix:            prefix,
 		DefaultIssuerName: "test-issuer",
 		DefaultIssuerKind: certmanagerv1alpha1.ClusterIssuerKind,
 		CreateDNSEndpoint: true,

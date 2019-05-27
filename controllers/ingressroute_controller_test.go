@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/kubernetes/scheme"
 	"time"
 
 	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
@@ -13,24 +12,24 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func testReconcile() {
-	It("should create DNSEndpoint and Certificate", func(done Done) {
+	It("should create DNSEndpoint and Certificate", func() {
 		scm := scheme.Scheme
 		Expect(setupScheme(scm)).ShouldNot(HaveOccurred())
 
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scm})
 		Expect(err).ShouldNot(HaveOccurred())
 
-		Expect(setupManager(&mgr, scm, mgr.GetClient())).ShouldNot(HaveOccurred())
+		Expect(setupReconciler(&mgr, scm, mgr.GetClient())).ShouldNot(HaveOccurred())
 
-		stopMgr, mgrStopped := startTestManager(mgr)
+		stopMgr := startTestManager(mgr)
 		defer func() {
-			close(stopMgr)
-			mgrStopped.Wait()
+			stopMgr()
 		}()
 
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
@@ -76,5 +75,11 @@ func testReconcile() {
 		fmt.Println("aaaaaaaaaaaaaaaaaa")
 		fmt.Println(crt.Spec.SecretName)
 		fmt.Println("aaaaaaaaaaaaaaaaaa")
+	})
+
+	It("debug", func() {
+		del := &endpoint.DNSEndpointList{}
+		k8sClient.List(context.Background(), del)
+		fmt.Printf("aaa: %+v\n", del)
 	})
 }
