@@ -11,7 +11,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -45,7 +44,7 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{envtest.NewlineReporter{}})
 }
 
-var _ = BeforeSuite(func(done Done) {
+var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
 
 	By("bootstrapping test environment")
@@ -63,8 +62,8 @@ var _ = BeforeSuite(func(done Done) {
 	// +kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(k8sClient).ToNot(BeNil())
+	Expect(err).NotTo(HaveOccurred())
+	Expect(k8sClient).NotTo(BeNil())
 
 	By("creating IngressRoute loadbalancer service")
 	svc := &corev1.Service{
@@ -87,13 +86,12 @@ var _ = BeforeSuite(func(done Done) {
 	}
 	Expect(k8sClient.Create(context.Background(), svc)).ShouldNot(HaveOccurred())
 	Expect(k8sClient.Status().Update(context.Background(), svc)).ShouldNot(HaveOccurred())
-	close(done)
 }, 60)
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	err := testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = Describe("Test contour-plus", func() {
@@ -133,22 +131,10 @@ func setupReconciler(mgr *manager.Manager, scheme *runtime.Scheme, client client
 }
 
 func setupScheme(scm *runtime.Scheme) error {
-	err := contourv1beta1.AddToScheme(scm)
-	if err != nil {
+	if err := contourv1beta1.AddToScheme(scm); err != nil {
 		return err
 	}
-	err = apiextensions.AddToScheme(scm)
-	if err != nil {
-		return err
-	}
-	err = certmanagerv1alpha1.AddToScheme(scm)
-	if err != nil {
-		return err
-	}
-	err = corev1.AddToScheme(scm)
-	if err != nil {
-		return err
-	}
+
 	groupVersion := ctrl.GroupVersion{
 		Group:   "externaldns.k8s.io",
 		Version: "v1alpha1",
@@ -158,5 +144,10 @@ func setupScheme(scm *runtime.Scheme) error {
 		&endpoint.DNSEndpointList{},
 	)
 	metav1.AddToGroupVersion(scm, groupVersion)
-	return nil
+
+	if err := certmanagerv1alpha1.AddToScheme(scm); err != nil {
+		return err
+	}
+
+	return corev1.AddToScheme(scm)
 }

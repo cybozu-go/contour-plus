@@ -64,22 +64,20 @@ func testReconcile() {
 			Name:      prefix + irKey.Name,
 			Namespace: irKey.Namespace,
 		}
-		Eventually(k8sClient.Get(context.Background(), objKey, de), 10*time.Second).Should(Succeed())
-		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{"1.2.3.4"}))
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, de)
+		}, 5*time.Second).Should(Succeed())
+		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{"10.0.0.0"}))
 		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
 
 		By("getting Certificate")
 		crt := &certmanagerv1alpha1.Certificate{}
-		Eventually(k8sClient.Get(context.Background(), objKey, crt)).Should(Succeed())
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
 
 		fmt.Println("aaaaaaaaaaaaaaaaaa")
 		fmt.Println(crt.Spec.SecretName)
 		fmt.Println("aaaaaaaaaaaaaaaaaa")
-	})
-
-	It("debug", func() {
-		del := &endpoint.DNSEndpointList{}
-		k8sClient.List(context.Background(), del)
-		fmt.Printf("aaa: %+v\n", del)
 	})
 }
