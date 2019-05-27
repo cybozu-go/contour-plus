@@ -64,7 +64,6 @@ func testReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
-
 	})
 
 	It(`should not create DNSEndpoint and Certificate if "contour-plus.cybozu.com/exclude"" is "true"`, func() {
@@ -342,6 +341,70 @@ func testReconcile() {
 		}, 5*time.Second).Should(Succeed())
 		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{dummyLoadBalancerIP}))
 		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+
+		By("confirming that Certificate does not exist")
+		time.Sleep(time.Second)
+		crtList := &certmanagerv1alpha1.CertificateList{}
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+	})
+
+	It("should create Certificate, if `defaultIssuerName` is empty but 'issuer-name' annotation is not empty", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		By("setup reconciler with empty defaultIssuerName")
+		scm, mgr := setupManager()
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			createCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating IngressRoute")
+		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		ingressRoute := newDummyIngressRoute(irKey)
+		ingressRoute.Annotations[issuerNameAnnotation] = "custom-issuer"
+		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate with specified name")
+		crt := &certmanagerv1alpha1.Certificate{}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: irKey.Name}, crt)
+		}).Should(Succeed())
+		Expect(crt.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
+		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha1.IssuerKind))
+	})
+
+	It("should not create Certificate, if `defaultIssuerName` and 'issuer-name' annotation are empty", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		By("setup reconciler with empty defaultIssuerName")
+		scm, mgr := setupManager()
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			createCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating IngressRoute")
+		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
