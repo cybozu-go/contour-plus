@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -86,6 +87,12 @@ var _ = BeforeSuite(func(done Done) {
 			},
 		},
 	})).ShouldNot(HaveOccurred())
+	svc := corev1.Service{}
+	err = k8sClient.Get(context.Background(), serviceKey, &svc)
+	Expect(err).ToNot(HaveOccurred())
+	fmt.Println("1111111111")
+	fmt.Println(svc.Status.LoadBalancer.Ingress)
+	fmt.Println("2222222222")
 
 	close(done)
 }, 60)

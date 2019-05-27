@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"k8s.io/client-go/kubernetes/scheme"
 	"time"
 
@@ -71,5 +72,9 @@ func testReconcile() {
 		By("getting Certificate")
 		crt := &certmanagerv1alpha1.Certificate{}
 		Eventually(k8sClient.Get(context.Background(), objKey, crt)).Should(Succeed())
+
+		fmt.Println("aaaaaaaaaaaaaaaaaa")
+		fmt.Println(crt.Spec.SecretName)
+		fmt.Println("aaaaaaaaaaaaaaaaaa")
 	})
 }
