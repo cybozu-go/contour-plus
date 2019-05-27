@@ -4,8 +4,11 @@ jobs:
     docker:
       - image: quay.io/cybozu/golang:1.12-bionic
     working_directory: /work
+    environment:
+      TEST_RESULTS: /tmp/test-results
     steps:
       - checkout
+      - run: mkdir -p ${TEST_RESULTS}
       - run:
           name: Setup kubebuilder
           command: |
@@ -16,7 +19,17 @@ jobs:
             mv /tmp/kubebuilder_${kubebuilder}_${os}_${arch} /usr/local/kubebuilder
             curl -o /usr/local/kubebuilder/bin/kustomize -sL https://go.kubebuilder.io/kustomize/${os}/${arch}
             chmod a+x /usr/local/kubebuilder/bin/kustomize
-      - run: make test
+      - run: GO111MODULE=off go get github.com/jstemmer/go-junit-report
+      - run:
+          name: Run tests
+          command: |
+            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
+            make test | tee ${TEST_RESULTS}/go-test.out
+      - store_artifacts: # Upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
+          path: /tmp/test-results
+          destination: raw-test-output
+      - store_test_results: # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
+          path: /tmp/test-results
 
 workflows:
   version: 2
