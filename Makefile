@@ -4,11 +4,16 @@ IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
+GOFLAGS = -mod=vendor
+export GOFLAGS
+
 all: manager
 
 # Run tests
-test: generate fmt vet manifests
-	go test ./api/... ./controllers/... -coverprofile cover.out
+test: vet manifests
+	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
+	test -z "$$(golint $$(go list ./... | grep -v /vendor/) | tee /dev/stderr)"
+	go test -v -count 1 ./controllers/... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
@@ -29,7 +34,7 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./apis/contour/...;./controllers/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./controllers/..."
 
 # Run go fmt against code
 fmt:
@@ -57,7 +62,7 @@ docker-push:
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.0-beta.1
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen
 CONTROLLER_GEN=$(shell go env GOPATH)/bin/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
