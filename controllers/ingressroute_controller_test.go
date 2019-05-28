@@ -31,8 +31,6 @@ func testReconcile() {
 		})
 
 		scm, mgr := setupManager()
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
 
 		prefix := "test-"
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
@@ -42,6 +40,9 @@ func testReconcile() {
 			createDNSEndpoint: true,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
 
 		By("creating IngressRoute")
 		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
@@ -76,8 +77,6 @@ func testReconcile() {
 		})
 
 		scm, mgr := setupManager()
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
 
 		prefix := "test-"
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
@@ -87,6 +86,9 @@ func testReconcile() {
 			createDNSEndpoint: true,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
 
 		By("creating IngressRoute having the annotation to exclude from contour-plus's targets")
 		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
