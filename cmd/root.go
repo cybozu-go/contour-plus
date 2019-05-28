@@ -103,6 +103,10 @@ In addition to flags, the following environment variables are read:
 	},
 }
 
+// Permissions to do leader election.
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=configmaps/status,verbs=get;update;patch
+
 func subMain() error {
 	ctrl.SetLogger(zap.Logger(true))
 
@@ -139,7 +143,17 @@ func subMain() error {
 		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{Scheme: scheme, MetricsBindAddress: viper.GetString("metrics-addr")})
+	// If POD_NAMESPACE environment variable is set,
+	// contour-plus will do leader election.
+	podNS := os.Getenv("POD_NAMESPACE")
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:                  scheme,
+		MetricsBindAddress:      viper.GetString("metrics-addr"),
+		LeaderElection:          len(podNS) != 0,
+		LeaderElectionNamespace: podNS,
+		LeaderElectionID:        "contour-plus-leader",
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		return err
