@@ -22,7 +22,7 @@ bin/contour-plus: main.go cmd/root.go controllers/ingressroute_controller.go
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./controllers/..."
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=contour-plus paths="./..."
 
 # Run go vet against code
 vet:

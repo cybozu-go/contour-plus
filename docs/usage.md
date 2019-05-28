@@ -35,9 +35,27 @@ How it works
 contour-plus should be deployed with Deployment.  It monitors events for [IngressRoute][] and
 creates / updates / deletes [DNSEndpoint][] and/or [Certificate][].
 
+### Leader election
+
+contour-plus will do leader election if `POD_NAMESPACE` environment variable is set.
+The environment variable should be given in deployment YAML as follows:
+
+```yaml
+    containers:
+    - name: contour-plus
+      image: quay.io/cybozu/contour-plus:latest
+      env:
+      - name: POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+```
+
+The container should be deployed as a sidecar of Contour/Envoy pod.
+
 ### Supported annotations
 
-You can specify the following annotations on IngressRoute in order to trigger CRD resources to be automatically created.
+contour-plus interprets following annotations for IngressRoute.
 
 - `contour-plus.cybozu.com/exclude: "true"` - If this annotation is annotated, contour-plus does not generate CRD resources from the IngressRoute.
 - `certmanager.k8s.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this Ingressroute from. The Issuer must be in the same namespace as the IngressRoute.
