@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2019-05-28
+
+### Added
+- Leader election (#5).
+
 ## [0.1.0] - 2019-05-28
 
 ### Added
@@ -16,7 +21,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cybozu-go/contour-plus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cybozu-go/contour-plus/compare/e51fdf92f56eaf3e9eb4b3cce6527dc6d97626e3...v0.1.0
 [kubebuilder]: https://github.com/kubernetes-sigs/kubebuilder
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
