@@ -1,13 +1,14 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= quay.io/cybozu/contour-plus:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-GOFLAGS = -mod=vendor
-export GOFLAGS
+GO111MODULE = on
+GOFLAGS     = -mod=vendor
+export GO111MODULE GOFLAGS
 
-all: manager
+all: bin/contour-plus
 
 # Run tests
 test: vet manifests
@@ -15,30 +16,13 @@ test: vet manifests
 	test -z "$$(golint $$(go list ./... | grep -v /vendor/) | tee /dev/stderr)"
 	go test -v -count 1 ./controllers/... -coverprofile cover.out
 
-# Build manager binary
-manager: generate fmt vet
-	go build -o bin/manager main.go
-
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet
-	go run ./main.go
-
-# Install CRDs into a cluster
-install: manifests
-	kubectl apply -f config/crd/bases
-
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests
-	kubectl apply -f config/crd/bases
-	kustomize build config/default | kubectl apply -f -
+# Build contour-plus binary
+bin/contour-plus: main.go cmd/root.go controllers/ingressroute_controller.go
+	CGO_ENABLED=0 go build -o $@ .
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./controllers/..."
-
-# Run go fmt against code
-fmt:
-	go fmt ./...
 
 # Run go vet against code
 vet:
@@ -49,7 +33,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths=./apis/contour/...
 
 # Build the docker image
-docker-build: test
+docker-build: bin/contour-plus
 	docker build . -t ${IMG}
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
@@ -67,3 +51,8 @@ CONTROLLER_GEN=$(shell go env GOPATH)/bin/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
+
+clean:
+	rm -f bin/contour-plus $(CONTROLLER_GEN)
+
+.PHONY: all test manifests vet generate docker-build docker-push

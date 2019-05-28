@@ -247,11 +247,14 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return requests
 		})
 
-	return ctrl.NewControllerManagedBy(mgr).
+	b := ctrl.NewControllerManagedBy(mgr).
 		For(&contourv1beta1.IngressRoute{}).
-		Owns(&endpoint.DNSEndpoint{}).
-		Owns(&certmanagerv1alpha1.Certificate{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
-		Watches(&source.Kind{Type: &certmanagerv1alpha1.Issuer{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs}).
-		Complete(r)
+		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs})
+	if r.CreateDNSEndpoint {
+		b = b.Owns(&endpoint.DNSEndpoint{})
+	}
+	if r.CreateCertificate {
+		b = b.Owns(&certmanagerv1alpha1.Certificate{})
+	}
+	return b.Complete(r)
 }
