@@ -115,7 +115,7 @@ In addition to flags, the following environment variables are read:
 // +kubebuilder:rbac:groups="",resources=configmaps/status,verbs=get;update;patch
 
 func subMain() error {
-	ctrl.SetLogger(zap.Logger(true))
+	ctrl.SetLogger(zap.Logger(false))
 
 	crds := viper.GetStringSlice("crds")
 	if len(crds) == 0 {
