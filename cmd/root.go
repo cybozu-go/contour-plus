@@ -69,7 +69,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	fs := rootCmd.Flags()
-	fs.String("metrics-addr", ":8080", "Bind address for the metrics endpoint")
+	fs.String("metrics-addr", ":8180", "Bind address for the metrics endpoint")
 	fs.StringSlice("crds", []string{dnsEndpointKind, certmanagerv1alpha1.CertificateKind}, "List of CRD names to be created")
 	fs.String("name-prefix", "", "Prefix of CRD names to be created")
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
