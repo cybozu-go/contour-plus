@@ -78,9 +78,6 @@ func init() {
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
-	if err := cobra.MarkFlagRequired(fs, "service-name"); err != nil {
-		panic(err)
-	}
 	viper.SetEnvPrefix("cp")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
