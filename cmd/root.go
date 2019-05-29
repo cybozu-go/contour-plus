@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -82,6 +84,11 @@ func init() {
 	viper.SetEnvPrefix("cp")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
+
+	// Because k8s.io/klog uses Go flag package, we need to add flags for klog to fs.
+	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(goflags)
+	fs.AddGoFlagSet(goflags)
 }
 
 var rootCmd = &cobra.Command{
@@ -108,7 +115,7 @@ In addition to flags, the following environment variables are read:
 // +kubebuilder:rbac:groups="",resources=configmaps/status,verbs=get;update;patch
 
 func subMain() error {
-	ctrl.SetLogger(zap.Logger(true))
+	ctrl.SetLogger(zap.Logger(false))
 
 	crds := viper.GetStringSlice("crds")
 	if len(crds) == 0 {
