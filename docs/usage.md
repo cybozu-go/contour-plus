@@ -13,7 +13,7 @@ If both is specified, command-line flags take precedence.
 
 | Flag                  | Envvar                   | Default                   | Description                                                   |
 | --------------------- | ------------------------ | ------------------------- | ------------------------------------------------------------- |
-| `metrics-addr`        | `CP_METRICS_ADDR`        | :8080                     | Bind address for the metrics endpoint                         |
+| `metrics-addr`        | `CP_METRICS_ADDR`        | :8180                     | Bind address for the metrics endpoint                         |
 | `crds`                | `CP_CRDS`                | `DNSEndpoint,Certificate` | Comma-separated list of CRDs to be created                    |
 | `name-prefix`         | `CP_NAME_PREFIX`         | ""                        | Prefix of CRD names to be created                             |
 | `service-name`        | `CP_SERVICE_NAME`        | ""                        | NamespacedName of the Contour LoadBalancer Service (required) |

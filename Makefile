@@ -8,6 +8,11 @@ GO111MODULE = on
 GOFLAGS     = -mod=vendor
 export GO111MODULE GOFLAGS
 
+GOOS = $(shell go env GOOS)
+GOARCH = $(shell go env GOARCH)
+SUDO = sudo
+KUBEBUILDER_VERSION = 2.0.0-alpha.2
+
 all: bin/contour-plus
 
 # Run tests
@@ -54,5 +59,12 @@ endif
 
 clean:
 	rm -f bin/contour-plus $(CONTROLLER_GEN)
+
+setup:
+	curl -sL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
+	$(SUDO) mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH) /usr/local/kubebuilder
+	$(SUDO) curl -o /usr/local/kubebuilder/bin/kustomize -sL https://go.kubebuilder.io/kustomize/$(GOOS)/$(GOARCH)
+	$(SUDO) chmod a+x /usr/local/kubebuilder/bin/kustomize
+	go install github.com/jstemmer/go-junit-report
 
 .PHONY: all test manifests vet generate docker-build docker-push

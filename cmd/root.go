@@ -69,16 +69,13 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	fs := rootCmd.Flags()
-	fs.String("metrics-addr", ":8080", "Bind address for the metrics endpoint")
+	fs.String("metrics-addr", ":8180", "Bind address for the metrics endpoint")
 	fs.StringSlice("crds", []string{dnsEndpointKind, certmanagerv1alpha1.CertificateKind}, "List of CRD names to be created")
 	fs.String("name-prefix", "", "Prefix of CRD names to be created")
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
 	fs.String("default-issuer-kind", certmanagerv1alpha1.ClusterIssuerKind, "Issuer kind used by default")
 	if err := viper.BindPFlags(fs); err != nil {
-		panic(err)
-	}
-	if err := cobra.MarkFlagRequired(fs, "service-name"); err != nil {
 		panic(err)
 	}
 	viper.SetEnvPrefix("cp")
