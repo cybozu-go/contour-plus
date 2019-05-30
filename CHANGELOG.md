@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2019-05-30
+
+### Fixed
+- Changed the default port of metrics server to :8180 (#8)
+- Do not mandate --service-name as it can be passed via CP_SERVICE_NAME envvar too (#8)
+
 ## [0.2.1] - 2019-05-29
 
 ### Fixed
@@ -26,7 +32,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/cybozu-go/contour-plus/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/cybozu-go/contour-plus/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/cybozu-go/contour-plus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cybozu-go/contour-plus/compare/e51fdf92f56eaf3e9eb4b3cce6527dc6d97626e3...v0.1.0
