@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"net"
 
 	"github.com/go-logr/logr"
@@ -91,6 +90,9 @@ func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *c
 		return nil
 	}
 
+	if ir.Spec.VirtualHost == nil {
+		return nil
+	}
 	fqdn := ir.Spec.VirtualHost.Fqdn
 	if len(fqdn) == 0 {
 		return nil
@@ -111,7 +113,10 @@ func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *c
 		serviceIPs = append(serviceIPs, net.ParseIP(ing.IP))
 	}
 	if len(serviceIPs) == 0 {
-		return errors.New("no IP address for service " + r.ServiceKey.String())
+		log.Info("no IP address for service " + r.ServiceKey.String())
+		// we can return nil here because the controller will be notified
+		// as soon as a new IP address is assigned to the service.
+		return nil
 	}
 
 	de := &endpoint.DNSEndpoint{
@@ -175,17 +180,17 @@ func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *c
 		return nil
 	}
 
-	fqdn := ir.Spec.VirtualHost.Fqdn
-	if len(fqdn) == 0 {
+	vh := ir.Spec.VirtualHost
+	switch {
+	case vh == nil:
+		return nil
+	case vh.Fqdn == "":
+		return nil
+	case vh.TLS == nil:
+		return nil
+	case vh.TLS.SecretName == "":
 		return nil
 	}
-	if len(ir.Spec.VirtualHost.TLS.SecretName) == 0 {
-		return nil
-	}
-
-	crt := &certmanagerv1alpha1.Certificate{}
-	crt.SetNamespace(ir.Namespace)
-	crt.SetName(r.Prefix + ir.Name)
 
 	issuerName := r.DefaultIssuerName
 	issuerKind := r.DefaultIssuerKind
@@ -203,10 +208,13 @@ func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *c
 		return nil
 	}
 
+	crt := &certmanagerv1alpha1.Certificate{}
+	crt.SetNamespace(ir.Namespace)
+	crt.SetName(r.Prefix + ir.Name)
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
-		crt.Spec.DNSNames = []string{fqdn}
-		crt.Spec.SecretName = ir.Spec.VirtualHost.TLS.SecretName
-		crt.Spec.CommonName = fqdn
+		crt.Spec.DNSNames = []string{vh.Fqdn}
+		crt.Spec.SecretName = vh.TLS.SecretName
+		crt.Spec.CommonName = vh.Fqdn
 		crt.Spec.IssuerRef.Name = issuerName
 		crt.Spec.IssuerRef.Kind = issuerKind
 		return ctrl.SetControllerReference(ir, crt, r.Scheme)
@@ -241,8 +249,8 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			requests := make([]reconcile.Request, len(irList.Items))
 			for i, ir := range irList.Items {
 				requests[i] = reconcile.Request{NamespacedName: types.NamespacedName{
-					Name:      ir.GetObjectMeta().GetName(),
-					Namespace: ir.GetObjectMeta().GetNamespace(),
+					Name:      ir.Name,
+					Namespace: ir.Namespace,
 				}}
 			}
 			return requests
