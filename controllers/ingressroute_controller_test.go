@@ -67,6 +67,48 @@ func testReconcile() {
 		}).Should(Succeed())
 	})
 
+	It("should not crash with null fields", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		scm, mgr := setupManager()
+
+		Expect(setupReconciler(mgr, scm, reconcilerOptions{
+			defaultIssuerName: "test-issuer",
+			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			createDNSEndpoint: true,
+			createCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating IngressRoute with null virtualHost")
+		ir := &contourv1beta1.IngressRoute{}
+		ir.Namespace = ns
+		ir.Name = "foo"
+		ir.Spec.Routes = []contourv1beta1.Route{}
+		Expect(k8sClient.Create(context.Background(), ir)).ShouldNot(HaveOccurred())
+
+		By("creating IngressRoute with null TLS")
+		ir = &contourv1beta1.IngressRoute{}
+		ir.Namespace = ns
+		ir.Name = "foo2"
+		ir.Annotations = map[string]string{
+			testACMETLSAnnotation: "true",
+		}
+		ir.Spec.VirtualHost = &contourv1beta1.VirtualHost{
+			Fqdn: "foo2.example.com",
+		}
+		ir.Spec.Routes = []contourv1beta1.Route{}
+		Expect(k8sClient.Create(context.Background(), ir)).ShouldNot(HaveOccurred())
+	})
+
 	It(`should not create DNSEndpoint and Certificate if "contour-plus.cybozu.com/exclude"" is "true"`, func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
