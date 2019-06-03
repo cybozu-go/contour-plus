@@ -5,10 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [0.2.3] - 2019-06-03
+## [0.2.4] - 2019-06-03
 
 ### Fixed
 - Fixed resource name of Certificate in RBAC (#9)
+
+## [0.2.3] - 2019-06-03
+
+### Fixed
 - Fixed null pointer exception bugs (#10)
 
 ## [0.2.2] - 2019-05-30
@@ -38,7 +42,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/cybozu-go/contour-plus/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/cybozu-go/contour-plus/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/cybozu-go/contour-plus/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/cybozu-go/contour-plus/compare/v0.2.0...v0.2.1
