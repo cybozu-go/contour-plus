@@ -19,6 +19,7 @@ If both is specified, command-line flags take precedence.
 | `service-name`        | `CP_SERVICE_NAME`        | ""                        | NamespacedName of the Contour LoadBalancer Service |
 | `default-issuer-name` | `CP_DEFAULT_ISSUER_NAME` | ""                        | Issuer name used by default                        |
 | `default-issuer-kind` | `CP_DEFAULT_ISSUER_KIND` | `ClusterIssuer`           | Issuer kind used by default                        |
+| `leader-election`     | `CP_LEADER_ELECTION`     | `true`                    | Enable / disable leader election                   |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an IngressRoute is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
@@ -32,26 +33,53 @@ By specifying `service-name`, contour-plus can identify the global IP address fo
 How it works
 ------------
 
-contour-plus should be deployed with Deployment.  It monitors events for [IngressRoute][] and
-creates / updates / deletes [DNSEndpoint][] and/or [Certificate][].
+contour-plus monitors events for [IngressRoute][] and creates / updates / deletes
+[DNSEndpoint][] and/or [Certificate][].
+
+The container of contour-plus should be deployed as a sidecar of Contour/Envoy Pod.
 
 ### Leader election
 
-contour-plus will do leader election if `POD_NAMESPACE` environment variable is set.
-The environment variable should be given in deployment YAML as follows:
+Unless  `--leader-election` is set to `false`, contour-plus does leader election using
+ConfigMap in the same namespace where its Pod exists.  In addition, it creates
+Event to log leader election activity.
+
+Therefore, the service account for Contour need to be bound to a Role like this:
 
 ```yaml
-    containers:
-    - name: contour-plus
-      image: quay.io/cybozu/contour-plus:latest
-      env:
-      - name: POD_NAMESPACE
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: contour-plus
+  namespace: ingress
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps/status
+    verbs:
+      - get
+      - update
+      - patch
+  - apiGroups:
+    - ""
+    resources:
+    - events
+    verbs:
+    - create
 ```
-
-The container should be deployed as a sidecar of Contour/Envoy pod.
 
 ### Supported annotations
 
