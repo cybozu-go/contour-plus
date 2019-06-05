@@ -75,6 +75,7 @@ func init() {
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
 	fs.String("default-issuer-kind", certmanagerv1alpha1.ClusterIssuerKind, "Issuer kind used by default")
+	fs.Bool("leader-election", true, "Enable/disable leader election")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
@@ -100,16 +101,13 @@ In addition to flags, the following environment variables are read:
 	CP_NAME_PREFIX           Prefix of CRD names to be created
 	CP_SERVICE_NAME          NamespacedName of the Contour LoadBalancer Service
 	CP_DEFAULT_ISSUER_NAME   Issuer name used by default
-	CP_DEFAULT_ISSUER_KIND   Issuer kind used by default`,
+	CP_DEFAULT_ISSUER_KIND   Issuer kind used by default
+	CP_LEADER_ELECTION       Disable leader election if set to "false"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		return subMain()
 	},
 }
-
-// Permissions to do leader election.
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=configmaps/status,verbs=get;update;patch
 
 func subMain() error {
 	ctrl.SetLogger(zap.Logger(false))
@@ -147,16 +145,11 @@ func subMain() error {
 		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
 	}
 
-	// If POD_NAMESPACE environment variable is set,
-	// contour-plus will do leader election.
-	podNS := os.Getenv("POD_NAMESPACE")
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                  scheme,
-		MetricsBindAddress:      viper.GetString("metrics-addr"),
-		LeaderElection:          len(podNS) != 0,
-		LeaderElectionNamespace: podNS,
-		LeaderElectionID:        "contour-plus-leader",
+		Scheme:             scheme,
+		MetricsBindAddress: viper.GetString("metrics-addr"),
+		LeaderElection:     viper.GetBool("leader-election"),
+		LeaderElectionID:   "contour-plus-leader",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
