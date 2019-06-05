@@ -5,30 +5,42 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.5] - 2019-06-06
+
+### Fixed
+
+- Enable leader election by default (#11).
+- Tidy up and fix bugs (#10).
+
 ## [0.2.4] - 2019-06-03
 
 ### Fixed
-- Fixed resource name of Certificate in RBAC (#9)
+
+- Fixed resource name of Certificate in RBAC (#9).
 
 ## [0.2.3] - 2019-06-03
 
 ### Fixed
-- Fixed null pointer exception bugs (#10)
+
+- Fixed null pointer exception bugs (#10).
 
 ## [0.2.2] - 2019-05-30
 
 ### Fixed
-- Changed the default port of metrics server to :8180 (#8)
-- Do not mandate --service-name as it can be passed via CP_SERVICE_NAME envvar too (#8)
+
+- Changed the default port of metrics server to :8180 (#8).
+- Do not mandate --service-name as it can be passed via CP_SERVICE_NAME envvar too (#8).
 
 ## [0.2.1] - 2019-05-29
 
 ### Fixed
-- Initialize klog flags (#7). 
+
+- Initialize klog flags (#7).
 
 ## [0.2.0] - 2019-05-28
 
 ### Added
+
 - Leader election (#5).
 
 ## [0.1.0] - 2019-05-28
@@ -42,7 +54,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/cybozu-go/contour-plus/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/cybozu-go/contour-plus/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/cybozu-go/contour-plus/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/cybozu-go/contour-plus/compare/v0.2.1...v0.2.2
