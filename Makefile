@@ -67,4 +67,10 @@ setup:
 	$(SUDO) chmod a+x /usr/local/kubebuilder/bin/kustomize
 	go install github.com/jstemmer/go-junit-report
 
-.PHONY: all test manifests vet generate docker-build docker-push
+mod:
+	go mod tidy
+	go mod vendor
+	git add -f vendor
+	git add go.mod
+
+.PHONY: all test manifests vet generate docker-build docker-push setup mod
