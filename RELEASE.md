@@ -41,7 +41,7 @@ Bump version
     ```console
     $ git commit -a -m "Bump version to $VERSION"
     $ git tag v$VERSION
-    $ git push origin master --tags
+    $ git push origin master v$VERSION
     ```
 
 1. CircleCI will build a docker image and push it to [quay.io](https://quay.io/cybozu/contour-plus).
