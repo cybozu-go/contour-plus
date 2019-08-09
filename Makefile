@@ -19,6 +19,7 @@ all: bin/contour-plus
 test: vet manifests
 	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
 	test -z "$$(golint $$(go list ./... | grep -v /vendor/) | tee /dev/stderr)"
+	ineffassign .
 	go test -v -count 1 ./controllers/... -coverprofile cover.out
 
 # Build contour-plus binary
