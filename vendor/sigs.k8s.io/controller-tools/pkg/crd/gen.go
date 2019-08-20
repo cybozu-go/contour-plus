@@ -29,12 +29,23 @@ import (
 	"sigs.k8s.io/controller-tools/pkg/markers"
 )
 
-// Generator is a genall.Generator that generates CRDs.
+// +controllertools:marker:generateHelp
+
+// Generator generates CustomResourceDefinition objects.
 type Generator struct {
-	// TrivialVersions indicates that we should produce a legacy
-	// "trival-version" CRD compatible with older (pre 1.13) Kubernetes API
-	// servers.  The storage version's schema will be used as the CRD's schema.
+	// TrivialVersions indicates that we should produce a single-version CRD.
+	//
+	// Single "trivial-version" CRDs are compatible with older (pre 1.13)
+	// Kubernetes API servers.  The storage version's schema will be used as
+	// the CRD's schema.
 	TrivialVersions bool `marker:",optional"`
+
+	// MaxDescLen specifies the maximum description length for fields in CRD's OpenAPI schema.
+	//
+	// 0 indicates drop the description for all fields completely.
+	// n indicates limit the description to at most n characters and truncate the description to
+	// closest sentence boundary if it exceeds n characters.
+	MaxDescLen *int `marker:",optional"`
 }
 
 func (Generator) RegisterMarkers(into *markers.Registry) error {
@@ -65,7 +76,7 @@ func (g Generator) Generate(ctx *genall.GenerationContext) error {
 	}
 
 	for _, groupKind := range kubeKinds {
-		parser.NeedCRDFor(groupKind)
+		parser.NeedCRDFor(groupKind, g.MaxDescLen)
 		crd := parser.CustomResourceDefinitions[groupKind]
 		if g.TrivialVersions {
 			toTrivialVersions(&crd)
@@ -142,6 +153,11 @@ func findKubeKinds(parser *Parser, metav1Pkg *loader.Package) []schema.GroupKind
 			namedField, isNamed := fieldType.(*types.Named)
 			if !isNamed {
 				// ObjectMeta and TypeMeta are named types
+				continue
+			}
+			if namedField.Obj().Pkg() == nil {
+				// Embedded non-builtin universe type (specifically, it's probably `error`),
+				// so it can't be ObjectMeta or TypeMeta
 				continue
 			}
 			fieldPkgPath := loader.NonVendorPath(namedField.Obj().Pkg().Path())
