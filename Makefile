@@ -11,7 +11,8 @@ export GO111MODULE GOFLAGS
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
 SUDO = sudo
-KUBEBUILDER_VERSION = 2.0.0-alpha.2
+KUBEBUILDER_VERSION = 2.0.0-rc.0
+CTRLTOOLS_VERSION = 0.2.0-rc.0
 
 all: bin/contour-plus
 
@@ -52,7 +53,7 @@ docker-push:
 # download controller-gen if necessary
 controller-gen:
 ifeq (, $(shell which controller-gen))
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen
+	cd $(shell mktemp -d) && curl -sSLfO https://github.com/kubernetes-sigs/controller-tools/archive/v$(CTRLTOOLS_VERSION).tar.gz && tar -x -z -f v$(CTRLTOOLS_VERSION).tar.gz && cd controller-tools-$(CTRLTOOLS_VERSION) && GOFLAGS= go install ./cmd/controller-gen
 CONTROLLER_GEN=$(shell go env GOPATH)/bin/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)

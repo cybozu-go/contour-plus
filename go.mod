@@ -13,6 +13,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/heptio/contour v0.12.1
 	github.com/jetstack/cert-manager v0.8.0
+	github.com/json-iterator/go v1.1.6 // indirect
 	github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024
 	github.com/kubernetes-incubator/external-dns v0.5.12
 	github.com/onsi/ginkgo v1.8.0
@@ -25,5 +26,4 @@ require (
 	k8s.io/klog v0.3.1
 	k8s.io/kube-openapi v0.0.0-20190401085232-94e1e7b7574c // indirect
 	sigs.k8s.io/controller-runtime v0.2.0-rc.0
-	sigs.k8s.io/controller-tools v0.2.0-rc.0
 )
