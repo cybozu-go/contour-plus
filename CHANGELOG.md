@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.7] - 2019-08-22
+
+### Fixed
+
+- Update the following (#15):
+  - [kubebuilder] to 2.0.0-rc.0
+  - [controller-runtime] to 0.2.0-rc.0
+  - client-go for Kubernetes 1.15
+
 ## [0.2.6] - 2019-06-12
 
 ### Fixed
@@ -60,7 +69,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/cybozu-go/contour-plus/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/cybozu-go/contour-plus/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/cybozu-go/contour-plus/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/cybozu-go/contour-plus/compare/v0.2.3...v0.2.4
