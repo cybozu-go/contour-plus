@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.7] - 2019-08-22
 
-### Fixed
+### Changed
 
 - Update the following (#15):
   - [kubebuilder] to 2.0.0-rc.0
@@ -16,20 +16,23 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.6] - 2019-06-12
 
-### Fixed
+### Changed
 
 - Update controller-runtime to v0.2.0-beta.2 (#12).
 
 ## [0.2.5] - 2019-06-06
 
-### Fixed
+### Changed
 
 - Enable leader election by default (#11).
+
+### Fixed
+
 - Tidy up and fix bugs (#10).
 
 ## [0.2.4] - 2019-06-03
 
-### Fixed
+### Changed
 
 - Fixed resource name of Certificate in RBAC (#9).
 
@@ -41,7 +44,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.2] - 2019-05-30
 
-### Fixed
+### Changed
 
 - Changed the default port of metrics server to :8180 (#8).
 - Do not mandate --service-name as it can be passed via CP_SERVICE_NAME envvar too (#8).
