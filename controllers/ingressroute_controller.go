@@ -45,7 +45,7 @@ type IngressRouteReconciler struct {
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=certmanager.k8s.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=services/status,verbs=get
 
 // Reconcile creates/updates CRDs from given IngressRoute
