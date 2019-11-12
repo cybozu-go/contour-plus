@@ -10,7 +10,8 @@ import (
 	"github.com/cybozu-go/contour-plus/controllers"
 	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
-	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +43,10 @@ func Execute() {
 }
 
 func init() {
-	if err := contourv1.AddToScheme(scheme); err != nil {
+	if err := projectcontourv1.AddToScheme(scheme); err != nil {
+		panic(err)
+	}
+	if err := contourv1beta1.AddToScheme(scheme); err != nil {
 		panic(err)
 	}
 

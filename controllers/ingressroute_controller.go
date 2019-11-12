@@ -7,7 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
-	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,8 +41,8 @@ type IngressRouteReconciler struct {
 	CreateCertificate bool
 }
 
-// +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes,verbs=get;list;watch
-// +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get
+// +kubebuilder:rbac:groups=projectcontour.io,resources=ingressroutes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=projectcontour.io,resources=ingressroutes/status,verbs=get
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
@@ -54,7 +54,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	log := r.Log.WithValues("ingressroute", req.NamespacedName)
 
 	// Get IngressRoute
-	ir := new(contourv1.IngressRoute)
+	ir := new(contourv1beta1.IngressRoute)
 	objKey := client.ObjectKey{
 		Namespace: req.Namespace,
 		Name:      req.Name,
@@ -85,7 +85,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	return ctrl.Result{}, nil
 }
 
-func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *contourv1.IngressRoute, log logr.Logger) error {
+func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
 	if !r.CreateDNSEndpoint {
 		return nil
 	}
@@ -172,7 +172,7 @@ func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
 	return ipv4Targets, ipv6Targets
 }
 
-func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *contourv1.IngressRoute, log logr.Logger) error {
+func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
 	if !r.CreateCertificate {
 		return nil
 	}
@@ -239,7 +239,7 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 
 			ctx := context.Background()
-			var irList contourv1.IngressRouteList
+			var irList contourv1beta1.IngressRouteList
 			err := r.List(ctx, &irList)
 			if err != nil {
 				r.Log.Error(err, "listing IngressRoute failed")
@@ -257,7 +257,7 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		})
 
 	b := ctrl.NewControllerManagedBy(mgr).
-		For(&contourv1.IngressRoute{}).
+		For(&contourv1beta1.IngressRoute{}).
 		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs})
 	if r.CreateDNSEndpoint {
 		b = b.Owns(&endpoint.DNSEndpoint{})

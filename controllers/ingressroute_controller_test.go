@@ -8,7 +8,8 @@ import (
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -89,23 +90,23 @@ func testReconcile() {
 		defer stopMgr()
 
 		By("creating IngressRoute with null virtualHost")
-		ir := &contourv1.IngressRoute{}
+		ir := &contourv1beta1.IngressRoute{}
 		ir.Namespace = ns
 		ir.Name = "foo"
-		ir.Spec.Routes = []contourv1.Route{}
+		ir.Spec.Routes = []contourv1beta1.Route{}
 		Expect(k8sClient.Create(context.Background(), ir)).ShouldNot(HaveOccurred())
 
 		By("creating IngressRoute with null TLS")
-		ir = &contourv1.IngressRoute{}
+		ir = &contourv1beta1.IngressRoute{}
 		ir.Namespace = ns
 		ir.Name = "foo2"
 		ir.Annotations = map[string]string{
 			testACMETLSAnnotation: "true",
 		}
-		ir.Spec.VirtualHost = &contourv1.VirtualHost{
+		ir.Spec.VirtualHost = &projectcontourv1.VirtualHost{
 			Fqdn: "foo2.example.com",
 		}
-		ir.Spec.Routes = []contourv1.Route{}
+		ir.Spec.Routes = []contourv1beta1.Route{}
 		Expect(k8sClient.Create(context.Background(), ir)).ShouldNot(HaveOccurred())
 	})
 
@@ -458,8 +459,8 @@ func testReconcile() {
 	})
 }
 
-func newDummyIngressRoute(irKey client.ObjectKey) *contourv1.IngressRoute {
-	return &contourv1.IngressRoute{
+func newDummyIngressRoute(irKey client.ObjectKey) *contourv1beta1.IngressRoute {
+	return &contourv1beta1.IngressRoute{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: irKey.Namespace,
 			Name:      irKey.Name,
@@ -467,12 +468,12 @@ func newDummyIngressRoute(irKey client.ObjectKey) *contourv1.IngressRoute {
 				testACMETLSAnnotation: "true",
 			},
 		},
-		Spec: contourv1.IngressRouteSpec{
-			VirtualHost: &contourv1.VirtualHost{
+		Spec: contourv1beta1.IngressRouteSpec{
+			VirtualHost: &projectcontourv1.VirtualHost{
 				Fqdn: dnsName,
-				TLS:  &contourv1.TLS{SecretName: testSecretName},
+				TLS:  &projectcontourv1.TLS{SecretName: testSecretName},
 			},
-			Routes: []contourv1.Route{},
+			Routes: []contourv1beta1.Route{},
 		},
 	}
 }
