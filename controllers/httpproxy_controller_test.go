@@ -8,7 +8,6 @@ import (
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,12 +15,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	dnsName        = "test.example.com"
-	testSecretName = "test-secret"
-)
+// const (
+// 	httpProxyDNSName    = "httpproxy.example.com"
+// 	httpProxySecretName = "httpproxy-test-secret"
+// )
 
-func testIngressRouteReconcile() {
+func testHTTPProxyReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
@@ -45,15 +44,15 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint with prefixed name")
 		de := &endpoint.DNSEndpoint{}
 		objKey := client.ObjectKey{
-			Name:      prefix + irKey.Name,
-			Namespace: irKey.Namespace,
+			Name:      prefix + hpKey.Name,
+			Namespace: hpKey.Namespace,
 		}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
@@ -89,25 +88,25 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute with null virtualHost")
-		ir := &contourv1beta1.IngressRoute{}
-		ir.Namespace = ns
-		ir.Name = "foo"
-		ir.Spec.Routes = []contourv1beta1.Route{}
-		Expect(k8sClient.Create(context.Background(), ir)).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy with null virtualHost")
+		hp := &projectcontourv1.HTTPProxy{}
+		hp.Namespace = ns
+		hp.Name = "foo"
+		hp.Spec.Routes = []projectcontourv1.Route{}
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
-		By("creating IngressRoute with null TLS")
-		ir = &contourv1beta1.IngressRoute{}
-		ir.Namespace = ns
-		ir.Name = "foo2"
-		ir.Annotations = map[string]string{
+		By("creating HTTPProxy with null TLS")
+		hp = &projectcontourv1.HTTPProxy{}
+		hp.Namespace = ns
+		hp.Name = "foo2"
+		hp.Annotations = map[string]string{
 			testACMETLSAnnotation: "true",
 		}
-		ir.Spec.VirtualHost = &projectcontourv1.VirtualHost{
+		hp.Spec.VirtualHost = &projectcontourv1.VirtualHost{
 			Fqdn: "foo2.example.com",
 		}
-		ir.Spec.Routes = []contourv1beta1.Route{}
-		Expect(k8sClient.Create(context.Background(), ir)).ShouldNot(HaveOccurred())
+		hp.Spec.Routes = []projectcontourv1.Route{}
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 	})
 
 	It(`should not create DNSEndpoint and Certificate if "contour-plus.cybozu.com/exclude"" is "true"`, func() {
@@ -133,11 +132,11 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute having the annotation to exclude from contour-plus's targets")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		ingressRoute := newDummyIngressRoute(irKey)
-		ingressRoute.Annotations[excludeAnnotation] = "true"
-		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy having the annotation to exclude from contour-plus's targets")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[excludeAnnotation] = "true"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("confirming that DNSEndpoint and Certificate do not exist")
 		time.Sleep(time.Second)
@@ -170,13 +169,13 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
 		certificate := &certmanagerv1alpha2.Certificate{}
-		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
+		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
@@ -204,15 +203,15 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute with annotations")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		ingressRoute := newDummyIngressRoute(irKey)
-		ingressRoute.Annotations[issuerNameAnnotation] = "custom-issuer"
-		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy with annotations")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[issuerNameAnnotation] = "custom-issuer"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
 		certificate := &certmanagerv1alpha2.Certificate{}
-		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
+		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
@@ -242,16 +241,16 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("updating IngressRoute with annotations, both of issuer and cluster-issuer are specified")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		ingressRoute := newDummyIngressRoute(irKey)
-		ingressRoute.Annotations[issuerNameAnnotation] = "custom-issuer"
-		ingressRoute.Annotations[clusterIssuerNameAnnotation] = "custom-cluster-issuer"
-		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
+		By("updating HTTPProxy with annotations, both of issuer and cluster-issuer are specified")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[issuerNameAnnotation] = "custom-issuer"
+		hp.Annotations[clusterIssuerNameAnnotation] = "custom-cluster-issuer"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
 		certificate := &certmanagerv1alpha2.Certificate{}
-		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
+		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
@@ -284,15 +283,15 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint")
 		de := &endpoint.DNSEndpoint{}
 		objKey := client.ObjectKey{
-			Name:      irKey.Name,
-			Namespace: irKey.Namespace,
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
 		}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
@@ -328,13 +327,13 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
 		certificate := &certmanagerv1alpha2.Certificate{}
-		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
+		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
@@ -369,17 +368,17 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		ingressRoute := newDummyIngressRoute(irKey)
-		ingressRoute.Annotations[testACMETLSAnnotation] = "aaa"
-		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[testACMETLSAnnotation] = "aaa"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint")
 		de := &endpoint.DNSEndpoint{}
 		objKey := client.ObjectKey{
-			Name:      irKey.Name,
-			Namespace: irKey.Namespace,
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
 		}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
@@ -413,16 +412,16 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		ingressRoute := newDummyIngressRoute(irKey)
-		ingressRoute.Annotations[issuerNameAnnotation] = "custom-issuer"
-		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[issuerNameAnnotation] = "custom-issuer"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate with specified name")
 		crt := &certmanagerv1alpha2.Certificate{}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: irKey.Name}, crt)
+			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: hpKey.Name}, crt)
 		}).Should(Succeed())
 		Expect(crt.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
 		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
@@ -447,9 +446,9 @@ func testIngressRouteReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating IngressRoute")
-		irKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
@@ -459,21 +458,21 @@ func testIngressRouteReconcile() {
 	})
 }
 
-func newDummyIngressRoute(irKey client.ObjectKey) *contourv1beta1.IngressRoute {
-	return &contourv1beta1.IngressRoute{
+func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
+	return &projectcontourv1.HTTPProxy{
 		ObjectMeta: v1.ObjectMeta{
-			Namespace: irKey.Namespace,
-			Name:      irKey.Name,
+			Namespace: hpKey.Namespace,
+			Name:      hpKey.Name,
 			Annotations: map[string]string{
 				testACMETLSAnnotation: "true",
 			},
 		},
-		Spec: contourv1beta1.IngressRouteSpec{
+		Spec: projectcontourv1.HTTPProxySpec{
 			VirtualHost: &projectcontourv1.VirtualHost{
 				Fqdn: dnsName,
 				TLS:  &projectcontourv1.TLS{SecretName: testSecretName},
 			},
-			Routes: []contourv1beta1.Route{},
+			Routes: []projectcontourv1.Route{},
 		},
 	}
 }

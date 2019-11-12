@@ -109,7 +109,8 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Test contour-plus", func() {
-	Context("contour-plus", testReconcile)
+	Context("ingressroute", testIngressRouteReconcile)
+	Context("httpproxy", testHTTPProxyReconcile)
 })
 
 func startTestManager(mgr manager.Manager) (stop func()) {
@@ -130,7 +131,7 @@ func startTestManager(mgr manager.Manager) (stop func()) {
 }
 
 func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcilerOptions) error {
-	reconciler := &IngressRouteReconciler{
+	ingressRouteReconciler := &IngressRouteReconciler{
 		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
 		Scheme:            scheme,
@@ -141,7 +142,22 @@ func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcile
 		CreateDNSEndpoint: opts.createDNSEndpoint,
 		CreateCertificate: opts.createCertificate,
 	}
-	return reconciler.SetupWithManager(mgr)
+	err := ingressRouteReconciler.SetupWithManager(mgr)
+	if err != nil {
+		return err
+	}
+	httpProxyReconciler := &HTTPProxyReconciler{
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
+		Scheme:            scheme,
+		ServiceKey:        serviceKey,
+		Prefix:            opts.prefix,
+		DefaultIssuerName: opts.defaultIssuerName,
+		DefaultIssuerKind: opts.defaultIssuerKind,
+		CreateDNSEndpoint: opts.createDNSEndpoint,
+		CreateCertificate: opts.createCertificate,
+	}
+	return httpProxyReconciler.SetupWithManager(mgr)
 }
 
 func setupScheme(scm *runtime.Scheme) error {
