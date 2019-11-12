@@ -39,13 +39,13 @@ This way, DNS records can be managed and TLS certificates can be issued automati
 
 Contour provides Go types and API to manage `IngressRoute` resource:
 
-- [`ContourV1beta1Client`](https://github.com/heptio/contour/blob/master/apis/generated/clientset/versioned/typed/contour/v1beta1/contour_client.go)
-- [`IngressRoute`](https://github.com/heptio/contour/blob/03dcee7fedf52ba28852d75ff7752ec7ec0ae36c/apis/contour/v1beta1/ingressroute.go#L164)
+- [`contourv1Client`](https://github.com/heptio/contour/blob/master/apis/generated/clientset/versioned/typed/contour/v1/contour_client.go)
+- [`IngressRoute`](https://github.com/heptio/contour/blob/03dcee7fedf52ba28852d75ff7752ec7ec0ae36c/apis/contour/v1/ingressroute.go#L164)
 
 cert-manager provides Go types and API to manage `Certificate` resource:
 
-- [`Certificate`](https://github.com/jetstack/cert-manager/blob/3201d126d0441298805b8ff6165afebae4ce1550/pkg/apis/certmanager/v1alpha1/types_certificate.go#L32)
-- [`CertmanagerV1alpha1Client`](https://github.com/jetstack/cert-manager/blob/8752770769d6d641c5ef6703b0a9b0bf11c2cf01/pkg/client/clientset/versioned/typed/certmanager/v1alpha1/certmanager_client.go#L86)
+- [`Certificate`](https://github.com/jetstack/cert-manager/blob/0aba30b25123e729d9dc8602cdcc4a5cc4b73bef/pkg/apis/certmanager/v1alpha2/types_certificate.go#L37)
+- [`certmanagerv1alpha2Client`](https://github.com/jetstack/cert-manager/blob/0aba30b25123e729d9dc8602cdcc4a5cc4b73bef/pkg/client/clientset/versioned/typed/certmanager/v1alpha2/certmanager_client.go#L80)
 
 ExternalDNS provides Go types for `DNSEndpoint`, but does not provide strictly-typed
 API client.  Therefore, `contour-plus` uses [kubebuilder][] to generate strictly-typed

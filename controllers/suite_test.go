@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
-	certmanagerv1alpha1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -144,7 +144,7 @@ func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcile
 }
 
 func setupScheme(scm *runtime.Scheme) error {
-	if err := contourv1beta1.AddToScheme(scm); err != nil {
+	if err := contourv1.AddToScheme(scm); err != nil {
 		return err
 	}
 
@@ -158,7 +158,7 @@ func setupScheme(scm *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(scm, groupVersion)
 
-	if err := certmanagerv1alpha1.AddToScheme(scm); err != nil {
+	if err := certmanagerv1alpha2.AddToScheme(scm); err != nil {
 		return err
 	}
 

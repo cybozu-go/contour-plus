@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/cybozu-go/contour-plus/controllers"
-	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
-	certmanagerv1alpha1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
+	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +42,7 @@ func Execute() {
 }
 
 func init() {
-	if err := contourv1beta1.AddToScheme(scheme); err != nil {
+	if err := contourv1.AddToScheme(scheme); err != nil {
 		panic(err)
 	}
 
@@ -57,7 +57,7 @@ func init() {
 	)
 	metav1.AddToGroupVersion(scheme, groupVersion)
 
-	if err := certmanagerv1alpha1.AddToScheme(scheme); err != nil {
+	if err := certmanagerv1alpha2.AddToScheme(scheme); err != nil {
 		panic(err)
 	}
 
@@ -70,11 +70,11 @@ func init() {
 
 	fs := rootCmd.Flags()
 	fs.String("metrics-addr", ":8180", "Bind address for the metrics endpoint")
-	fs.StringSlice("crds", []string{dnsEndpointKind, certmanagerv1alpha1.CertificateKind}, "List of CRD names to be created")
+	fs.StringSlice("crds", []string{dnsEndpointKind, certmanagerv1alpha2.CertificateKind}, "List of CRD names to be created")
 	fs.String("name-prefix", "", "Prefix of CRD names to be created")
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
-	fs.String("default-issuer-kind", certmanagerv1alpha1.ClusterIssuerKind, "Issuer kind used by default")
+	fs.String("default-issuer-kind", certmanagerv1alpha2.ClusterIssuerKind, "Issuer kind used by default")
 	fs.Bool("leader-election", true, "Enable/disable leader election")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
@@ -121,7 +121,7 @@ func subMain() error {
 		switch crd {
 		case dnsEndpointKind:
 			createDNSEndpoint = true
-		case certmanagerv1alpha1.CertificateKind:
+		case certmanagerv1alpha2.CertificateKind:
 			createCertificate = true
 		default:
 			return errors.New("unsupported CRD: " + crd)
@@ -140,7 +140,7 @@ func subMain() error {
 
 	defaultIssuerKind := viper.GetString("default-issuer-kind")
 	switch defaultIssuerKind {
-	case certmanagerv1alpha1.IssuerKind, certmanagerv1alpha1.ClusterIssuerKind:
+	case certmanagerv1alpha2.IssuerKind, certmanagerv1alpha2.ClusterIssuerKind:
 	default:
 		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
 	}

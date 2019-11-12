@@ -4,7 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: certificates.certmanager.k8s.io
+  name: certificates.cert-manager.io
 spec:
   additionalPrinterColumns:
     - JSONPath: .status.conditions[?(@.type=="Ready")].status
@@ -28,7 +28,7 @@ spec:
         in RFC3339 form and is in UTC.
       name: Age
       type: date
-  group: certmanager.k8s.io
+  group: cert-manager.io
   names:
     kind: Certificate
     plural: certificates
@@ -203,9 +203,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: clusterissuers.certmanager.k8s.io
+  name: clusterissuers.cert-manager.io
 spec:
-  group: certmanager.k8s.io
+  group: cert-manager.io
   names:
     kind: ClusterIssuer
     plural: clusterissuers
@@ -459,9 +459,9 @@ metadata:
   creationTimestamp: null
   labels:
     controller-tools.k8s.io: "1.0"
-  name: issuers.certmanager.k8s.io
+  name: issuers.cert-manager.io
 spec:
-  group: certmanager.k8s.io
+  group: cert-manager.io
   names:
     kind: Issuer
     plural: issuers

@@ -5,9 +5,9 @@ import (
 	"net"
 
 	"github.com/go-logr/logr"
-	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
-	certmanagerv1alpha1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
+	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,8 +23,8 @@ import (
 const (
 	excludeAnnotation           = "contour-plus.cybozu.com/exclude"
 	testACMETLSAnnotation       = "kubernetes.io/tls-acme"
-	issuerNameAnnotation        = "certmanager.k8s.io/issuer"
-	clusterIssuerNameAnnotation = "certmanager.k8s.io/cluster-issuer"
+	issuerNameAnnotation        = "cert-manager.io/issuer"
+	clusterIssuerNameAnnotation = "cert-manager.io/cluster-issuer"
 )
 
 // IngressRouteReconciler reconciles a IngressRoute object
@@ -44,7 +44,7 @@ type IngressRouteReconciler struct {
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=certmanager.k8s.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=services/status,verbs=get
 
@@ -54,7 +54,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	log := r.Log.WithValues("ingressroute", req.NamespacedName)
 
 	// Get IngressRoute
-	ir := new(contourv1beta1.IngressRoute)
+	ir := new(contourv1.IngressRoute)
 	objKey := client.ObjectKey{
 		Namespace: req.Namespace,
 		Name:      req.Name,
@@ -85,7 +85,7 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	return ctrl.Result{}, nil
 }
 
-func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
+func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *contourv1.IngressRoute, log logr.Logger) error {
 	if !r.CreateDNSEndpoint {
 		return nil
 	}
@@ -172,7 +172,7 @@ func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
 	return ipv4Targets, ipv6Targets
 }
 
-func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
+func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *contourv1.IngressRoute, log logr.Logger) error {
 	if !r.CreateCertificate {
 		return nil
 	}
@@ -196,11 +196,11 @@ func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *c
 	issuerKind := r.DefaultIssuerKind
 	if name, ok := ir.Annotations[issuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1alpha1.IssuerKind
+		issuerKind = certmanagerv1alpha2.IssuerKind
 	}
 	if name, ok := ir.Annotations[clusterIssuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1alpha1.ClusterIssuerKind
+		issuerKind = certmanagerv1alpha2.ClusterIssuerKind
 	}
 
 	if issuerName == "" {
@@ -208,7 +208,7 @@ func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *c
 		return nil
 	}
 
-	crt := &certmanagerv1alpha1.Certificate{}
+	crt := &certmanagerv1alpha2.Certificate{}
 	crt.SetNamespace(ir.Namespace)
 	crt.SetName(r.Prefix + ir.Name)
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
@@ -239,7 +239,7 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 
 			ctx := context.Background()
-			var irList contourv1beta1.IngressRouteList
+			var irList contourv1.IngressRouteList
 			err := r.List(ctx, &irList)
 			if err != nil {
 				r.Log.Error(err, "listing IngressRoute failed")
@@ -257,13 +257,13 @@ func (r *IngressRouteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		})
 
 	b := ctrl.NewControllerManagedBy(mgr).
-		For(&contourv1beta1.IngressRoute{}).
+		For(&contourv1.IngressRoute{}).
 		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listIRs})
 	if r.CreateDNSEndpoint {
 		b = b.Owns(&endpoint.DNSEndpoint{})
 	}
 	if r.CreateCertificate {
-		b = b.Owns(&certmanagerv1alpha1.Certificate{})
+		b = b.Owns(&certmanagerv1alpha2.Certificate{})
 	}
 	return b.Complete(r)
 }

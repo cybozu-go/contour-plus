@@ -86,11 +86,11 @@ rules:
 contour-plus interprets following annotations for IngressRoute.
 
 - `contour-plus.cybozu.com/exclude: "true"` - With this, contour-plus ignores this IngressRoute. 
-- `certmanager.k8s.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this Ingressroute from. The Issuer must be in the same namespace as the IngressRoute.
-- `certmanager.k8s.io/cluster-issuer` - The name of a [ClusterIssuer][Issuer] to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
+- `cert-manager.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this Ingressroute from. The Issuer must be in the same namespace as the IngressRoute.
+- `cert-manager.io/cluster-issuer` - The name of a [ClusterIssuer][Issuer] to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
 - `kubernetes.io/tls-acme: "true"` - With this, contour-plus generates Certificate automatically from IngressRoute.
 
-If both of `certmanager.k8s.io/issuer` and `certmanager.k8s.io/cluster-issuer` exist, `cluster-issuer` takes precedence.
+If both of `cert-manager.io/issuer` and `cert-manager.io/cluster-issuer` exist, `cluster-issuer` takes precedence.
 
 [Contour]: https://github.com/heptio/contour
 [IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md
