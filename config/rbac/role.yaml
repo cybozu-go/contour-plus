@@ -7,44 +7,6 @@ metadata:
   name: contour-plus
 rules:
 - apiGroups:
-  - projectcontour.io
-  resources:
-  - ingressroutes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - projectcontour.io
-  resources:
-  - ingressroutes/status
-  verbs:
-  - get
-- apiGroups:
-  - externaldns.k8s.io
-  resources:
-  - dnsendpoints
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - cert-manager.io
-  resources:
-  - certificates
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
   - ""
   resources:
   - services
@@ -56,5 +18,57 @@ rules:
   - ""
   resources:
   - services/status
+  verbs:
+  - get
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - contour.heptio.com
+  resources:
+  - ingressroutes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - contour.heptio.com
+  resources:
+  - ingressroutes/status
+  verbs:
+  - get
+- apiGroups:
+  - externaldns.k8s.io
+  resources:
+  - dnsendpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxies/status
   verbs:
   - get

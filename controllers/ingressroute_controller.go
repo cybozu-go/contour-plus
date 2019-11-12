@@ -41,8 +41,8 @@ type IngressRouteReconciler struct {
 	CreateCertificate bool
 }
 
-// +kubebuilder:rbac:groups=projectcontour.io,resources=ingressroutes,verbs=get;list;watch
-// +kubebuilder:rbac:groups=projectcontour.io,resources=ingressroutes/status,verbs=get
+// +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes/status,verbs=get
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch

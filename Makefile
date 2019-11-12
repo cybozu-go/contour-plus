@@ -24,7 +24,7 @@ test: vet manifests
 	go test -v -count 1 ./controllers/... -coverprofile cover.out
 
 # Build contour-plus binary
-bin/contour-plus: main.go cmd/root.go controllers/ingressroute_controller.go
+bin/contour-plus: main.go cmd/root.go controllers/ingressroute_controller.go controllers/httpproxy_controller.go
 	CGO_ENABLED=0 go build -o $@ .
 
 # Generate manifests e.g. CRD, RBAC etc.

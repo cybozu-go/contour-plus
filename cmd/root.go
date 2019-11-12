@@ -95,8 +95,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   "contour-plus",
-	Short: "contour-plus is a custom controller for Contour IngressRoute",
-	Long: `contour-plus is a custom controller for Contour IngressRoute.
+	Short: "contour-plus is a custom controller for Contour IngressRoute/HTTPProxy",
+	Long: `contour-plus is a custom controller for Contour IngressRoute/HTTPProxy.
 	
 In addition to flags, the following environment variables are read:
 
@@ -173,6 +173,15 @@ func subMain() error {
 	}).SetupWithManager(mgr)
 	if err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "IngressRoute")
+		os.Exit(1)
+	}
+
+	err = (&controllers.HTTPProxyReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
+	}).SetupWithManager(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HTTPProxy")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
