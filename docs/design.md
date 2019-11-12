@@ -4,7 +4,7 @@ Design notes
 Background
 ----------
 
-Contour controlls CRDs called [`IngressRoute`][IngressRoute] and [`HTTProxy`][].  However, [ExternalDNS][]
+Contour controlls CRDs called [`IngressRoute`][IngressRoute] and [`HTTProxy`][HTTPProxy].  However, [ExternalDNS][]
 and [cert-manager][] does not recognize it unlike the standard `Ingress`.
 
 Fortunately, ExternalDNS can watch arbitrary CRD resources and manages external

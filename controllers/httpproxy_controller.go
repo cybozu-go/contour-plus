@@ -7,14 +7,17 @@ import (
 	"github.com/go-logr/logr"
 	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // HTTPProxyReconciler reconciles a HttpProxy object
@@ -43,7 +46,7 @@ func (r *HTTPProxyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("httpproxy", req.NamespacedName)
 
-	// Get IngressRoute
+	// Get HTTPProxy
 	hp := new(projectcontourv1.HTTPProxy)
 	objKey := client.ObjectKey{
 		Namespace: req.Namespace,
@@ -52,7 +55,8 @@ func (r *HTTPProxyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	err := r.Get(ctx, objKey, hp)
 	if k8serrors.IsNotFound(err) {
 		return ctrl.Result{}, nil
-	} else if err != nil {
+	}
+	if err != nil {
 		log.Error(err, "unable to get HTTPProxy resources")
 		return ctrl.Result{}, err
 	}
@@ -61,25 +65,16 @@ func (r *HTTPProxyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	err = r.reconcileDNSEndpoint(ctx, hp, log)
-	if err != nil {
+	if err := r.reconcileDNSEndpoint(ctx, hp, log); err != nil {
 		log.Error(err, "unable to reconcile DNSEndpoint")
 		return ctrl.Result{}, err
 	}
 
-	err = r.reconcileCertificate(ctx, hp, log)
-	if err != nil {
+	if err := r.reconcileCertificate(ctx, hp, log); err != nil {
 		log.Error(err, "unable to reconcile Certificate")
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
-}
-
-// SetupWithManager initializes controller manager
-func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&projectcontourv1.HTTPProxy{}).
-		Complete(r)
 }
 
 func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
@@ -187,4 +182,45 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 	log.Info("Certificate successfully reconciled", "operation", op)
 	return nil
+}
+
+// SetupWithManager initializes controller manager
+func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	listHPs := handler.ToRequestsFunc(
+		func(a handler.MapObject) []reconcile.Request {
+			if a.Meta.GetNamespace() != r.ServiceKey.Namespace {
+				return nil
+			}
+			if a.Meta.GetName() != r.ServiceKey.Name {
+				return nil
+			}
+
+			ctx := context.Background()
+			var hpList projectcontourv1.HTTPProxyList
+			err := r.List(ctx, &hpList)
+			if err != nil {
+				r.Log.Error(err, "listing HTTPProxy failed")
+				return nil
+			}
+
+			requests := make([]reconcile.Request, len(hpList.Items))
+			for i, hp := range hpList.Items {
+				requests[i] = reconcile.Request{NamespacedName: types.NamespacedName{
+					Name:      hp.Name,
+					Namespace: hp.Namespace,
+				}}
+			}
+			return requests
+		})
+
+	b := ctrl.NewControllerManagedBy(mgr).
+		For(&projectcontourv1.HTTPProxy{}).
+		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listHPs})
+	if r.CreateDNSEndpoint {
+		b = b.Owns(&endpoint.DNSEndpoint{})
+	}
+	if r.CreateCertificate {
+		b = b.Owns(&certmanagerv1alpha2.Certificate{})
+	}
+	return b.Complete(r)
 }
