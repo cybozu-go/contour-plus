@@ -10,7 +10,8 @@ import (
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	contourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -144,7 +145,10 @@ func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcile
 }
 
 func setupScheme(scm *runtime.Scheme) error {
-	if err := contourv1.AddToScheme(scm); err != nil {
+	if err := projectcontourv1.AddToScheme(scm); err != nil {
+		return err
+	}
+	if err := contourv1beta1.AddToScheme(scm); err != nil {
 		return err
 	}
 

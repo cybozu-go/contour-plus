@@ -1,6 +1,6 @@
 module github.com/cybozu-go/contour-plus
 
-go 1.12
+go 1.13
 
 replace (
 	k8s.io/api => k8s.io/api v0.0.0-20190918195907-bd6ac527cfd2
