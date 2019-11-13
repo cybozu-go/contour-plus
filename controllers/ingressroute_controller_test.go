@@ -4,11 +4,12 @@ import (
 	"context"
 	"time"
 
-	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
-	certmanagerv1alpha1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,7 +21,7 @@ const (
 	testSecretName = "test-secret"
 )
 
-func testReconcile() {
+func testIngressRouteReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
@@ -36,7 +37,7 @@ func testReconcile() {
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			prefix:            prefix,
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createDNSEndpoint: true,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -61,7 +62,7 @@ func testReconcile() {
 		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
 
 		By("getting Certificate with prefixed name")
-		crt := &certmanagerv1alpha1.Certificate{}
+		crt := &certmanagerv1alpha2.Certificate{}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
@@ -80,7 +81,7 @@ func testReconcile() {
 
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createDNSEndpoint: true,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -102,7 +103,7 @@ func testReconcile() {
 		ir.Annotations = map[string]string{
 			testACMETLSAnnotation: "true",
 		}
-		ir.Spec.VirtualHost = &contourv1beta1.VirtualHost{
+		ir.Spec.VirtualHost = &projectcontourv1.VirtualHost{
 			Fqdn: "foo2.example.com",
 		}
 		ir.Spec.Routes = []contourv1beta1.Route{}
@@ -124,7 +125,7 @@ func testReconcile() {
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			prefix:            prefix,
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createDNSEndpoint: true,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -144,7 +145,7 @@ func testReconcile() {
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList := &certmanagerv1alpha1.CertificateList{}
+		crtList := &certmanagerv1alpha2.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -162,7 +163,7 @@ func testReconcile() {
 		scm, mgr := setupManager()
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.ClusterIssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.ClusterIssuerKind,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -174,16 +175,16 @@ func testReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha1.Certificate{}
+		certificate := &certmanagerv1alpha2.Certificate{}
 		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha1.ClusterIssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.ClusterIssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("test-issuer"))
 	})
 
-	It(`should create Certificate with Issuer specified in "certmanager.k8s.io/issuer"`, func() {
+	It(`should create Certificate with Issuer specified in "cert-manager.io/issuer"`, func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
@@ -196,7 +197,7 @@ func testReconcile() {
 		scm, mgr := setupManager()
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -210,19 +211,19 @@ func testReconcile() {
 		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha1.Certificate{}
+		certificate := &certmanagerv1alpha2.Certificate{}
 		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha1.IssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
 
 	})
 
-	It(`should create Certificate with Issuer specified in "certmanager.k8s.io/cluster-issuer"`, func() {
+	It(`should create Certificate with Issuer specified in "cert-manager.io/cluster-issuer"`, func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
@@ -234,7 +235,7 @@ func testReconcile() {
 		scm, mgr := setupManager()
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -249,14 +250,14 @@ func testReconcile() {
 		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha1.Certificate{}
+		certificate := &certmanagerv1alpha2.Certificate{}
 		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used, cluster-issuer is precedence over issuer")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha1.ClusterIssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.ClusterIssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-cluster-issuer"))
 
 	})
@@ -275,7 +276,7 @@ func testReconcile() {
 
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createDNSEndpoint: true,
 			createCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -301,7 +302,7 @@ func testReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha1.CertificateList{}
+		crtList := &certmanagerv1alpha2.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -319,7 +320,7 @@ func testReconcile() {
 		scm, mgr := setupManager()
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createDNSEndpoint: false,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -332,7 +333,7 @@ func testReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyIngressRoute(irKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha1.Certificate{}
+		certificate := &certmanagerv1alpha2.Certificate{}
 		objKey := client.ObjectKey{Name: irKey.Name, Namespace: irKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
@@ -360,7 +361,7 @@ func testReconcile() {
 
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
 			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createDNSEndpoint: true,
 			createCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -388,7 +389,7 @@ func testReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha1.CertificateList{}
+		crtList := &certmanagerv1alpha2.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -405,7 +406,7 @@ func testReconcile() {
 		By("setup reconciler with empty defaultIssuerName")
 		scm, mgr := setupManager()
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -419,12 +420,12 @@ func testReconcile() {
 		Expect(k8sClient.Create(context.Background(), ingressRoute)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate with specified name")
-		crt := &certmanagerv1alpha1.Certificate{}
+		crt := &certmanagerv1alpha2.Certificate{}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: irKey.Name}, crt)
 		}).Should(Succeed())
 		Expect(crt.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
-		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha1.IssuerKind))
+		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
 	})
 
 	It("should not create Certificate, if `defaultIssuerName` and 'issuer-name' annotation are empty", func() {
@@ -439,7 +440,7 @@ func testReconcile() {
 		By("setup reconciler with empty defaultIssuerName")
 		scm, mgr := setupManager()
 		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerKind: certmanagerv1alpha1.IssuerKind,
+			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
 			createCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -452,7 +453,7 @@ func testReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha1.CertificateList{}
+		crtList := &certmanagerv1alpha2.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -468,9 +469,9 @@ func newDummyIngressRoute(irKey client.ObjectKey) *contourv1beta1.IngressRoute {
 			},
 		},
 		Spec: contourv1beta1.IngressRouteSpec{
-			VirtualHost: &contourv1beta1.VirtualHost{
+			VirtualHost: &projectcontourv1.VirtualHost{
 				Fqdn: dnsName,
-				TLS:  &contourv1beta1.TLS{SecretName: testSecretName},
+				TLS:  &projectcontourv1.TLS{SecretName: testSecretName},
 			},
 			Routes: []contourv1beta1.Route{},
 		},

@@ -21,7 +21,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - certmanager.k8s.io
+  - cert-manager.io
   resources:
   - certificates
   verbs:
@@ -58,3 +58,17 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxies/status
+  verbs:
+  - get

@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	contourv1beta1 "github.com/heptio/contour/apis/contour/v1beta1"
-	certmanagerv1alpha1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha1"
+	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -108,7 +109,8 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Test contour-plus", func() {
-	Context("contour-plus", testReconcile)
+	Context("ingressroute", testIngressRouteReconcile)
+	Context("httpproxy", testHTTPProxyReconcile)
 })
 
 func startTestManager(mgr manager.Manager) (stop func()) {
@@ -129,7 +131,7 @@ func startTestManager(mgr manager.Manager) (stop func()) {
 }
 
 func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcilerOptions) error {
-	reconciler := &IngressRouteReconciler{
+	ingressRouteReconciler := &IngressRouteReconciler{
 		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
 		Scheme:            scheme,
@@ -140,10 +142,28 @@ func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcile
 		CreateDNSEndpoint: opts.createDNSEndpoint,
 		CreateCertificate: opts.createCertificate,
 	}
-	return reconciler.SetupWithManager(mgr)
+	err := ingressRouteReconciler.SetupWithManager(mgr)
+	if err != nil {
+		return err
+	}
+	httpProxyReconciler := &HTTPProxyReconciler{
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
+		Scheme:            scheme,
+		ServiceKey:        serviceKey,
+		Prefix:            opts.prefix,
+		DefaultIssuerName: opts.defaultIssuerName,
+		DefaultIssuerKind: opts.defaultIssuerKind,
+		CreateDNSEndpoint: opts.createDNSEndpoint,
+		CreateCertificate: opts.createCertificate,
+	}
+	return httpProxyReconciler.SetupWithManager(mgr)
 }
 
 func setupScheme(scm *runtime.Scheme) error {
+	if err := projectcontourv1.AddToScheme(scm); err != nil {
+		return err
+	}
 	if err := contourv1beta1.AddToScheme(scm); err != nil {
 		return err
 	}
@@ -158,7 +178,7 @@ func setupScheme(scm *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(scm, groupVersion)
 
-	if err := certmanagerv1alpha1.AddToScheme(scm); err != nil {
+	if err := certmanagerv1alpha2.AddToScheme(scm); err != nil {
 		return err
 	}
 
