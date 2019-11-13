@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2019-11-13
+
+### Changed
+
+- Update contour to 1.0.0, controller-runtime to 0.3.0, and cert-manager to 0.11.0 (#20).
+- Change the API version of Certificate resource from certmanger.k8s.io/v1alpha1 to cert-manger.io/v1alpha2 (#20).
+- Update controller-tools to 0.2.2 and kubebuilder to 2.1.0 (#21).
+
+## Added
+
+- Support HTTPProxy resource (#20).
+
 ## [0.2.7] - 2019-08-26
 
 ### Changed
@@ -68,7 +80,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/cybozu-go/contour-plus/compare/v0.2.7...v0.3.0
 [0.2.7]: https://github.com/cybozu-go/contour-plus/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/cybozu-go/contour-plus/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/cybozu-go/contour-plus/compare/v0.2.4...v0.2.5
