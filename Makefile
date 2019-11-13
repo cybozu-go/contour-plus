@@ -11,8 +11,8 @@ export GO111MODULE GOFLAGS
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
 SUDO = sudo
-KUBEBUILDER_VERSION = 2.0.0
-CTRLTOOLS_VERSION = 0.2.0
+KUBEBUILDER_VERSION = 2.1.0
+CTRLTOOLS_VERSION = 0.2.2
 
 all: bin/contour-plus
 
