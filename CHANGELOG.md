@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Change the API version of Certificate resource from certmanger.k8s.io/v1alpha1 to cert-manger.io/v1alpha2 (#20).
 - Update controller-tools to 0.2.2 and kubebuilder to 2.1.0 (#21).
 
-## Added
+### Added
 
 - Support HTTPProxy resource (#20).
 
