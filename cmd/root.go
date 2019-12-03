@@ -9,13 +9,8 @@ import (
 
 	"github.com/cybozu-go/contour-plus/controllers"
 	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
-	"github.com/kubernetes-incubator/external-dns/endpoint"
-	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
-	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -43,34 +38,9 @@ func Execute() {
 }
 
 func init() {
-	if err := projectcontourv1.AddToScheme(scheme); err != nil {
+	if err := controllers.SetupScheme(scheme); err != nil {
 		panic(err)
 	}
-	if err := contourv1beta1.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
-
-	// ExternalDNS does not implement AddToScheme
-	groupVersion := ctrl.GroupVersion{
-		Group:   "externaldns.k8s.io",
-		Version: "v1alpha1",
-	}
-	scheme.AddKnownTypes(groupVersion,
-		&endpoint.DNSEndpoint{},
-		&endpoint.DNSEndpointList{},
-	)
-	metav1.AddToGroupVersion(scheme, groupVersion)
-
-	if err := certmanagerv1alpha2.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
-
-	// for corev1.Service
-	if err := corev1.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
-
-	// +kubebuilder:scaffold:scheme
 
 	fs := rootCmd.Flags()
 	fs.String("metrics-addr", ":8180", "Bind address for the metrics endpoint")
@@ -116,17 +86,21 @@ In addition to flags, the following environment variables are read:
 func subMain() error {
 	ctrl.SetLogger(zap.Logger(false))
 
+	opts := controllers.ReconcilerOptions{
+		Prefix:            viper.GetString("name-prefix"),
+		DefaultIssuerName: viper.GetString("default-issuer-name"),
+	}
+
 	crds := viper.GetStringSlice("crds")
 	if len(crds) == 0 {
 		return errors.New("at least one service need to be enabled")
 	}
-	var createDNSEndpoint, createCertificate bool
 	for _, crd := range crds {
 		switch crd {
 		case dnsEndpointKind:
-			createDNSEndpoint = true
+			opts.CreateDNSEndpoint = true
 		case certmanagerv1alpha2.CertificateKind:
-			createCertificate = true
+			opts.CreateCertificate = true
 		default:
 			return errors.New("unsupported CRD: " + crd)
 		}
@@ -137,7 +111,7 @@ func subMain() error {
 	if len(nsname) != 2 || nsname[0] == "" || nsname[1] == "" {
 		return errors.New("service-name should be valid string as namespaced-name")
 	}
-	serviceKey := client.ObjectKey{
+	opts.ServiceKey = client.ObjectKey{
 		Namespace: nsname[0],
 		Name:      nsname[1],
 	}
@@ -148,6 +122,7 @@ func subMain() error {
 	default:
 		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
 	}
+	opts.DefaultIssuerKind = defaultIssuerKind
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
@@ -160,31 +135,11 @@ func subMain() error {
 		return err
 	}
 
-	err = (&controllers.IngressRouteReconciler{
-		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
-		Scheme:            mgr.GetScheme(),
-		ServiceKey:        serviceKey,
-		Prefix:            viper.GetString("name-prefix"),
-		DefaultIssuerName: viper.GetString("default-issuer-name"),
-		DefaultIssuerKind: defaultIssuerKind,
-		CreateDNSEndpoint: createDNSEndpoint,
-		CreateCertificate: createCertificate,
-	}).SetupWithManager(mgr)
+	err = controllers.SetupReconciler(mgr, mgr.GetScheme(), opts)
 	if err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "IngressRoute")
+		setupLog.Error(err, "unable to create controllers")
 		os.Exit(1)
 	}
-
-	err = (&controllers.HTTPProxyReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
-	}).SetupWithManager(mgr)
-	if err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "HTTPProxy")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
