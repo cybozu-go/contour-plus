@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2019-12-04
+
+### Changed
+
+- Fix missing initialize options of HTTPProxy controller (#25).
+
 ## [0.3.0] - 2019-11-13
 
 ### Changed
@@ -80,7 +86,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/cybozu-go/contour-plus/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/cybozu-go/contour-plus/compare/v0.2.7...v0.3.0
 [0.2.7]: https://github.com/cybozu-go/contour-plus/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/cybozu-go/contour-plus/compare/v0.2.5...v0.2.6
