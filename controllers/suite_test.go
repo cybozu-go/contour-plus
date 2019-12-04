@@ -6,14 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
-	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
-	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -34,21 +29,13 @@ var (
 	k8sClient client.Client
 	testEnv   *envtest.Environment
 
-	serviceKey = client.ObjectKey{Namespace: "test-ns", Name: "test-svc"}
+	testServiceKey = client.ObjectKey{Namespace: "test-ns", Name: "test-svc"}
 )
 
 const (
 	testNamespacePrefix = "test-ns-"
 	dummyLoadBalancerIP = "10.0.0.0"
 )
-
-type reconcilerOptions struct {
-	prefix            string
-	defaultIssuerName string
-	defaultIssuerKind string
-	createDNSEndpoint bool
-	createCertificate bool
-}
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -72,8 +59,7 @@ var _ = BeforeSuite(func() {
 
 	By("setting up scheme")
 	scheme := runtime.NewScheme()
-	Expect(setupScheme(scheme)).ShouldNot(HaveOccurred())
-	// +kubebuilder:scaffold:scheme
+	Expect(SetupScheme(scheme)).ShouldNot(HaveOccurred())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -82,8 +68,8 @@ var _ = BeforeSuite(func() {
 	By("creating IngressRoute loadbalancer service")
 	svc := &corev1.Service{
 		ObjectMeta: ctrl.ObjectMeta{
-			Namespace: serviceKey.Namespace,
-			Name:      serviceKey.Name,
+			Namespace: testServiceKey.Namespace,
+			Name:      testServiceKey.Name,
 		},
 		Spec: corev1.ServiceSpec{
 			Ports:          []corev1.ServicePort{{Port: 8080}},
@@ -130,64 +116,9 @@ func startTestManager(mgr manager.Manager) (stop func()) {
 	return
 }
 
-func setupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts reconcilerOptions) error {
-	ingressRouteReconciler := &IngressRouteReconciler{
-		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
-		Scheme:            scheme,
-		ServiceKey:        serviceKey,
-		Prefix:            opts.prefix,
-		DefaultIssuerName: opts.defaultIssuerName,
-		DefaultIssuerKind: opts.defaultIssuerKind,
-		CreateDNSEndpoint: opts.createDNSEndpoint,
-		CreateCertificate: opts.createCertificate,
-	}
-	err := ingressRouteReconciler.SetupWithManager(mgr)
-	if err != nil {
-		return err
-	}
-	httpProxyReconciler := &HTTPProxyReconciler{
-		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
-		Scheme:            scheme,
-		ServiceKey:        serviceKey,
-		Prefix:            opts.prefix,
-		DefaultIssuerName: opts.defaultIssuerName,
-		DefaultIssuerKind: opts.defaultIssuerKind,
-		CreateDNSEndpoint: opts.createDNSEndpoint,
-		CreateCertificate: opts.createCertificate,
-	}
-	return httpProxyReconciler.SetupWithManager(mgr)
-}
-
-func setupScheme(scm *runtime.Scheme) error {
-	if err := projectcontourv1.AddToScheme(scm); err != nil {
-		return err
-	}
-	if err := contourv1beta1.AddToScheme(scm); err != nil {
-		return err
-	}
-
-	groupVersion := ctrl.GroupVersion{
-		Group:   "externaldns.k8s.io",
-		Version: "v1alpha1",
-	}
-	scm.AddKnownTypes(groupVersion,
-		&endpoint.DNSEndpoint{},
-		&endpoint.DNSEndpointList{},
-	)
-	metav1.AddToGroupVersion(scm, groupVersion)
-
-	if err := certmanagerv1alpha2.AddToScheme(scm); err != nil {
-		return err
-	}
-
-	return corev1.AddToScheme(scm)
-}
-
 func setupManager() (*runtime.Scheme, manager.Manager) {
 	scm := scheme.Scheme
-	Expect(setupScheme(scm)).ShouldNot(HaveOccurred())
+	Expect(SetupScheme(scm)).ShouldNot(HaveOccurred())
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scm})
 	Expect(err).ShouldNot(HaveOccurred())
 	return scm, mgr

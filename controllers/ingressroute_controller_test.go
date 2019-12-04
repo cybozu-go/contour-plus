@@ -34,12 +34,13 @@ func testIngressRouteReconcile() {
 		scm, mgr := setupManager()
 
 		prefix := "test-"
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			prefix:            prefix,
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createDNSEndpoint: true,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			Prefix:            prefix,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateDNSEndpoint: true,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -79,11 +80,12 @@ func testIngressRouteReconcile() {
 
 		scm, mgr := setupManager()
 
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createDNSEndpoint: true,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateDNSEndpoint: true,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -122,12 +124,13 @@ func testIngressRouteReconcile() {
 		scm, mgr := setupManager()
 
 		prefix := "test-"
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			prefix:            prefix,
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createDNSEndpoint: true,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			Prefix:            prefix,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateDNSEndpoint: true,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -161,10 +164,11 @@ func testIngressRouteReconcile() {
 
 		By("setup manager with ClusterIssuer")
 		scm, mgr := setupManager()
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.ClusterIssuerKind,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.ClusterIssuerKind,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -195,10 +199,11 @@ func testIngressRouteReconcile() {
 
 		By("setup manager")
 		scm, mgr := setupManager()
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -233,10 +238,11 @@ func testIngressRouteReconcile() {
 		})
 		By("setup manager")
 		scm, mgr := setupManager()
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -262,7 +268,7 @@ func testIngressRouteReconcile() {
 
 	})
 
-	It("should create DNSEndpoint, but should not create Certificate, if `createCertificate` is false", func() {
+	It("should create DNSEndpoint, but should not create Certificate, if `CreateCertificate` is false", func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
@@ -274,11 +280,12 @@ func testIngressRouteReconcile() {
 		By("disabling the feature to create Certificate")
 		scm, mgr := setupManager()
 
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createDNSEndpoint: true,
-			createCertificate: false,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateDNSEndpoint: true,
+			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -307,7 +314,7 @@ func testIngressRouteReconcile() {
 		Expect(crtList.Items).Should(BeEmpty())
 	})
 
-	It("should create Certificate, but should not create DNSEndpoint, if `createDNSEndpoint` is false", func() {
+	It("should create Certificate, but should not create DNSEndpoint, if `CreateDNSEndpoint` is false", func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
@@ -318,11 +325,12 @@ func testIngressRouteReconcile() {
 
 		By("disabling the feature to create DNSEndpoint")
 		scm, mgr := setupManager()
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createDNSEndpoint: false,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateDNSEndpoint: false,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -359,11 +367,12 @@ func testIngressRouteReconcile() {
 		By("disabling the feature to create Certificate")
 		scm, mgr := setupManager()
 
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerName: "test-issuer",
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createDNSEndpoint: true,
-			createCertificate: false,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateDNSEndpoint: true,
+			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -394,7 +403,7 @@ func testIngressRouteReconcile() {
 		Expect(crtList.Items).Should(BeEmpty())
 	})
 
-	It("should create Certificate, if `defaultIssuerName` is empty but 'issuer-name' annotation is not empty", func() {
+	It("should create Certificate, if `DefaultIssuerName` is empty but 'issuer-name' annotation is not empty", func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
@@ -403,11 +412,12 @@ func testIngressRouteReconcile() {
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})
 
-		By("setup reconciler with empty defaultIssuerName")
+		By("setup reconciler with empty DefaultIssuerName")
 		scm, mgr := setupManager()
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -428,7 +438,7 @@ func testIngressRouteReconcile() {
 		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
 	})
 
-	It("should not create Certificate, if `defaultIssuerName` and 'issuer-name' annotation are empty", func() {
+	It("should not create Certificate, if `DefaultIssuerName` and 'issuer-name' annotation are empty", func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
@@ -437,11 +447,12 @@ func testIngressRouteReconcile() {
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})
 
-		By("setup reconciler with empty defaultIssuerName")
+		By("setup reconciler with empty DefaultIssuerName")
 		scm, mgr := setupManager()
-		Expect(setupReconciler(mgr, scm, reconcilerOptions{
-			defaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			createCertificate: true,
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
