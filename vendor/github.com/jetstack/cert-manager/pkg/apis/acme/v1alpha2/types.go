@@ -31,8 +31,13 @@ const (
 	// classes into a single cluster that want to be able to re-use a single
 	// solver for each ingress class.
 	ACMECertificateHTTP01IngressClassOverride = "acme.cert-manager.io/http01-override-ingress-class"
+
+	// IngressEditInPlaceAnnotation is used to toggle the use of ingressClass instead
+	// of ingress on the created Certificate resource
+	IngressEditInPlaceAnnotationKey = "acme.cert-manager.io/http01-edit-in-place"
 )
 
 const (
-	OrderKind = "Order"
+	OrderKind     = "Order"
+	ChallengeKind = "Challenge"
 )

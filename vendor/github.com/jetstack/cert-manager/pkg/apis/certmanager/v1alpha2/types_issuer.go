@@ -52,6 +52,9 @@ type ClusterIssuerList struct {
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=issuers
 type Issuer struct {
@@ -193,10 +196,10 @@ type VaultAppRole struct {
 // Authenticate against Vault using a Kubernetes ServiceAccount token stored in
 // a Secret.
 type VaultKubernetesAuth struct {
-	// The value here will be used as part of the path used when authenticating
-	// with vault, for example if you set a value of "foo", the path used will be
-	// `/v1/auth/foo/login`. If unspecified, the default value "kubernetes" will
-	// be used.
+	// The Vault mountPath here is the mount path to use when authenticating with
+	// Vault. For example, setting a value to `/v1/auth/foo`, will use the path
+	// `/v1/auth/foo/login` to authenticate with Vault. If unspecified, the
+	// default value "/v1/auth/kubernetes" will be used.
 	// +optional
 	Path string `json:"mountPath,omitempty"`
 

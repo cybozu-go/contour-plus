@@ -19,7 +19,6 @@ package v1alpha2
 import (
 	corev1 "k8s.io/api/core/v1"
 	apiext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cmmeta "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
 )
@@ -137,13 +136,21 @@ type ACMEChallengeSolverHTTP01IngressPodTemplate struct {
 	// If labels or annotations overlap with in-built values, the values here
 	// will override the in-built values.
 	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	ACMEChallengeSolverHTTP01IngressPodObjectMeta `json:"metadata,omitempty"`
 
 	// PodSpec defines overrides for the HTTP01 challenge solver pod.
 	// Only the 'nodeSelector', 'affinity' and 'tolerations' fields are
 	// supported currently. All other fields will be ignored.
 	// +optional
 	Spec ACMEChallengeSolverHTTP01IngressPodSpec `json:"spec,omitempty"`
+}
+
+type ACMEChallengeSolverHTTP01IngressPodObjectMeta struct {
+	// Annotations that should be added to the create ACME HTTP01 solver pods.
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Labels that should be added to the created ACME HTTP01 solver pods.
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type ACMEChallengeSolverHTTP01IngressPodSpec struct {
@@ -227,15 +234,17 @@ type ACMEIssuerDNS01ProviderAkamai struct {
 // ACMEIssuerDNS01ProviderCloudDNS is a structure containing the DNS
 // configuration for Google Cloud DNS
 type ACMEIssuerDNS01ProviderCloudDNS struct {
-	ServiceAccount cmmeta.SecretKeySelector `json:"serviceAccountSecretRef"`
-	Project        string                   `json:"project"`
+	// +optional
+	ServiceAccount *cmmeta.SecretKeySelector `json:"serviceAccountSecretRef,omitempty"`
+	Project        string                    `json:"project"`
 }
 
 // ACMEIssuerDNS01ProviderCloudflare is a structure containing the DNS
 // configuration for Cloudflare
 type ACMEIssuerDNS01ProviderCloudflare struct {
-	Email  string                   `json:"email"`
-	APIKey cmmeta.SecretKeySelector `json:"apiKeySecretRef"`
+	Email    string                    `json:"email"`
+	APIKey   *cmmeta.SecretKeySelector `json:"apiKeySecretRef,omitempty"`
+	APIToken *cmmeta.SecretKeySelector `json:"apiTokenSecretRef,omitempty"`
 }
 
 // ACMEIssuerDNS01ProviderDigitalOcean is a structure containing the DNS
