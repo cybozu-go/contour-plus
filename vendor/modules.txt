@@ -68,7 +68,7 @@ github.com/jetstack/cert-manager/pkg/apis/certmanager
 github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2
 github.com/jetstack/cert-manager/pkg/apis/meta
 github.com/jetstack/cert-manager/pkg/apis/meta/v1
-# github.com/json-iterator/go v1.1.8
+# github.com/json-iterator/go v1.1.7
 github.com/json-iterator/go
 # github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024
 github.com/jstemmer/go-junit-report
@@ -227,7 +227,7 @@ gopkg.in/inf.v0
 gopkg.in/tomb.v1
 # gopkg.in/yaml.v2 v2.2.7
 gopkg.in/yaml.v2
-# k8s.io/api v0.0.0-20191206001707-7edad22604e1
+# k8s.io/api v0.0.0-20191114100352-16d7abae0d2a
 k8s.io/api/admission/v1beta1
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1beta1
@@ -275,7 +275,7 @@ k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1
-# k8s.io/apimachinery v0.0.0-20191203211716-adc6f4cd9e7d
+# k8s.io/apimachinery v0.0.0-20191028221656-72ed19daf4bb
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
@@ -394,7 +394,7 @@ k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
 # k8s.io/klog v1.0.0
 k8s.io/klog
-# k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
+# k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
 k8s.io/kube-openapi/pkg/util/proto
 # k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6
 k8s.io/utils/buffer

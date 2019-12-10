@@ -31,8 +31,8 @@ require (
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/yaml.v2 v2.2.7 // indirect
-	k8s.io/api v0.0.0-20191206001707-7edad22604e1
-	k8s.io/apimachinery v0.0.0-20191203211716-adc6f4cd9e7d
+	k8s.io/api v0.0.0-20191114100352-16d7abae0d2a
+	k8s.io/apimachinery v0.0.0-20191028221656-72ed19daf4bb
 	k8s.io/client-go v0.0.0-20191114101535-6c5935290e33
 	k8s.io/klog v1.0.0
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6 // indirect
