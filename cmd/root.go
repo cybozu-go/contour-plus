@@ -49,6 +49,7 @@ func init() {
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
 	fs.String("default-issuer-kind", certmanagerv1alpha2.ClusterIssuerKind, "Issuer kind used by default")
+	fs.String("ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
 	fs.Bool("leader-election", true, "Enable/disable leader election")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
@@ -76,7 +77,8 @@ In addition to flags, the following environment variables are read:
 	CP_SERVICE_NAME          NamespacedName of the Contour LoadBalancer Service
 	CP_DEFAULT_ISSUER_NAME   Issuer name used by default
 	CP_DEFAULT_ISSUER_KIND   Issuer kind used by default
-	CP_LEADER_ELECTION       Disable leader election if set to "false"`,
+	CP_LEADER_ELECTION       Disable leader election if set to "false"
+	CP_INGRESS_CLASS_NAME    Ingress class name that watched by Contour Plus. If not specified, then all classes are watched`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		return subMain()
@@ -123,6 +125,8 @@ func subMain() error {
 		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
 	}
 	opts.DefaultIssuerKind = defaultIssuerKind
+
+	opts.IngressClassName = viper.GetString("ingress-class-name")
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,

@@ -32,6 +32,7 @@ type HTTPProxyReconciler struct {
 	DefaultIssuerKind string
 	CreateDNSEndpoint bool
 	CreateCertificate bool
+	IngressClassName  string
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch
@@ -65,6 +66,12 @@ func (r *HTTPProxyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
+	if r.IngressClassName != "" {
+		if !r.isClassNameMatched(hp) {
+			return ctrl.Result{}, nil
+		}
+	}
+
 	if err := r.reconcileDNSEndpoint(ctx, hp, log); err != nil {
 		log.Error(err, "unable to reconcile DNSEndpoint")
 		return ctrl.Result{}, err
@@ -75,6 +82,28 @@ func (r *HTTPProxyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *HTTPProxyReconciler) isClassNameMatched(hp *projectcontourv1.HTTPProxy) bool {
+	ingressClassName := hp.Annotations[ingressClassNameAnnotation]
+	if ingressClassName != "" {
+		if ingressClassName != r.IngressClassName {
+			return false
+		}
+	}
+
+	contourIngressClassName := hp.Annotations[contourIngressClassNameAnnotation]
+	if contourIngressClassName != "" {
+		if contourIngressClassName != r.IngressClassName {
+			return false
+		}
+	}
+
+	if contourIngressClassName == "" && ingressClassName == "" {
+		return false
+	}
+
+	return true
 }
 
 func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
