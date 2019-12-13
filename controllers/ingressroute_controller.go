@@ -21,10 +21,12 @@ import (
 )
 
 const (
-	excludeAnnotation           = "contour-plus.cybozu.com/exclude"
-	testACMETLSAnnotation       = "kubernetes.io/tls-acme"
-	issuerNameAnnotation        = "cert-manager.io/issuer"
-	clusterIssuerNameAnnotation = "cert-manager.io/cluster-issuer"
+	excludeAnnotation                 = "contour-plus.cybozu.com/exclude"
+	testACMETLSAnnotation             = "kubernetes.io/tls-acme"
+	issuerNameAnnotation              = "cert-manager.io/issuer"
+	clusterIssuerNameAnnotation       = "cert-manager.io/cluster-issuer"
+	ingressClassNameAnnotation        = "kubernetes.io/ingress.class"
+	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
 )
 
 // IngressRouteReconciler reconciles a IngressRoute object
@@ -39,6 +41,7 @@ type IngressRouteReconciler struct {
 	DefaultIssuerKind string
 	CreateDNSEndpoint bool
 	CreateCertificate bool
+	IngressClassName  string
 }
 
 // +kubebuilder:rbac:groups=contour.heptio.com,resources=ingressroutes,verbs=get;list;watch
@@ -71,6 +74,12 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return ctrl.Result{}, nil
 	}
 
+	if r.IngressClassName != "" {
+		if !r.isClassNameMatched(ir) {
+			return ctrl.Result{}, nil
+		}
+	}
+
 	err = r.reconcileDNSEndpoint(ctx, ir, log)
 	if err != nil {
 		log.Error(err, "unable to reconcile DNSEndpoint")
@@ -83,6 +92,28 @@ func (r *IngressRouteReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *IngressRouteReconciler) isClassNameMatched(ir *contourv1beta1.IngressRoute) bool {
+	ingressClassName := ir.Annotations[ingressClassNameAnnotation]
+	if ingressClassName != "" {
+		if ingressClassName != r.IngressClassName {
+			return false
+		}
+	}
+
+	contourIngressClassName := ir.Annotations[contourIngressClassNameAnnotation]
+	if contourIngressClassName != "" {
+		if contourIngressClassName != r.IngressClassName {
+			return false
+		}
+	}
+
+	if contourIngressClassName == "" && ingressClassName == "" {
+		return false
+	}
+
+	return true
 }
 
 func (r *IngressRouteReconciler) reconcileDNSEndpoint(ctx context.Context, ir *contourv1beta1.IngressRoute, log logr.Logger) error {
