@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"testing"
 	"time"
 
 	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
@@ -467,6 +469,97 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
+
+	It(`should not create DNSEndpoint and Certificate if the class name is not the target`, func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateDNSEndpoint: true,
+			CreateCertificate: true,
+			IngressClassName:  "class-name",
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy having the annotation")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[ingressClassNameAnnotation] = "wrong"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("confirming that DNSEndpoint and Certificate do not exist")
+		time.Sleep(time.Second)
+		endpointList := &endpoint.DNSEndpointList{}
+		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(endpointList.Items).Should(BeEmpty())
+
+		crtList := &certmanagerv1alpha2.CertificateList{}
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+
+		By("creating HTTPProxy without the annotation")
+		hpKey = client.ObjectKey{Name: "bar", Namespace: ns}
+		hp = newDummyHTTPProxy(hpKey)
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("confirming that DNSEndpoint and Certificate do not exist")
+		time.Sleep(time.Second)
+		endpointList = &endpoint.DNSEndpointList{}
+		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(endpointList.Items).Should(BeEmpty())
+
+		crtList = &certmanagerv1alpha2.CertificateList{}
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+	})
+
+	It(`should create Certificate if the class name equals to the target`, func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			CreateCertificate: true,
+			IngressClassName:  "class-name",
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy having the annotation")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[ingressClassNameAnnotation] = "class-name"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		certificate := &certmanagerv1alpha2.Certificate{}
+		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, certificate)
+		}, 5*time.Second).Should(Succeed())
+	})
 }
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
@@ -485,5 +578,109 @@ func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
 			},
 			Routes: []projectcontourv1.Route{},
 		},
+	}
+}
+
+func TestIsClassNameMatched(t *testing.T) {
+	tests := []struct {
+		name             string
+		ingressClassName string
+		hp               *projectcontourv1.HTTPProxy
+		want             bool
+	}{
+		{
+			name:             "Annotation is not set",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+			want: false,
+		},
+		{
+			name:             "Both annotation are set",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						ingressClassNameAnnotation:        "class-name",
+						contourIngressClassNameAnnotation: "class-name",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "Both annotation are set but not matched",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						ingressClassNameAnnotation:        "class-name",
+						contourIngressClassNameAnnotation: "wrong",
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name:             fmt.Sprintf("Annotation %s is set", ingressClassNameAnnotation),
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						ingressClassNameAnnotation: "class-name",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:             fmt.Sprintf("Annotation %s is set but not matched", ingressClassNameAnnotation),
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						ingressClassNameAnnotation: "wrong",
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name:             fmt.Sprintf("Annotation %s is set", contourIngressClassNameAnnotation),
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						contourIngressClassNameAnnotation: "class-name",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:             fmt.Sprintf("Annotation %s is set but not matched", contourIngressClassNameAnnotation),
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						contourIngressClassNameAnnotation: "wrong",
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &HTTPProxyReconciler{
+				IngressClassName: tt.ingressClassName,
+			}
+			if got := r.isClassNameMatched(tt.hp); got != tt.want {
+				t.Errorf("HTTPProxyReconciler.isClassNameMatched() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
