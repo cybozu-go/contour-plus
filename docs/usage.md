@@ -20,6 +20,7 @@ If both is specified, command-line flags take precedence.
 | `default-issuer-name` | `CP_DEFAULT_ISSUER_NAME` | ""                        | Issuer name used by default                        |
 | `default-issuer-kind` | `CP_DEFAULT_ISSUER_KIND` | `ClusterIssuer`           | Issuer kind used by default                        |
 | `leader-election`     | `CP_LEADER_ELECTION`     | `true`                    | Enable / disable leader election                   |
+| `ingress-class-name`  | `CP_INGRESS_CLASS_NAME`  | ""                        | Ingress class name that watched by Contour Plus. If not specified, then all classes are watched    |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an IngressRoute/HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
@@ -29,6 +30,9 @@ To disable CRD creation, specify `crds` command-line flag or `CP_CRDS` environme
 `service-name` is a required flag/envvar that must be the namespaced name of Service for Contour.
 In a normal setup, Contour has a `type=LoadBalancer` Service to expose its Envoy pods to Internet.
 By specifying `service-name`, contour-plus can identify the global IP address for FQDNs in IngressRoute/HTTPProxy.
+
+If `ingress-class-name` is specified, contour-plus watches only IngressRoute/HTTPProxy annotated by `kubernetes.io/ingress.class=<ingress-class-name>` or `projectcontour.io/ingress.class=<ingress-class-name>`.  
+**If both `kubernetes.io/ingress.class=<ingress-class-name>` and `projectcontour.io/ingress.class=<ingress-class-name>` are specified and those values are different, then contour-plus doesn't watch the resource.**
 
 How it works
 ------------
