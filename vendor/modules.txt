@@ -165,7 +165,7 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
+# golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 golang.org/x/net/context
