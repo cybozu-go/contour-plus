@@ -35,5 +35,4 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6 // indirect
 	sigs.k8s.io/controller-runtime v0.5.2
-	sigs.k8s.io/testing_frameworks v0.1.2 // indirect
 )
