@@ -11,8 +11,8 @@ export GO111MODULE GOFLAGS
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
 SUDO = sudo
-KUBEBUILDER_VERSION = 2.2.0
-CTRLTOOLS_VERSION = 0.2.4
+KUBEBUILDER_VERSION = 2.3.1
+CTRLTOOLS_VERSION = 0.2.8
 
 all: bin/contour-plus
 
@@ -77,4 +77,4 @@ mod:
 	git add -f vendor
 	git add go.mod
 
-.PHONY: all test manifests vet generate docker-build docker-push setup mod
+.PHONY: all test manifests vet generate docker-build docker-push setup mod controller-gen
