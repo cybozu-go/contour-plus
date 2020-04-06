@@ -72,9 +72,15 @@ const (
 // A valid Certificate requires at least one of a CommonName, DNSName, or
 // URISAN to be valid.
 type CertificateSpec struct {
+	// Full X509 name specification (https://golang.org/pkg/crypto/x509/pkix/#Name).
+	// +optional
+	Subject *X509Subject `json:"subject,omitempty"`
+
 	// CommonName is a common name to be used on the Certificate.
 	// The CommonName should have a length of 64 characters or fewer to avoid
 	// generating invalid CSRs.
+	// This value is ignored by TLS clients when any subject alt name is set.
+	// This is x509 behaviour: https://tools.ietf.org/html/rfc6125#section-6.4.4
 	// +optional
 	CommonName string `json:"commonName,omitempty"`
 
@@ -103,6 +109,11 @@ type CertificateSpec struct {
 	// +optional
 	URISANs []string `json:"uriSANs,omitempty"`
 
+	// EmailSANs is a list of Email Subject Alternative Names to be set on this
+	// Certificate.
+	// +optional
+	EmailSANs []string `json:"emailSANs,omitempty"`
+
 	// SecretName is the name of the secret resource to store this secret in
 	SecretName string `json:"secretName"`
 
@@ -127,6 +138,10 @@ type CertificateSpec struct {
 	// If provided, value must be between 2048 and 8192 inclusive when KeyAlgorithm is
 	// empty or is set to "rsa", and value must be one of (256, 384, 521) when
 	// KeyAlgorithm is set to "ecdsa".
+	// +kubebuilder:validation:ExclusiveMaximum=false
+	// +kubebuilder:validation:Maximum=8192
+	// +kubebuilder:validation:ExclusiveMinimum=false
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	KeySize int `json:"keySize,omitempty"`
 
@@ -143,6 +158,31 @@ type CertificateSpec struct {
 	// values are "pkcs1" and "pkcs8" standing for PKCS#1 and PKCS#8, respectively.
 	// If KeyEncoding is not specified, then PKCS#1 will be used by default.
 	KeyEncoding KeyEncoding `json:"keyEncoding,omitempty"`
+}
+
+// X509Subject Full X509 name specification
+type X509Subject struct {
+	// Countries to be used on the Certificate.
+	// +optional
+	Countries []string `json:"countries,omitempty"`
+	// Organizational Units to be used on the Certificate.
+	// +optional
+	OrganizationalUnits []string `json:"organizationalUnits,omitempty"`
+	// Cities to be used on the Certificate.
+	// +optional
+	Localities []string `json:"localities,omitempty"`
+	// State/Provinces to be used on the Certificate.
+	// +optional
+	Provinces []string `json:"provinces,omitempty"`
+	// Street addresses to be used on the Certificate.
+	// +optional
+	StreetAddresses []string `json:"streetAddresses,omitempty"`
+	// Postal codes to be used on the Certificate.
+	// +optional
+	PostalCodes []string `json:"postalCodes,omitempty"`
+	// Serial number to be used on the Certificate.
+	// +optional
+	SerialNumber string `json:"serialNumber,omitempty"`
 }
 
 // CertificateStatus defines the observed state of Certificate
