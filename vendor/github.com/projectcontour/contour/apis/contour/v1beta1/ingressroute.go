@@ -86,7 +86,8 @@ type Service struct {
 	Port int `json:"port"`
 	// Weight defines percentage of traffic to balance traffic
 	// +optional
-	Weight uint32 `json:"weight,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	Weight int64 `json:"weight,omitempty"`
 	// HealthCheck defines optional healthchecks on the upstream service
 	// +optional
 	HealthCheck *HealthCheck `json:"healthCheck,omitempty"`
@@ -115,10 +116,12 @@ type HealthCheck struct {
 	TimeoutSeconds int64 `json:"timeoutSeconds"`
 	// The number of unhealthy health checks required before a host is marked unhealthy
 	// +optional
-	UnhealthyThresholdCount uint32 `json:"unhealthyThresholdCount"`
+	// +kubebuilder:validation:Minimum=0
+	UnhealthyThresholdCount int64 `json:"unhealthyThresholdCount"`
 	// The number of healthy health checks required before a host is marked healthy
 	// +optional
-	HealthyThresholdCount uint32 `json:"healthyThresholdCount"`
+	// +kubebuilder:validation:Minimum=0
+	HealthyThresholdCount int64 `json:"healthyThresholdCount"`
 }
 
 // Delegate allows for delegating VHosts to other IngressRoutes
@@ -140,7 +143,7 @@ type Delegate struct {
 // +kubebuilder:printcolumn:name="First route",type="string",JSONPath=".spec.routes[0].match",description="First routes defined"
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.currentStatus",description="The current status of the HTTPProxy"
 // +kubebuilder:printcolumn:name="Status Description",type="string",JSONPath=".status.description",description="Description of the current status"
-// +kubebuilder:resource:path=ingressroutes,singular=ingressroute
+// +kubebuilder:resource:scope=Namespaced,path=ingressroutes,singular=ingressroute
 type IngressRoute struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`

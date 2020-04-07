@@ -127,7 +127,7 @@ type VenafiTPP struct {
 	// The secret must contain two keys, 'username' and 'password'.
 	CredentialsRef cmmeta.LocalObjectReference `json:"credentialsRef"`
 
-	// CABundle is a PEM encoded TLS certifiate to use to verify connections to
+	// CABundle is a PEM encoded TLS certificate to use to verify connections to
 	// the TPP instance.
 	// If specified, system roots will not be used and the issuing CA for the
 	// TPP instance must be verifiable using the provided root.
@@ -140,7 +140,8 @@ type VenafiTPP struct {
 // VenafiCloud defines connection configuration details for Venafi Cloud
 type VenafiCloud struct {
 	// URL is the base URL for Venafi Cloud
-	URL string `json:"url"`
+	// +optional
+	URL string `json:"url,omitempty"`
 
 	// APITokenSecretRef is a secret key selector for the Venafi Cloud API token.
 	APITokenSecretRef cmmeta.SecretKeySelector `json:"apiTokenSecretRef"`

@@ -11,12 +11,12 @@ require (
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
-	github.com/jetstack/cert-manager v0.12.0
+	github.com/jetstack/cert-manager v0.14.1
 	github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024
 	github.com/kubernetes-incubator/external-dns v0.5.12
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
-	github.com/projectcontour/contour v1.0.1
+	github.com/projectcontour/contour v1.3.0
 	github.com/prometheus/client_golang v1.2.1 // indirect
 	github.com/prometheus/client_model v0.0.0-20191202183732-d1d2010b5bee // indirect
 	github.com/prometheus/procfs v0.0.8 // indirect
@@ -27,7 +27,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6 // indirect
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	k8s.io/api v0.17.4
 	k8s.io/apimachinery v0.17.4
