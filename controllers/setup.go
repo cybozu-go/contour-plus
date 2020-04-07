@@ -27,12 +27,8 @@ type ReconcilerOptions struct {
 
 // SetupScheme initializes a schema
 func SetupScheme(scm *runtime.Scheme) error {
-	if err := projectcontourv1.AddToScheme(scm); err != nil {
-		return err
-	}
-	if err := contourv1beta1.AddToScheme(scm); err != nil {
-		return err
-	}
+	projectcontourv1.AddKnownTypes(scm)
+	contourv1beta1.AddKnownTypes(scm)
 
 	// ExternalDNS does not implement AddToScheme
 	groupVersion := ctrl.GroupVersion{
