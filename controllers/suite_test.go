@@ -118,7 +118,8 @@ func startTestManager(mgr manager.Manager) (stop func()) {
 }
 
 func setupManager() (*runtime.Scheme, manager.Manager) {
-	scm := scheme.Scheme
+	scm := runtime.NewScheme()
+	scheme.AddToScheme(scm)
 	Expect(SetupScheme(scm)).ShouldNot(HaveOccurred())
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scm})
 	Expect(err).ShouldNot(HaveOccurred())
