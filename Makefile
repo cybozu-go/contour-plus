@@ -23,7 +23,7 @@ test: vet manifests
 	test -z "$$(nilerr ./... 2>&1 | tee /dev/stderr)"
 	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... | grep -v /vendor/ ) 2>&1 | tee /dev/stderr)"
 	ineffassign .
-	go test -v -count 1 ./controllers/... -coverprofile cover.out
+	go test -race -v -count 1 ./controllers/... -coverprofile cover.out
 
 # Build contour-plus binary
 bin/contour-plus: main.go cmd/root.go controllers/ingressroute_controller.go controllers/httpproxy_controller.go
