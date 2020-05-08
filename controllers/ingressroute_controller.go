@@ -248,6 +248,12 @@ func (r *IngressRouteReconciler) reconcileCertificate(ctx context.Context, ir *c
 		crt.Spec.CommonName = vh.Fqdn
 		crt.Spec.IssuerRef.Name = issuerName
 		crt.Spec.IssuerRef.Kind = issuerKind
+		crt.Spec.Usages = []certmanagerv1alpha2.KeyUsage{
+			certmanagerv1alpha2.UsageDigitalSignature,
+			certmanagerv1alpha2.UsageKeyEncipherment,
+			certmanagerv1alpha2.UsageServerAuth,
+			certmanagerv1alpha2.UsageClientAuth,
+		}
 		return ctrl.SetControllerReference(ir, crt, r.Scheme)
 	})
 	if err != nil {
