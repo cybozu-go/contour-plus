@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.3] - 2020-05-08
+
+### Changed
+
+- Add key usages to certificate resources to generate (#40).
+
 ## [0.4.2] - 2020-04-21
 
 ### Changed
@@ -105,7 +111,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/cybozu-go/contour-plus/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/cybozu-go/contour-plus/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/cybozu-go/contour-plus/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cybozu-go/contour-plus/compare/v0.3.1...v0.4.0
