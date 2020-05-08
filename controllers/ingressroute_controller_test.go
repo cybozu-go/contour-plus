@@ -67,6 +67,15 @@ func testIngressRouteReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
+		Expect(crt.Spec.DNSNames).Should(Equal([]string{dnsName}))
+		Expect(crt.Spec.SecretName).Should(Equal(testSecretName))
+		Expect(crt.Spec.CommonName).Should(Equal(dnsName))
+		Expect(crt.Spec.Usages).Should(Equal([]certmanagerv1alpha2.KeyUsage{
+			certmanagerv1alpha2.UsageDigitalSignature,
+			certmanagerv1alpha2.UsageKeyEncipherment,
+			certmanagerv1alpha2.UsageServerAuth,
+			certmanagerv1alpha2.UsageClientAuth,
+		}))
 	})
 
 	It("should not crash with null fields", func() {
