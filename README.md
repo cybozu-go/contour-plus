@@ -2,7 +2,6 @@
 [![CircleCI](https://circleci.com/gh/cybozu-go/contour-plus.svg?style=svg)](https://circleci.com/gh/cybozu-go/contour-plus)
 [![GoDoc](https://godoc.org/github.com/cybozu-go/contour-plus?status.svg)][godoc]
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/contour-plus)](https://goreportcard.com/report/github.com/cybozu-go/contour-plus)
-[![Docker Repository on Quay](https://quay.io/repository/cybozu/contour-plus/status "Docker Repository on Quay")](https://quay.io/repository/cybozu/contour-plus)
 
 Contour Plus
 ============
@@ -47,3 +46,8 @@ Documentation
 [HTTPProxy]: https://github.com/projectcontour/contour/blob/master/site/docs/master/httpproxy.md
 [DNSEndpoint]: https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source.md
 [Certificate]: http://docs.cert-manager.io/en/latest/reference/certificates.html
+
+Docker images
+-------------
+
+Docker images are available on [Quay.io](https://quay.io/repository/cybozu/contour-plus)
