@@ -1,7 +1,7 @@
 Usage
 =====
 
-contour-plus is an add-on controller for [Contour][]'s [IngressRoute][] and [HTTPProxy][].
+contour-plus is an add-on controller for [Contour][]'s [HTTPProxy][].
 
 It helps integration of Contour with [external-dns][] and [cert-manager][].
 
@@ -22,22 +22,22 @@ If both is specified, command-line flags take precedence.
 | `leader-election`     | `CP_LEADER_ELECTION`     | `true`                    | Enable / disable leader election                   |
 | `ingress-class-name`  | `CP_INGRESS_CLASS_NAME`  | ""                        | Ingress class name that watched by Contour Plus. If not specified, then all classes are watched    |
 
-By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an IngressRoute/HTTPProxy is not empty,
+By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
 
 To disable CRD creation, specify `crds` command-line flag or `CP_CRDS` environment variable.
 
 `service-name` is a required flag/envvar that must be the namespaced name of Service for Contour.
 In a normal setup, Contour has a `type=LoadBalancer` Service to expose its Envoy pods to Internet.
-By specifying `service-name`, contour-plus can identify the global IP address for FQDNs in IngressRoute/HTTPProxy.
+By specifying `service-name`, contour-plus can identify the global IP address for FQDNs in HTTPProxy.
 
-If `ingress-class-name` is specified, contour-plus watches only IngressRoute/HTTPProxy annotated by `kubernetes.io/ingress.class=<ingress-class-name>` or `projectcontour.io/ingress.class=<ingress-class-name>`.  
+If `ingress-class-name` is specified, contour-plus watches only HTTPProxy annotated by `kubernetes.io/ingress.class=<ingress-class-name>` or `projectcontour.io/ingress.class=<ingress-class-name>`.  
 **If both `kubernetes.io/ingress.class=<ingress-class-name>` and `projectcontour.io/ingress.class=<ingress-class-name>` are specified and those values are different, then contour-plus doesn't watch the resource.**
 
 How it works
 ------------
 
-contour-plus monitors events for [IngressRoute][]/[HTTPProxy][] and creates / updates / deletes
+contour-plus monitors events for [HTTPProxy][] and creates / updates / deletes
 [DNSEndpoint][] and/or [Certificate][].
 
 The container of contour-plus should be deployed as a sidecar of Contour/Envoy Pod.
@@ -87,17 +87,16 @@ rules:
 
 ### Supported annotations
 
-contour-plus interprets following annotations for IngressRoute.
+contour-plus interprets following annotations for HTTPProxy.
 
-- `contour-plus.cybozu.com/exclude: "true"` - With this, contour-plus ignores this IngressRoute. 
-- `cert-manager.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this Ingressroute from. The Issuer must be in the same namespace as the IngressRoute.
+- `contour-plus.cybozu.com/exclude: "true"` - With this, contour-plus ignores this HTTPProxy. 
+- `cert-manager.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this HTTPProxy from. The Issuer must be in the same namespace as the HTTPProxy.
 - `cert-manager.io/cluster-issuer` - The name of a [ClusterIssuer][Issuer] to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
-- `kubernetes.io/tls-acme: "true"` - With this, contour-plus generates Certificate automatically from IngressRoute.
+- `kubernetes.io/tls-acme: "true"` - With this, contour-plus generates Certificate automatically from HTTPProxy.
 
 If both of `cert-manager.io/issuer` and `cert-manager.io/cluster-issuer` exist, `cluster-issuer` takes precedence.
 
 [Contour]: https://github.com/heptio/contour
-[IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md
 [HTTPProxy]: https://github.com/projectcontour/contour/blob/master/site/docs/master/httpproxy.md
 [DNSEndpoint]: https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source.md
 [external-dns]: https://github.com/kubernetes-incubator/external-dns

@@ -16,19 +16,19 @@ Supported environments
 - Kubernetes
   - 1.17
 - Contour
-  - 1.0
+  - 1.6
 - ExternalDNS
-  - 0.5
+  - 0.7
 - cert-manager
-  - 0.12
+  - 0.15
 
 Other versions may or may not work.
 
 Features
 --------
 
-- Create/update/delete [DNSEndpoint][] for ExternalDNS according to FQDN in [IngressRoute][]/[HTTPProxy][].
-- Create/update/delete [Certificate][] for cert-manager when [IngressRoute][]/[HTTPProxy][] is annotated with `kubernetes.io/tls-acme: true`.
+- Create/update/delete [DNSEndpoint][] for ExternalDNS according to FQDN in [HTTPProxy][].
+- Create/update/delete [Certificate][] for cert-manager when [HTTPProxy][] is annotated with `kubernetes.io/tls-acme: true`.
 
 Other features are described in [docs/usage.md](docs/usage.md).
 
@@ -42,7 +42,6 @@ Documentation
 [Contour]: https://github.com/heptio/contour
 [ExternalDNS]: https://github.com/kubernetes-incubator/external-dns
 [cert-manager]: https://github.com/jetstack/cert-manager
-[IngressRoute]: https://github.com/heptio/contour/blob/master/docs/ingressroute.md
 [HTTPProxy]: https://github.com/projectcontour/contour/blob/master/site/docs/master/httpproxy.md
 [DNSEndpoint]: https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source.md
 [Certificate]: http://docs.cert-manager.io/en/latest/reference/certificates.html

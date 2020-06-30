@@ -17,10 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// const (
-// 	httpProxyDNSName    = "httpproxy.example.com"
-// 	httpProxySecretName = "httpproxy-test-secret"
-// )
+const (
+	dnsName        = "test.example.com"
+	testSecretName = "test-secret"
+)
 
 func testHTTPProxyReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
