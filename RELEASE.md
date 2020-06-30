@@ -37,15 +37,16 @@ Bump version
 2. Checkout `master` branch.
 3. Make a branch to release, for example by `git neco dev "$VERSION"`
 4. Edit `CHANGELOG.md` for the new version ([example][]).
-5. Commit the change and push it.
+5. Edit `README.md` for the new version ([readme-example][]) if needed.
+6. Commit the change and push it.
 
     ```console
     $ git commit -a -m "Bump version to $VERSION"
     $ git neco review
     ```
-6. Merge this branch.
-7. Checkout `master` branch.
-8. Add a git tag, then push it.
+7. Merge this branch.
+8. Checkout `master` branch.
+9. Add a git tag, then push it.
 
     ```console
     $ git tag "v$VERSION"
@@ -63,3 +64,4 @@ Finally, press `Publish release` button.
 
 [semver]: https://semver.org/spec/v2.0.0.html
 [example]: https://github.com/cybozu-go/etcdpasswd/commit/77d95384ac6c97e7f48281eaf23cb94f68867f79
+[readme-example]: https://github.com/cybozu-go/contour-plus/commit/858163c5bee47fbf9f5fe2f2a28c7b997e23d7da
