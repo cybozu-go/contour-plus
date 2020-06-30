@@ -66,8 +66,8 @@ func init() {
 
 var rootCmd = &cobra.Command{
 	Use:   "contour-plus",
-	Short: "contour-plus is a custom controller for Contour IngressRoute/HTTPProxy",
-	Long: `contour-plus is a custom controller for Contour IngressRoute/HTTPProxy.
+	Short: "contour-plus is a custom controller for Contour HTTPProxy",
+	Long: `contour-plus is a custom controller for Contour HTTPProxy.
 	
 In addition to flags, the following environment variables are read:
 

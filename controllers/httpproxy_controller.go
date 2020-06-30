@@ -20,6 +20,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+const (
+	excludeAnnotation                 = "contour-plus.cybozu.com/exclude"
+	testACMETLSAnnotation             = "kubernetes.io/tls-acme"
+	issuerNameAnnotation              = "cert-manager.io/issuer"
+	clusterIssuerNameAnnotation       = "cert-manager.io/cluster-issuer"
+	ingressClassNameAnnotation        = "kubernetes.io/ingress.class"
+	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
+)
+
 // HTTPProxyReconciler reconciles a HttpProxy object
 type HTTPProxyReconciler struct {
 	client.Client
@@ -258,4 +267,39 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		b = b.Owns(&certmanagerv1alpha2.Certificate{})
 	}
 	return b.Complete(r)
+}
+
+func makeEndpoints(hostname string, ips []net.IP) []*endpoint.Endpoint {
+	ipv4Targets, ipv6Targets := ipsToTargets(ips)
+	var endpoints []*endpoint.Endpoint
+	if len(ipv4Targets) != 0 {
+		endpoints = append(endpoints, &endpoint.Endpoint{
+			DNSName:    hostname,
+			Targets:    ipv4Targets,
+			RecordType: endpoint.RecordTypeA,
+			RecordTTL:  3600,
+		})
+	}
+	if len(ipv6Targets) != 0 {
+		endpoints = append(endpoints, &endpoint.Endpoint{
+			DNSName:    hostname,
+			Targets:    ipv6Targets,
+			RecordType: "AAAA",
+			RecordTTL:  3600,
+		})
+	}
+	return endpoints
+}
+
+func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
+	ipv4Targets := endpoint.Targets{}
+	ipv6Targets := endpoint.Targets{}
+	for _, ip := range ips {
+		if ip.To4() != nil {
+			ipv4Targets = append(ipv4Targets, ip.String())
+			continue
+		}
+		ipv6Targets = append(ipv6Targets, ip.String())
+	}
+	return ipv4Targets, ipv6Targets
 }

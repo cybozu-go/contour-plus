@@ -66,7 +66,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	By("creating IngressRoute loadbalancer service")
+	By("creating httpproy loadbalancer service")
 	svc := &corev1.Service{
 		ObjectMeta: ctrl.ObjectMeta{
 			Namespace: testServiceKey.Namespace,
@@ -96,7 +96,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Test contour-plus", func() {
-	Context("ingressroute", testIngressRouteReconcile)
 	Context("httpproxy", testHTTPProxyReconcile)
 })
 

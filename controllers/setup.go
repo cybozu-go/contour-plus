@@ -56,26 +56,9 @@ func SetupScheme(scm *runtime.Scheme) error {
 
 // SetupReconciler initializes reconcilers
 func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts ReconcilerOptions) error {
-	ingressRouteReconciler := &IngressRouteReconciler{
-		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
-		Scheme:            scheme,
-		ServiceKey:        opts.ServiceKey,
-		Prefix:            opts.Prefix,
-		DefaultIssuerName: opts.DefaultIssuerName,
-		DefaultIssuerKind: opts.DefaultIssuerKind,
-		CreateDNSEndpoint: opts.CreateDNSEndpoint,
-		CreateCertificate: opts.CreateCertificate,
-		IngressClassName:  opts.IngressClassName,
-	}
-	err := ingressRouteReconciler.SetupWithManager(mgr)
-	if err != nil {
-		return err
-	}
-
 	httpProxyReconciler := &HTTPProxyReconciler{
 		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("IngressRoute"),
+		Log:               ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
 		Scheme:            scheme,
 		ServiceKey:        opts.ServiceKey,
 		Prefix:            opts.Prefix,
@@ -85,7 +68,7 @@ func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts Reconcile
 		CreateCertificate: opts.CreateCertificate,
 		IngressClassName:  opts.IngressClassName,
 	}
-	err = httpProxyReconciler.SetupWithManager(mgr)
+	err := httpProxyReconciler.SetupWithManager(mgr)
 	if err != nil {
 		return err
 	}
