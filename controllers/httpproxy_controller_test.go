@@ -28,9 +28,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		scm, mgr := setupManager()
 
@@ -84,9 +81,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		scm, mgr := setupManager()
 
@@ -125,9 +119,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		By("setup manager with ClusterIssuer")
 		scm, mgr := setupManager()
@@ -160,9 +151,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		By("setup manager")
 		scm, mgr := setupManager()
@@ -200,9 +188,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
+
 		By("setup manager")
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -240,9 +226,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		By("disabling the feature to create Certificate")
 		scm, mgr := setupManager()
@@ -286,9 +269,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		By("disabling the feature to create DNSEndpoint")
 		scm, mgr := setupManager()
@@ -327,9 +307,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		By("disabling the feature to create Certificate")
 		scm, mgr := setupManager()
@@ -375,9 +352,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		By("setup reconciler with empty DefaultIssuerName")
 		scm, mgr := setupManager()
@@ -410,9 +384,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		By("setup reconciler with empty DefaultIssuerName")
 		scm, mgr := setupManager()
@@ -441,9 +412,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		scm, mgr := setupManager()
 
@@ -496,9 +464,6 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
 			ObjectMeta: ctrl.ObjectMeta{Name: ns},
 		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
 
 		scm, mgr := setupManager()
 
