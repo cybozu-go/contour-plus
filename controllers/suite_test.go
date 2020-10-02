@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -121,6 +122,7 @@ func startTestManager(mgr manager.Manager) (stop func()) {
 		}
 		close(waitCh)
 	}()
+	time.Sleep(100 * time.Millisecond)
 	return
 }
 

@@ -17,13 +17,15 @@ CTRLTOOLS_VERSION = 0.2.8
 all: bin/contour-plus
 
 # Run tests
-test: vet manifests
+test:
 	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
 	test -z "$$(golint $$(go list ./... | grep -v /vendor/) | tee /dev/stderr)"
 	test -z "$$(nilerr ./... 2>&1 | tee /dev/stderr)"
 	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... | grep -v /vendor/ ) 2>&1 | tee /dev/stderr)"
 	ineffassign .
 	go test -race -v -count 1 ./controllers/... -coverprofile cover.out
+	go install ./...
+	go vet ./...
 
 # Build contour-plus binary
 bin/contour-plus: main.go cmd/root.go controllers/httpproxy_controller.go
@@ -32,10 +34,6 @@ bin/contour-plus: main.go cmd/root.go controllers/httpproxy_controller.go
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=contour-plus paths="./..."
-
-# Run go vet against code
-vet:
-	go vet ./...
 
 # Generate code
 generate: controller-gen
@@ -77,4 +75,4 @@ mod:
 	git add -f vendor
 	git add go.mod
 
-.PHONY: all test manifests vet generate docker-build docker-push setup mod controller-gen
+.PHONY: all test manifests generate docker-build docker-push setup mod controller-gen

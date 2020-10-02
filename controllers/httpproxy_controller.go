@@ -71,6 +71,10 @@ func (r *HTTPProxyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
+	if hp.DeletionTimestamp != nil {
+		return ctrl.Result{}, nil
+	}
+
 	if hp.Annotations[excludeAnnotation] == "true" {
 		return ctrl.Result{}, nil
 	}
