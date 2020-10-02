@@ -79,49 +79,6 @@ func testHTTPProxyReconcile() {
 		}))
 	})
 
-	It("should not crash with null fields", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-		defer k8sClient.Delete(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})
-
-		scm, mgr := setupManager()
-
-		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
-			ServiceKey:        testServiceKey,
-			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
-			CreateDNSEndpoint: true,
-			CreateCertificate: true,
-		})).ShouldNot(HaveOccurred())
-
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
-
-		By("creating HTTPProxy with null virtualHost")
-		hp := &projectcontourv1.HTTPProxy{}
-		hp.Namespace = ns
-		hp.Name = "foo"
-		hp.Spec.Routes = []projectcontourv1.Route{}
-		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
-
-		By("creating HTTPProxy with null TLS")
-		hp = &projectcontourv1.HTTPProxy{}
-		hp.Namespace = ns
-		hp.Name = "foo2"
-		hp.Annotations = map[string]string{
-			testACMETLSAnnotation: "true",
-		}
-		hp.Spec.VirtualHost = &projectcontourv1.VirtualHost{
-			Fqdn: "foo2.example.com",
-		}
-		hp.Spec.Routes = []projectcontourv1.Route{}
-		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
-	})
-
 	It(`should not create DNSEndpoint and Certificate if "contour-plus.cybozu.com/exclude"" is "true"`, func() {
 		ns := testNamespacePrefix + randomString(10)
 		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
