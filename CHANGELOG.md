@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2020-10-02
+
+### Changed
+
+- Update controller-runtime to 0.6.3 (#46).
+
+### Fixed
+
+- Do not reconcile being-deleted object (#46).
+
 ## [0.5.0] - 2020-06-30
 
 ### Changed
@@ -121,7 +131,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/cybozu-go/contour-plus/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/cybozu-go/contour-plus/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/cybozu-go/contour-plus/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/cybozu-go/contour-plus/compare/v0.4.1...v0.4.2
