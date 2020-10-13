@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Jetstack cert-manager contributors.
+Copyright 2020 The Jetstack cert-manager contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	cmacme "github.com/jetstack/cert-manager/pkg/apis/acme/v1alpha2"
+	cmacme "github.com/jetstack/cert-manager/pkg/apis/acme/v1"
 	cmmeta "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
 )
 
@@ -27,6 +27,7 @@ import (
 // +genclient:nonNamespaced
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:storageversion
 
 // A ClusterIssuer represents a certificate issuing authority which can be
 // referenced as part of `issuerRef` fields.
@@ -38,10 +39,11 @@ type ClusterIssuer struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Desired state of the ClusterIssuer resource.
-	Spec IssuerSpec `json:"spec,omitempty"`
+	Spec IssuerSpec `json:"spec"`
 
 	// Status of the ClusterIssuer. This is set and managed automatically.
-	Status IssuerStatus `json:"status,omitempty"`
+	// +optional
+	Status IssuerStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -57,6 +59,7 @@ type ClusterIssuerList struct {
 // +genclient
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:storageversion
 
 // An Issuer represents a certificate issuing authority which can be
 // referenced as part of `issuerRef` fields.
@@ -67,10 +70,11 @@ type Issuer struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Desired state of the Issuer resource.
-	Spec IssuerSpec `json:"spec,omitempty"`
+	Spec IssuerSpec `json:"spec"`
 
 	// Status of the Issuer. This is set and managed automatically.
-	Status IssuerStatus `json:"status,omitempty"`
+	// +optional
+	Status IssuerStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

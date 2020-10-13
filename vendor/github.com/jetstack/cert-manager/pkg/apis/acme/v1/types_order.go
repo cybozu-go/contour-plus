@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Jetstack cert-manager contributors.
+Copyright 2020 The Jetstack cert-manager contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +24,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:storageversion
 
 // Order is a type to represent an Order with an ACME server
 // +k8s:openapi-gen=true
@@ -31,8 +32,9 @@ type Order struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   OrderSpec   `json:"spec,omitempty"`
-	Status OrderStatus `json:"status,omitempty"`
+	Spec OrderSpec `json:"spec"`
+	// +optional
+	Status OrderStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -49,7 +51,7 @@ type OrderSpec struct {
 	// Certificate signing request bytes in DER encoding.
 	// This will be used when finalizing the order.
 	// This field must be set on the order.
-	CSR []byte `json:"csr"`
+	Request []byte `json:"request"`
 
 	// IssuerRef references a properly configured ACME-type Issuer which should
 	// be used to create this Order.

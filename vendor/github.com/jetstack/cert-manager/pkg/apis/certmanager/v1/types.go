@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Jetstack cert-manager contributors.
+Copyright 2020 The Jetstack cert-manager contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1
 
 // Common annotation keys added to resources.
 const (
@@ -45,13 +45,6 @@ const (
 	// Annotation key used to denote whether a Secret is named on a Certificate
 	// as a 'next private key' Secret resource.
 	IsNextPrivateKeySecretLabelKey = "cert-manager.io/next-private-key"
-)
-
-// Deprecated annotation names for Secrets
-// These will be removed in a future release.
-const (
-	DeprecatedIssuerNameAnnotationKey = "certmanager.k8s.io/issuer-name"
-	DeprecatedIssuerKindAnnotationKey = "certmanager.k8s.io/issuer-kind"
 )
 
 const (
@@ -105,7 +98,7 @@ const (
 const (
 	// WantInjectAnnotation is the annotation that specifies that a particular
 	// object wants injection of CAs.  It takes the form of a reference to a certificate
-	// as namespace/name.
+	// as namespace/name.  The certificate is expected to have the is-serving-for annotations.
 	WantInjectAnnotation = "cert-manager.io/inject-ca-from"
 
 	// WantInjectAPIServerCAAnnotation, if set to "true", will make the cainjector
@@ -115,7 +108,7 @@ const (
 	WantInjectAPIServerCAAnnotation = "cert-manager.io/inject-apiserver-ca"
 
 	// WantInjectFromSecretAnnotation is the annotation that specifies that a particular
-	// object wants injection of CAs. It takes the form of a reference to a Secret
+	// object wants injection of CAs.  It takes the form of a reference to a Secret
 	// as namespace/name.
 	WantInjectFromSecretAnnotation = "cert-manager.io/inject-ca-from-secret"
 
@@ -134,6 +127,11 @@ const (
 	// The value is an array with objects containing the name and value keys
 	// for example: `[{"name": "custom-field", "value": "custom-value"}]`
 	VenafiCustomFieldsAnnotationKey = "venafi.cert-manager.io/custom-fields"
+
+	// VenafiPickupIDAnnotationKey is the annotation key used to record the
+	// Venafi Pickup ID of a certificate signing request that has been submitted
+	// to the Venafi API for collection later.
+	VenafiPickupIDAnnotationKey = "venafi.cert-manager.io/pickup-id"
 )
 
 // KeyUsage specifies valid usage contexts for keys.

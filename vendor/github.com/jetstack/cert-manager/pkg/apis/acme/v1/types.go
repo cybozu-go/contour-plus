@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Jetstack cert-manager contributors.
+Copyright 2020 The Jetstack cert-manager contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1
 
 const (
 	// If this annotation is specified on a Certificate or Order resource when
@@ -35,4 +35,21 @@ const (
 	// IngressEditInPlaceAnnotation is used to toggle the use of ingressClass instead
 	// of ingress on the created Certificate resource
 	IngressEditInPlaceAnnotationKey = "acme.cert-manager.io/http01-edit-in-place"
+
+	// DomainLabelKey is added to the labels of a Pod serving an ACME challenge.
+	// Its value will be the hash of the domain name that is being verified.
+	DomainLabelKey = "acme.cert-manager.io/http-domain"
+
+	// TokenLabelKey is added to the labels of a Pod serving an ACME challenge.
+	// Its value will be the hash of the challenge token that is being served by the pod.
+	TokenLabelKey = "acme.cert-manager.io/http-token"
+
+	// SolverIdentificationLabelKey is added to the labels of a Pod serving an ACME challenge.
+	// Its value will be the "true" if the Pod is an HTTP-01 solver.
+	SolverIdentificationLabelKey = "acme.cert-manager.io/http01-solver"
+)
+
+const (
+	OrderKind     = "Order"
+	ChallengeKind = "Challenge"
 )

@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Jetstack cert-manager contributors.
+Copyright 2020 The Jetstack cert-manager contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +37,7 @@ const (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:storageversion
 
 // A CertificateRequest is used to request a signed certificate from one of the
 // configured issuers.
@@ -53,10 +54,11 @@ type CertificateRequest struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Desired state of the CertificateRequest resource.
-	Spec CertificateRequestSpec `json:"spec,omitempty"`
+	Spec CertificateRequestSpec `json:"spec"`
 
 	// Status of the CertificateRequest. This is set and managed automatically.
-	Status CertificateRequestStatus `json:"status,omitempty"`
+	// +optional
+	Status CertificateRequestStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -87,7 +89,7 @@ type CertificateRequestSpec struct {
 
 	// The PEM-encoded x509 certificate signing request to be submitted to the
 	// CA for signing.
-	CSRPEM []byte `json:"csr"`
+	Request []byte `json:"request"`
 
 	// IsCA will request to mark the certificate as valid for certificate signing
 	// when submitting to the issuer.
@@ -96,6 +98,7 @@ type CertificateRequestSpec struct {
 	IsCA bool `json:"isCA,omitempty"`
 
 	// Usages is the set of x509 usages that are requested for the certificate.
+	// If usages are set they SHOULD be encoded inside the CSR spec
 	// Defaults to `digital signature` and `key encipherment` if not specified.
 	// +optional
 	Usages []KeyUsage `json:"usages,omitempty"`

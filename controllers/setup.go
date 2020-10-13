@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
+	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +39,7 @@ func SetupScheme(scm *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(scm, groupVersion)
 
-	if err := certmanagerv1alpha2.AddToScheme(scm); err != nil {
+	if err := certmanagerv1.AddToScheme(scm); err != nil {
 		return err
 	}
 

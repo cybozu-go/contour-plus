@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Jetstack cert-manager contributors.
+Copyright 2020 The Jetstack cert-manager contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +24,7 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:storageversion
 
 // A Certificate resource should be created to ensure an up to date and signed
 // x509 certificate is stored in the Kubernetes Secret resource named in `spec.secretName`.
@@ -35,10 +36,11 @@ type Certificate struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Desired state of the Certificate resource.
-	Spec CertificateSpec `json:"spec,omitempty"`
+	Spec CertificateSpec `json:"spec"`
 
 	// Status of the Certificate. This is set and managed automatically.
-	Status CertificateStatus `json:"status,omitempty"`
+	// +optional
+	Status CertificateStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -51,34 +53,36 @@ type CertificateList struct {
 	Items []Certificate `json:"items"`
 }
 
-// +kubebuilder:validation:Enum=rsa;ecdsa
-type KeyAlgorithm string
+// +kubebuilder:validation:Enum=RSA;ECDSA
+type PrivateKeyAlgorithm string
 
 const (
 	// Denotes the RSA private key type.
-	RSAKeyAlgorithm KeyAlgorithm = "rsa"
+	RSAKeyAlgorithm PrivateKeyAlgorithm = "RSA"
 
 	// Denotes the ECDSA private key type.
-	ECDSAKeyAlgorithm KeyAlgorithm = "ecdsa"
+	ECDSAKeyAlgorithm PrivateKeyAlgorithm = "ECDSA"
 )
 
-// +kubebuilder:validation:Enum=pkcs1;pkcs8
-type KeyEncoding string
+// +kubebuilder:validation:Enum=PKCS1;PKCS8
+type PrivateKeyEncoding string
 
 const (
 	// PKCS1 key encoding will produce PEM files that include the type of
 	// private key as part of the PEM header, e.g. "BEGIN RSA PRIVATE KEY".
 	// If the keyAlgorithm is set to 'ECDSA', this will produce private keys
 	// that use the "BEGIN EC PRIVATE KEY" header.
-	PKCS1 KeyEncoding = "pkcs1"
+	PKCS1 PrivateKeyEncoding = "PKCS1"
 
 	// PKCS8 key encoding will produce PEM files with the "BEGIN PRIVATE KEY"
 	// header. It encodes the keyAlgorithm of the private key as part of the
 	// DER encoded PEM block.
-	PKCS8 KeyEncoding = "pkcs8"
+	PKCS8 PrivateKeyEncoding = "PKCS8"
 )
 
 // CertificateSpec defines the desired state of Certificate.
+// A valid Certificate requires at least one of a CommonName, DNSName, or
+// URISAN to be valid.
 type CertificateSpec struct {
 	// Full X509 name specification (https://golang.org/pkg/crypto/x509/pkix/#Name).
 	// +optional
@@ -91,10 +95,6 @@ type CertificateSpec struct {
 	// This is x509 behaviour: https://tools.ietf.org/html/rfc6125#section-6.4.4
 	// +optional
 	CommonName string `json:"commonName,omitempty"`
-
-	// Organization is a list of organizations to be used on the Certificate.
-	// +optional
-	Organization []string `json:"organization,omitempty"`
 
 	// The requested 'duration' (i.e. lifetime) of the Certificate.
 	// This option may be ignored/overridden by some issuer types.
@@ -120,13 +120,13 @@ type CertificateSpec struct {
 	// +optional
 	IPAddresses []string `json:"ipAddresses,omitempty"`
 
-	// URISANs is a list of URI subjectAltNames to be set on the Certificate.
+	// URIs is a list of URI subjectAltNames to be set on the Certificate.
 	// +optional
-	URISANs []string `json:"uriSANs,omitempty"`
+	URIs []string `json:"uris,omitempty"`
 
-	// EmailSANs is a list of email subjectAltNames to be set on the Certificate.
+	// EmailAddresses is a list of email subjectAltNames to be set on the Certificate.
 	// +optional
-	EmailSANs []string `json:"emailSANs,omitempty"`
+	EmailAddresses []string `json:"emailAddresses,omitempty"`
 
 	// SecretName is the name of the secret resource that will be automatically
 	// created and managed by this Certificate resource.
@@ -157,34 +157,6 @@ type CertificateSpec struct {
 	// +optional
 	Usages []KeyUsage `json:"usages,omitempty"`
 
-	// KeySize is the key bit size of the corresponding private key for this certificate.
-	// If `keyAlgorithm` is set to `RSA`, valid values are `2048`, `4096` or `8192`,
-	// and will default to `2048` if not specified.
-	// If `keyAlgorithm` is set to `ECDSA`, valid values are `256`, `384` or `521`,
-	// and will default to `256` if not specified.
-	// No other values are allowed.
-	// +kubebuilder:validation:ExclusiveMaximum=false
-	// +kubebuilder:validation:Maximum=8192
-	// +kubebuilder:validation:ExclusiveMinimum=false
-	// +kubebuilder:validation:Minimum=0
-	// +optional
-	KeySize int `json:"keySize,omitempty"`
-
-	// KeyAlgorithm is the private key algorithm of the corresponding private key
-	// for this certificate. If provided, allowed values are either "rsa" or "ecdsa"
-	// If `keyAlgorithm` is specified and `keySize` is not provided,
-	// key size of 256 will be used for "ecdsa" key algorithm and
-	// key size of 2048 will be used for "rsa" key algorithm.
-	// +optional
-	KeyAlgorithm KeyAlgorithm `json:"keyAlgorithm,omitempty"`
-
-	// KeyEncoding is the private key cryptography standards (PKCS)
-	// for this certificate's private key to be encoded in. If provided, allowed
-	// values are "pkcs1" and "pkcs8" standing for PKCS#1 and PKCS#8, respectively.
-	// If KeyEncoding is not specified, then PKCS#1 will be used by default.
-	// +optional
-	KeyEncoding KeyEncoding `json:"keyEncoding,omitempty"`
-
 	// Options to control private keys used for the Certificate.
 	// +optional
 	PrivateKey *CertificatePrivateKey `json:"privateKey,omitempty"`
@@ -205,6 +177,35 @@ type CertificatePrivateKey struct {
 	// Default is 'Never' for backward compatibility.
 	// +optional
 	RotationPolicy PrivateKeyRotationPolicy `json:"rotationPolicy,omitempty"`
+
+	// The private key cryptography standards (PKCS) encoding for this
+	// certificate's private key to be encoded in.
+	// If provided, allowed values are "pkcs1" and "pkcs8" standing for PKCS#1
+	// and PKCS#8, respectively.
+	// Defaults to PKCS#1 if not specified.
+	// +optional
+	Encoding PrivateKeyEncoding `json:"encoding,omitempty"`
+
+	// Algorithm is the private key algorithm of the corresponding private key
+	// for this certificate. If provided, allowed values are either "rsa" or "ecdsa"
+	// If `algorithm` is specified and `size` is not provided,
+	// key size of 256 will be used for "ecdsa" key algorithm and
+	// key size of 2048 will be used for "rsa" key algorithm.
+	// +optional
+	Algorithm PrivateKeyAlgorithm `json:"algorithm,omitempty"`
+
+	// Size is the key bit size of the corresponding private key for this certificate.
+	// If `algorithm` is set to `RSA`, valid values are `2048`, `4096` or `8192`,
+	// and will default to `2048` if not specified.
+	// If `algorithm` is set to `ECDSA`, valid values are `256`, `384` or `521`,
+	// and will default to `256` if not specified.
+	// No other values are allowed.
+	// +kubebuilder:validation:ExclusiveMaximum=false
+	// +kubebuilder:validation:Maximum=8192
+	// +kubebuilder:validation:ExclusiveMinimum=false
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	Size int `json:"size,omitempty"`
 }
 
 // Denotes how private keys should be generated or sourced when a Certificate
@@ -225,6 +226,9 @@ var (
 
 // X509Subject Full X509 name specification
 type X509Subject struct {
+	// Organizations to be used on the Certificate.
+	// +optional
+	Organizations []string `json:"organizations,omitempty"`
 	// Countries to be used on the Certificate.
 	// +optional
 	Countries []string `json:"countries,omitempty"`
@@ -253,10 +257,12 @@ type X509Subject struct {
 type CertificateKeystores struct {
 	// JKS configures options for storing a JKS keystore in the
 	// `spec.secretName` Secret resource.
+	// +optional
 	JKS *JKSKeystore `json:"jks,omitempty"`
 
 	// PKCS12 configures options for storing a PKCS12 keystore in the
 	// `spec.secretName` Secret resource.
+	// +optional
 	PKCS12 *PKCS12Keystore `json:"pkcs12,omitempty"`
 }
 

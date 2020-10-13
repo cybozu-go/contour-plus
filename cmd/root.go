@@ -7,8 +7,9 @@ import (
 	"os"
 	"strings"
 
+	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
+
 	"github.com/cybozu-go/contour-plus/controllers"
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,11 +45,11 @@ func init() {
 
 	fs := rootCmd.Flags()
 	fs.String("metrics-addr", ":8180", "Bind address for the metrics endpoint")
-	fs.StringSlice("crds", []string{dnsEndpointKind, certmanagerv1alpha2.CertificateKind}, "List of CRD names to be created")
+	fs.StringSlice("crds", []string{dnsEndpointKind, certmanagerv1.CertificateKind}, "List of CRD names to be created")
 	fs.String("name-prefix", "", "Prefix of CRD names to be created")
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
-	fs.String("default-issuer-kind", certmanagerv1alpha2.ClusterIssuerKind, "Issuer kind used by default")
+	fs.String("default-issuer-kind", certmanagerv1.ClusterIssuerKind, "Issuer kind used by default")
 	fs.String("ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
 	fs.Bool("leader-election", true, "Enable/disable leader election")
 	if err := viper.BindPFlags(fs); err != nil {
@@ -101,7 +102,7 @@ func subMain() error {
 		switch crd {
 		case dnsEndpointKind:
 			opts.CreateDNSEndpoint = true
-		case certmanagerv1alpha2.CertificateKind:
+		case certmanagerv1.CertificateKind:
 			opts.CreateCertificate = true
 		default:
 			return errors.New("unsupported CRD: " + crd)
@@ -120,7 +121,7 @@ func subMain() error {
 
 	defaultIssuerKind := viper.GetString("default-issuer-kind")
 	switch defaultIssuerKind {
-	case certmanagerv1alpha2.IssuerKind, certmanagerv1alpha2.ClusterIssuerKind:
+	case certmanagerv1.IssuerKind, certmanagerv1.ClusterIssuerKind:
 	default:
 		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
 	}

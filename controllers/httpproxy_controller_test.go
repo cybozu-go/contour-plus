@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
+	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
@@ -36,7 +36,7 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			Prefix:            prefix,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -61,18 +61,18 @@ func testHTTPProxyReconcile() {
 		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
 
 		By("getting Certificate with prefixed name")
-		crt := &certmanagerv1alpha2.Certificate{}
+		crt := &certmanagerv1.Certificate{}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 		Expect(crt.Spec.DNSNames).Should(Equal([]string{dnsName}))
 		Expect(crt.Spec.SecretName).Should(Equal(testSecretName))
 		Expect(crt.Spec.CommonName).Should(Equal(dnsName))
-		Expect(crt.Spec.Usages).Should(Equal([]certmanagerv1alpha2.KeyUsage{
-			certmanagerv1alpha2.UsageDigitalSignature,
-			certmanagerv1alpha2.UsageKeyEncipherment,
-			certmanagerv1alpha2.UsageServerAuth,
-			certmanagerv1alpha2.UsageClientAuth,
+		Expect(crt.Spec.Usages).Should(Equal([]certmanagerv1.KeyUsage{
+			certmanagerv1.UsageDigitalSignature,
+			certmanagerv1.UsageKeyEncipherment,
+			certmanagerv1.UsageServerAuth,
+			certmanagerv1.UsageClientAuth,
 		}))
 	})
 
@@ -89,7 +89,7 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			Prefix:            prefix,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -109,7 +109,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := &certmanagerv1.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -125,7 +125,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.ClusterIssuerKind,
+			DefaultIssuerKind: certmanagerv1.ClusterIssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -137,12 +137,12 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		certificate := &certmanagerv1.Certificate{}
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.ClusterIssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.ClusterIssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("test-issuer"))
 	})
 
@@ -157,7 +157,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -171,14 +171,14 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		certificate := &certmanagerv1.Certificate{}
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.IssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
 
 	})
@@ -194,7 +194,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -209,14 +209,14 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		certificate := &certmanagerv1.Certificate{}
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used, cluster-issuer is precedence over issuer")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.ClusterIssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.ClusterIssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-cluster-issuer"))
 
 	})
@@ -233,7 +233,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -259,7 +259,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := &certmanagerv1.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -275,7 +275,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateDNSEndpoint: false,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -288,7 +288,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		certificate := &certmanagerv1.Certificate{}
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
@@ -314,7 +314,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -342,7 +342,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := &certmanagerv1.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -357,7 +357,7 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -371,12 +371,12 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate with specified name")
-		crt := &certmanagerv1alpha2.Certificate{}
+		crt := &certmanagerv1.Certificate{}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: hpKey.Name}, crt)
 		}).Should(Succeed())
 		Expect(crt.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
-		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
+		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.IssuerKind))
 	})
 
 	It("should not create Certificate, if `DefaultIssuerName` and 'issuer-name' annotation are empty", func() {
@@ -389,7 +389,7 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -402,7 +402,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := &certmanagerv1.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -418,7 +418,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
@@ -439,7 +439,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := &certmanagerv1.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 
@@ -454,7 +454,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList = &certmanagerv1alpha2.CertificateList{}
+		crtList = &certmanagerv1.CertificateList{}
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -470,7 +470,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: certmanagerv1.IssuerKind,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
 		})).ShouldNot(HaveOccurred())
@@ -485,7 +485,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		certificate := &certmanagerv1.Certificate{}
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)

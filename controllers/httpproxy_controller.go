@@ -4,8 +4,9 @@ import (
 	"context"
 	"net"
 
+	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
+
 	"github.com/go-logr/logr"
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -195,11 +196,11 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	issuerKind := r.DefaultIssuerKind
 	if name, ok := hp.Annotations[issuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1alpha2.IssuerKind
+		issuerKind = certmanagerv1.IssuerKind
 	}
 	if name, ok := hp.Annotations[clusterIssuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1alpha2.ClusterIssuerKind
+		issuerKind = certmanagerv1.ClusterIssuerKind
 	}
 
 	if issuerName == "" {
@@ -207,7 +208,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return nil
 	}
 
-	crt := &certmanagerv1alpha2.Certificate{}
+	crt := &certmanagerv1.Certificate{}
 	crt.SetNamespace(hp.Namespace)
 	crt.SetName(r.Prefix + hp.Name)
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
@@ -216,11 +217,11 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		crt.Spec.CommonName = vh.Fqdn
 		crt.Spec.IssuerRef.Name = issuerName
 		crt.Spec.IssuerRef.Kind = issuerKind
-		crt.Spec.Usages = []certmanagerv1alpha2.KeyUsage{
-			certmanagerv1alpha2.UsageDigitalSignature,
-			certmanagerv1alpha2.UsageKeyEncipherment,
-			certmanagerv1alpha2.UsageServerAuth,
-			certmanagerv1alpha2.UsageClientAuth,
+		crt.Spec.Usages = []certmanagerv1.KeyUsage{
+			certmanagerv1.UsageDigitalSignature,
+			certmanagerv1.UsageKeyEncipherment,
+			certmanagerv1.UsageServerAuth,
+			certmanagerv1.UsageClientAuth,
 		}
 		return ctrl.SetControllerReference(hp, crt, r.Scheme)
 	})
@@ -268,7 +269,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		b = b.Owns(&endpoint.DNSEndpoint{})
 	}
 	if r.CreateCertificate {
-		b = b.Owns(&certmanagerv1alpha2.Certificate{})
+		b = b.Owns(&certmanagerv1.Certificate{})
 	}
 	return b.Complete(r)
 }

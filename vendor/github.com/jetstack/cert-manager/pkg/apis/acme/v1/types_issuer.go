@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Jetstack cert-manager contributors.
+Copyright 2020 The Jetstack cert-manager contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -310,7 +310,7 @@ type ACMEChallengeSolverDNS01 struct {
 
 	// Use the Google Cloud DNS API to manage DNS01 challenge records.
 	// +optional
-	CloudDNS *ACMEIssuerDNS01ProviderCloudDNS `json:"clouddns,omitempty"`
+	CloudDNS *ACMEIssuerDNS01ProviderCloudDNS `json:"cloudDNS,omitempty"`
 
 	// Use the Cloudflare API to manage DNS01 challenge records.
 	// +optional
@@ -322,7 +322,7 @@ type ACMEChallengeSolverDNS01 struct {
 
 	// Use the Microsoft Azure DNS API to manage DNS01 challenge records.
 	// +optional
-	AzureDNS *ACMEIssuerDNS01ProviderAzureDNS `json:"azuredns,omitempty"`
+	AzureDNS *ACMEIssuerDNS01ProviderAzureDNS `json:"azureDNS,omitempty"`
 
 	// Use the DigitalOcean DNS API to manage DNS01 challenge records.
 	// +optional
@@ -331,7 +331,7 @@ type ACMEChallengeSolverDNS01 struct {
 	// Use the 'ACME DNS' (https://github.com/joohoi/acme-dns) API to manage
 	// DNS01 challenge records.
 	// +optional
-	AcmeDNS *ACMEIssuerDNS01ProviderAcmeDNS `json:"acmedns,omitempty"`
+	AcmeDNS *ACMEIssuerDNS01ProviderAcmeDNS `json:"acmeDNS,omitempty"`
 
 	// Use RFC2136 ("Dynamic Updates in the Domain Name System") (https://datatracker.ietf.org/doc/rfc2136/)
 	// to manage DNS01 challenge records.
