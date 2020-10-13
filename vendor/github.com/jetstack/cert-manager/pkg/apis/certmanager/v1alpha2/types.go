@@ -16,19 +16,39 @@ limitations under the License.
 
 package v1alpha2
 
-// Annotation names for Secrets
+// Common annotation keys added to resources.
 const (
-	AltNamesAnnotationKey    = "cert-manager.io/alt-names"
-	IPSANAnnotationKey       = "cert-manager.io/ip-sans"
-	URISANAnnotationKey      = "cert-manager.io/uri-sans"
-	CommonNameAnnotationKey  = "cert-manager.io/common-name"
-	IssuerNameAnnotationKey  = "cert-manager.io/issuer-name"
-	IssuerKindAnnotationKey  = "cert-manager.io/issuer-kind"
+	// Annotation key for DNS subjectAltNames.
+	AltNamesAnnotationKey = "cert-manager.io/alt-names"
+
+	// Annotation key for IP subjectAltNames.
+	IPSANAnnotationKey = "cert-manager.io/ip-sans"
+
+	// Annotation key for URI subjectAltNames.
+	URISANAnnotationKey = "cert-manager.io/uri-sans"
+
+	// Annotation key for certificate common name.
+	CommonNameAnnotationKey = "cert-manager.io/common-name"
+
+	// Annotation key the 'name' of the Issuer resource.
+	IssuerNameAnnotationKey = "cert-manager.io/issuer-name"
+
+	// Annotation key for the 'kind' of the Issuer resource.
+	IssuerKindAnnotationKey = "cert-manager.io/issuer-kind"
+
+	// Annotation key for the 'group' of the Issuer resource.
 	IssuerGroupAnnotationKey = "cert-manager.io/issuer-group"
-	CertificateNameKey       = "cert-manager.io/certificate-name"
+
+	// Annotation key for the name of the certificate that a resource is related to.
+	CertificateNameKey = "cert-manager.io/certificate-name"
+
+	// Annotation key used to denote whether a Secret is named on a Certificate
+	// as a 'next private key' Secret resource.
+	IsNextPrivateKeySecretLabelKey = "cert-manager.io/next-private-key"
 )
 
 // Deprecated annotation names for Secrets
+// These will be removed in a future release.
 const (
 	DeprecatedIssuerNameAnnotationKey = "certmanager.k8s.io/issuer-name"
 	DeprecatedIssuerKindAnnotationKey = "certmanager.k8s.io/issuer-kind"
@@ -54,7 +74,15 @@ const (
 
 // Annotation names for CertificateRequests
 const (
-	CRPrivateKeyAnnotationKey = "cert-manager.io/private-key-secret-name"
+	// Annotation added to CertificateRequest resources to denote the name of
+	// a Secret resource containing the private key used to sign the CSR stored
+	// on the resource.
+	// This annotation *may* not be present, and is used by the 'self signing'
+	// issuer type to self-sign certificates.
+	CertificateRequestPrivateKeyAnnotationKey = "cert-manager.io/private-key-secret-name"
+
+	// Annotation to declare the CertificateRequest "revision", belonging to a Certificate Resource
+	CertificateRequestRevisionAnnotationKey = "cert-manager.io/certificate-revision"
 )
 
 const (
@@ -66,6 +94,7 @@ const (
 	IssueTemporaryCertificateAnnotation = "cert-manager.io/issue-temporary-certificate"
 )
 
+// Common/known resource kinds.
 const (
 	ClusterIssuerKind      = "ClusterIssuer"
 	IssuerKind             = "Issuer"
@@ -76,7 +105,7 @@ const (
 const (
 	// WantInjectAnnotation is the annotation that specifies that a particular
 	// object wants injection of CAs.  It takes the form of a reference to a certificate
-	// as namespace/name.  The certificate is expected to have the is-serving-for annotations.
+	// as namespace/name.
 	WantInjectAnnotation = "cert-manager.io/inject-ca-from"
 
 	// WantInjectAPIServerCAAnnotation, if set to "true", will make the cainjector
@@ -86,7 +115,7 @@ const (
 	WantInjectAPIServerCAAnnotation = "cert-manager.io/inject-apiserver-ca"
 
 	// WantInjectFromSecretAnnotation is the annotation that specifies that a particular
-	// object wants injection of CAs.  It takes the form of a reference to a Secret
+	// object wants injection of CAs. It takes the form of a reference to a Secret
 	// as namespace/name.
 	WantInjectFromSecretAnnotation = "cert-manager.io/inject-ca-from-secret"
 
@@ -167,5 +196,8 @@ const (
 func DefaultKeyUsages() []KeyUsage {
 	// The serverAuth EKU is required as of Mac OS Catalina: https://support.apple.com/en-us/HT210176
 	// Without this usage, certificates will _always_ flag a warning in newer Mac OS browsers.
-	return []KeyUsage{UsageDigitalSignature, UsageKeyEncipherment, UsageServerAuth}
+	// We don't explicitly add it here as it leads to strange behaviour when a user sets isCA: true
+	// (in which case, 'serverAuth' on the CA can break a lot of clients).
+	// CAs can (and often do) opt to automatically add usages.
+	return []KeyUsage{UsageDigitalSignature, UsageKeyEncipherment}
 }
