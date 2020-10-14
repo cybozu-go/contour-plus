@@ -36,7 +36,7 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			Prefix:            prefix,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -89,7 +89,7 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			Prefix:            prefix,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -125,7 +125,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.ClusterIssuerKind,
+			DefaultIssuerKind: ClusterIssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -142,7 +142,7 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.ClusterIssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(ClusterIssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("test-issuer"))
 	})
 
@@ -157,7 +157,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -178,7 +178,7 @@ func testHTTPProxyReconcile() {
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.IssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(IssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
 
 	})
@@ -194,7 +194,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -216,7 +216,7 @@ func testHTTPProxyReconcile() {
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used, cluster-issuer is precedence over issuer")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.ClusterIssuerKind))
+		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(ClusterIssuerKind))
 		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-cluster-issuer"))
 
 	})
@@ -233,7 +233,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -275,7 +275,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: false,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -314,7 +314,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -357,7 +357,7 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -376,7 +376,7 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: hpKey.Name}, crt)
 		}).Should(Succeed())
 		Expect(crt.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
-		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1.IssuerKind))
+		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(IssuerKind))
 	})
 
 	It("should not create Certificate, if `DefaultIssuerName` and 'issuer-name' annotation are empty", func() {
@@ -389,7 +389,7 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -418,7 +418,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
@@ -470,7 +470,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
 		})).ShouldNot(HaveOccurred())

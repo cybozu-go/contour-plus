@@ -196,11 +196,11 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	issuerKind := r.DefaultIssuerKind
 	if name, ok := hp.Annotations[issuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1.IssuerKind
+		issuerKind = IssuerKind
 	}
 	if name, ok := hp.Annotations[clusterIssuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1.ClusterIssuerKind
+		issuerKind = ClusterIssuerKind
 	}
 
 	if issuerName == "" {
