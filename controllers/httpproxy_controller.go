@@ -4,14 +4,14 @@ import (
 	"context"
 	"net"
 
-	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
-
 	"github.com/go-logr/logr"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -208,28 +208,37 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return nil
 	}
 
-	crt := &certmanagerv1.Certificate{}
-	crt.SetNamespace(hp.Namespace)
-	crt.SetName(r.Prefix + hp.Name)
-	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
-		crt.Spec.DNSNames = []string{vh.Fqdn}
-		crt.Spec.SecretName = vh.TLS.SecretName
-		crt.Spec.CommonName = vh.Fqdn
-		crt.Spec.IssuerRef.Name = issuerName
-		crt.Spec.IssuerRef.Kind = issuerKind
-		crt.Spec.Usages = []certmanagerv1.KeyUsage{
-			certmanagerv1.UsageDigitalSignature,
-			certmanagerv1.UsageKeyEncipherment,
-			certmanagerv1.UsageServerAuth,
-			certmanagerv1.UsageClientAuth,
-		}
-		return ctrl.SetControllerReference(hp, crt, r.Scheme)
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "cert-manager.io",
+		Version: "v1",
+		Kind:    CertificateKind,
+	})
+	obj.SetName(r.Prefix + hp.Name)
+	obj.SetNamespace(hp.Namespace)
+	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+		"dnsNames":   []string{vh.Fqdn},
+		"secretName": vh.TLS.SecretName,
+		"commonName": vh.Fqdn,
+		"issuerRef": map[string]interface{}{
+			"kind": issuerKind,
+			"name": issuerName,
+			"usages": []string{
+				UsageDigitalSignature,
+				UsageKeyEncipherment,
+				UsageServerAuth,
+				UsageClientAuth,
+			},
+		},
+	}
+	err := r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		FieldManager: "contour-plus",
 	})
 	if err != nil {
 		return err
 	}
 
-	log.Info("Certificate successfully reconciled", "operation", op)
+	log.Info("Certificate successfully reconciled")
 	return nil
 }
 
@@ -269,7 +278,13 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		b = b.Owns(&endpoint.DNSEndpoint{})
 	}
 	if r.CreateCertificate {
-		b = b.Owns(&certmanagerv1.Certificate{})
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "cert-manager.io",
+			Version: "v1",
+			Kind:    CertificateKind,
+		})
+		b = b.Owns(obj)
 	}
 	return b.Complete(r)
 }
