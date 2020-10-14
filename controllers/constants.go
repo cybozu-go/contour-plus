@@ -10,8 +10,8 @@ const (
 
 // Constants for certificate usages
 const (
-	UsageDigitalSignature = "digital signature"
-	UsageKeyEncipherment  = "key encipherment"
-	UsageServerAuth       = "server auth"
-	UsageClientAuth       = "client auth"
+	usageDigitalSignature = "digital signature"
+	usageKeyEncipherment  = "key encipherment"
+	usageServerAuth       = "server auth"
+	usageClientAuth       = "client auth"
 )

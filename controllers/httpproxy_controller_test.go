@@ -12,6 +12,8 @@ import (
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/external-dns/endpoint"
@@ -21,6 +23,16 @@ const (
 	dnsName        = "test.example.com"
 	testSecretName = "test-secret"
 )
+
+func certificate() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{}
+	crt.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "cert-manager.io",
+		Version: "v1",
+		Kind:    CertificateKind,
+	})
+	return obj
+}
 
 func testHTTPProxyReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
@@ -61,18 +73,20 @@ func testHTTPProxyReconcile() {
 		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
 
 		By("getting Certificate with prefixed name")
-		crt := &certmanagerv1.Certificate{}
+		crt := certificate()
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
-		Expect(crt.Spec.DNSNames).Should(Equal([]string{dnsName}))
-		Expect(crt.Spec.SecretName).Should(Equal(testSecretName))
-		Expect(crt.Spec.CommonName).Should(Equal(dnsName))
-		Expect(crt.Spec.Usages).Should(Equal([]certmanagerv1.KeyUsage{
-			certmanagerv1.UsageDigitalSignature,
-			certmanagerv1.UsageKeyEncipherment,
-			certmanagerv1.UsageServerAuth,
-			certmanagerv1.UsageClientAuth,
+
+		crtSpec := crt.UnstructuredContent()["spec"]
+		Expect(crtSpec["dnsNames"]).Should(Equal([]string{dnsName}))
+		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
+		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
+		Expect(crtSpec["usages"]).Should(Equal([]string{
+			usageDigitalSignature,
+			usageKeyEncipherment,
+			usageServerAuth,
+			usageClientAuth,
 		}))
 	})
 
@@ -137,13 +151,16 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(ClusterIssuerKind))
-		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("test-issuer"))
+
+		By("confirming that specified issuer used")
+		crtSpec := crt.UnstructuredContent()["spec"]
+		Expect(crtSpec["issuerRef"]["kind"]).Should(Equal(ClusterIssuerKind))
+		Expect(crtSpec["issuerRef"]["name"]).Should(Equal("test-issuer"))
 	})
 
 	It(`should create Certificate with Issuer specified in "cert-manager.io/issuer"`, func() {
@@ -171,15 +188,16 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(IssuerKind))
-		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
+		crtSpec := crt.UnstructuredContent()["spec"]
+		Expect(crtSpec["issuerRef"]["kind"]).Should(Equal(IssuerKind))
+		Expect(crtSpec["issuerRef"]["name"]).Should(Equal("custom-issuer"))
 
 	})
 
@@ -209,16 +227,16 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used, cluster-issuer is precedence over issuer")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(ClusterIssuerKind))
-		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-cluster-issuer"))
-
+		crtSpec := crt.UnstructuredContent()["spec"]
+		Expect(crtSpec["issuerRef"]["kind"]).Should(Equal(ClusterIssuerKind))
+		Expect(crtSpec["issuerRef"]["name"]).Should(Equal("custom-cluster-issuer"))
 	})
 
 	It("should create DNSEndpoint, but should not create Certificate, if `createCertificate` is false", func() {
@@ -288,12 +306,12 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)
 		}, 5*time.Second).Should(Succeed())
-		Expect(certificate.Spec.SecretName).Should(Equal(testSecretName))
+		Expect(crt.UnstructuredContent()["spec"]["secretName"]).Should(Equal(testSecretName))
 
 		By("confirming that DNSEndpoint does not exist")
 		time.Sleep(time.Second)
@@ -371,7 +389,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate with specified name")
-		crt := &certmanagerv1.Certificate{}
+		crt := certificate()
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: hpKey.Name}, crt)
 		}).Should(Succeed())
@@ -485,7 +503,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, certificate)

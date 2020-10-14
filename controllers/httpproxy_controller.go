@@ -223,12 +223,12 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		"issuerRef": map[string]interface{}{
 			"kind": issuerKind,
 			"name": issuerName,
-			"usages": []string{
-				UsageDigitalSignature,
-				UsageKeyEncipherment,
-				UsageServerAuth,
-				UsageClientAuth,
-			},
+		},
+		"usages": []string{
+			usageDigitalSignature,
+			usageKeyEncipherment,
+			usageServerAuth,
+			usageClientAuth,
 		},
 	}
 	err := r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
