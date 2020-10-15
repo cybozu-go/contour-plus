@@ -13,9 +13,9 @@ GOARCH = $(shell go env GOARCH)
 SUDO = sudo
 KUBEBUILDER_VERSION = 2.3.1
 CTRLTOOLS_VERSION = 0.2.8
-CERT_MANAGER_VERSION := $(shell awk '/cert-manager/ {print substr($$2, 2)}' go.mod)
-EXTERNAL_DNS_VERSION := $(shell awk '/external-dns/ {print substr($$2, 2)}' go.mod)
-CONTOUR_VERSION := $(shell awk '/\tgithub.com\/projectcontour\/contour/ {print substr($$2, 2)}' go.mod)
+CERT_MANAGER_VERSION := 1.0.3
+EXTERNAL_DNS_VERSION := 0.7.4
+CONTOUR_VERSION := 1.9.0
 
 .PHONY: all
 all: bin/contour-plus
@@ -90,6 +90,6 @@ mod:
 
 .PHONY: download-upstream-crd
 download-upstream-crd:
-	curl -o config/crd/third/certmanager.yml -sLf https://github.com/jetstack/cert-manager/raw/v$(CERT_MANAGER_VERSION)/deploy/crds/crd-certificates.yaml
+	curl -o config/crd/third/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
 	curl -o config/crd/third/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/docs/contributing/crd-source/crd-manifest.yaml
 	curl -o config/crd/third/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/v$(CONTOUR_VERSION)/examples/contour/01-crds.yaml

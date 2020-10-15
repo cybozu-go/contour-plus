@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
@@ -26,10 +25,20 @@ const (
 
 func certificate() *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
-	crt.SetGroupVersionKind(schema.GroupVersionKind{
+	obj.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   "cert-manager.io",
 		Version: "v1",
 		Kind:    CertificateKind,
+	})
+	return obj
+}
+
+func certificateList() *unstructured.UnstructuredList {
+	obj := &unstructured.UnstructuredList{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "cert-manager.io",
+		Version: "v1",
+		Kind:    CertificateListKind,
 	})
 	return obj
 }
@@ -78,11 +87,11 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"]
-		Expect(crtSpec["dnsNames"]).Should(Equal([]string{dnsName}))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
 		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
-		Expect(crtSpec["usages"]).Should(Equal([]string{
+		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
@@ -123,7 +132,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList := &certmanagerv1.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -158,9 +167,10 @@ func testHTTPProxyReconcile() {
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		crtSpec := crt.UnstructuredContent()["spec"]
-		Expect(crtSpec["issuerRef"]["kind"]).Should(Equal(ClusterIssuerKind))
-		Expect(crtSpec["issuerRef"]["name"]).Should(Equal("test-issuer"))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["kind"]).Should(Equal(ClusterIssuerKind))
+		Expect(issuerRef["name"]).Should(Equal("test-issuer"))
 	})
 
 	It(`should create Certificate with Issuer specified in "cert-manager.io/issuer"`, func() {
@@ -191,13 +201,14 @@ func testHTTPProxyReconcile() {
 		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		crtSpec := crt.UnstructuredContent()["spec"]
-		Expect(crtSpec["issuerRef"]["kind"]).Should(Equal(IssuerKind))
-		Expect(crtSpec["issuerRef"]["name"]).Should(Equal("custom-issuer"))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["kind"]).Should(Equal(IssuerKind))
+		Expect(issuerRef["name"]).Should(Equal("custom-issuer"))
 
 	})
 
@@ -230,13 +241,14 @@ func testHTTPProxyReconcile() {
 		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used, cluster-issuer is precedence over issuer")
-		crtSpec := crt.UnstructuredContent()["spec"]
-		Expect(crtSpec["issuerRef"]["kind"]).Should(Equal(ClusterIssuerKind))
-		Expect(crtSpec["issuerRef"]["name"]).Should(Equal("custom-cluster-issuer"))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["kind"]).Should(Equal(ClusterIssuerKind))
+		Expect(issuerRef["name"]).Should(Equal("custom-cluster-issuer"))
 	})
 
 	It("should create DNSEndpoint, but should not create Certificate, if `createCertificate` is false", func() {
@@ -277,7 +289,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -309,9 +321,10 @@ func testHTTPProxyReconcile() {
 		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
-		Expect(crt.UnstructuredContent()["spec"]["secretName"]).Should(Equal(testSecretName))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 
 		By("confirming that DNSEndpoint does not exist")
 		time.Sleep(time.Second)
@@ -360,7 +373,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -393,8 +406,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: hpKey.Name}, crt)
 		}).Should(Succeed())
-		Expect(crt.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
-		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(IssuerKind))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["name"]).Should(Equal("custom-issuer"))
+		Expect(issuerRef["kind"]).Should(Equal(IssuerKind))
 	})
 
 	It("should not create Certificate, if `DefaultIssuerName` and 'issuer-name' annotation are empty", func() {
@@ -420,7 +435,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -457,7 +472,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList := &certmanagerv1.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 
@@ -472,7 +487,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList = &certmanagerv1.CertificateList{}
+		crtList = certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -506,7 +521,7 @@ func testHTTPProxyReconcile() {
 		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
 	})
 }
