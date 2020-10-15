@@ -8,7 +8,6 @@ import (
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"sigs.k8s.io/external-dns/endpoint"
 )
 
 const (
@@ -154,21 +152,25 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 		return nil
 	}
 
-	de := &endpoint.DNSEndpoint{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: hp.Namespace,
-			Name:      r.Prefix + hp.Name,
-		},
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "externaldns.k8s.io",
+		Version: "v1alpha1",
+		Kind:    DNSEndpointKind,
+	})
+	obj.SetName(r.Prefix + hp.Name)
+	obj.SetNamespace(hp.Namespace)
+	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
-	op, err := ctrl.CreateOrUpdate(ctx, r.Client, de, func() error {
-		de.Spec.Endpoints = makeEndpoints(fqdn, serviceIPs)
-		return ctrl.SetControllerReference(hp, de, r.Scheme)
+	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		FieldManager: "contour-plus",
 	})
 	if err != nil {
 		return err
 	}
 
-	log.Info("DNSEndpoint successfully reconciled", "operation", op)
+	log.Info("DNSEndpoint successfully reconciled")
 	return nil
 }
 
@@ -275,7 +277,13 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&projectcontourv1.HTTPProxy{}).
 		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listHPs})
 	if r.CreateDNSEndpoint {
-		b = b.Owns(&endpoint.DNSEndpoint{})
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "externaldns.k8s.io",
+			Version: "v1alpha1",
+			Kind:    DNSEndpointKind,
+		})
+		b = b.Owns(obj)
 	}
 	if r.CreateCertificate {
 		obj := &unstructured.Unstructured{}
@@ -289,31 +297,31 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return b.Complete(r)
 }
 
-func makeEndpoints(hostname string, ips []net.IP) []*endpoint.Endpoint {
+func makeEndpoints(hostname string, ips []net.IP) []map[string]interface{} {
 	ipv4Targets, ipv6Targets := ipsToTargets(ips)
-	var endpoints []*endpoint.Endpoint
+	var endpoints []map[string]interface{}
 	if len(ipv4Targets) != 0 {
-		endpoints = append(endpoints, &endpoint.Endpoint{
-			DNSName:    hostname,
-			Targets:    ipv4Targets,
-			RecordType: endpoint.RecordTypeA,
-			RecordTTL:  3600,
+		endpoints = append(endpoints, map[string]interface{}{
+			"dnsName":    hostname,
+			"targets":    ipv4Targets,
+			"recordType": "A",
+			"recordTTL":  3600,
 		})
 	}
 	if len(ipv6Targets) != 0 {
-		endpoints = append(endpoints, &endpoint.Endpoint{
-			DNSName:    hostname,
-			Targets:    ipv6Targets,
-			RecordType: "AAAA",
-			RecordTTL:  3600,
+		endpoints = append(endpoints, map[string]interface{}{
+			"dnsName":    hostname,
+			"targets":    ipv6Targets,
+			"recordType": "AAAA",
+			"recordTTL":  3600,
 		})
 	}
 	return endpoints
 }
 
-func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
-	ipv4Targets := endpoint.Targets{}
-	ipv6Targets := endpoint.Targets{}
+func ipsToTargets(ips []net.IP) ([]string, []string) {
+	var ipv4Targets []string
+	var ipv6Targets []string
 	for _, ip := range ips {
 		if ip.To4() != nil {
 			ipv4Targets = append(ipv4Targets, ip.String())

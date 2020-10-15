@@ -7,6 +7,7 @@ const (
 	CertificateKind     = "Certificate"
 	CertificateListKind = "CertificateList"
 	DNSEndpointKind     = "DNSEndpoint"
+	DNSEndpointListKind = "DNSEndpointList"
 )
 
 // Constants for certificate usages

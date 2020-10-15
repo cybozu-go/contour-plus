@@ -3,12 +3,10 @@ package controllers
 import (
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/external-dns/endpoint"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -27,19 +25,7 @@ type ReconcilerOptions struct {
 func SetupScheme(scm *runtime.Scheme) error {
 	projectcontourv1.AddKnownTypes(scm)
 
-	// ExternalDNS does not implement AddToScheme
-	groupVersion := ctrl.GroupVersion{
-		Group:   "externaldns.k8s.io",
-		Version: "v1alpha1",
-	}
-	scm.AddKnownTypes(groupVersion,
-		&endpoint.DNSEndpoint{},
-		&endpoint.DNSEndpointList{},
-	)
-	metav1.AddToGroupVersion(scm, groupVersion)
-
 	// for corev1.Service
-	metav1.AddToGroupVersion(scm, groupVersion)
 	if err := corev1.AddToScheme(scm); err != nil {
 		return err
 	}

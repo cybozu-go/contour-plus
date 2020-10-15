@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/external-dns/endpoint"
 )
 
 const (
@@ -39,6 +38,26 @@ func certificateList() *unstructured.UnstructuredList {
 		Group:   "cert-manager.io",
 		Version: "v1",
 		Kind:    CertificateListKind,
+	})
+	return obj
+}
+
+func dnsEndpoint() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "externaldns.k8s.io",
+		Version: "v1alpha1",
+		Kind:    DNSEndpointKind,
+	})
+	return obj
+}
+
+func dnsEndpointList() *unstructured.UnstructuredList {
+	obj := &unstructured.UnstructuredList{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "externaldns.k8s.io",
+		Version: "v1alpha1",
+		Kind:    DNSEndpointListKind,
 	})
 	return obj
 }
@@ -70,7 +89,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint with prefixed name")
-		de := &endpoint.DNSEndpoint{}
+		de := dnsEndpoint()
 		objKey := client.ObjectKey{
 			Name:      prefix + hpKey.Name,
 			Namespace: hpKey.Namespace,
@@ -78,8 +97,11 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{"10.0.0.0"}))
-		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("getting Certificate with prefixed name")
 		crt := certificate()
@@ -128,7 +150,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that DNSEndpoint and Certificate do not exist")
 		time.Sleep(time.Second)
-		endpointList := &endpoint.DNSEndpointList{}
+		endpointList := dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
@@ -276,7 +298,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint")
-		de := &endpoint.DNSEndpoint{}
+		de := dnsEndpoint()
 		objKey := client.ObjectKey{
 			Name:      hpKey.Name,
 			Namespace: hpKey.Namespace,
@@ -284,8 +306,12 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{dummyLoadBalancerIP}))
-		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{dummyLoadBalancerIP}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
@@ -328,7 +354,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that DNSEndpoint does not exist")
 		time.Sleep(time.Second)
-		endpointList := &endpoint.DNSEndpointList{}
+		endpointList := dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 	})
@@ -360,7 +386,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint")
-		de := &endpoint.DNSEndpoint{}
+		de := dnsEndpoint()
 		objKey := client.ObjectKey{
 			Name:      hpKey.Name,
 			Namespace: hpKey.Namespace,
@@ -368,8 +394,11 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{dummyLoadBalancerIP}))
-		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{dummyLoadBalancerIP}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
@@ -468,7 +497,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that DNSEndpoint and Certificate do not exist")
 		time.Sleep(time.Second)
-		endpointList := &endpoint.DNSEndpointList{}
+		endpointList := dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
@@ -483,7 +512,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that DNSEndpoint and Certificate do not exist")
 		time.Sleep(time.Second)
-		endpointList = &endpoint.DNSEndpointList{}
+		endpointList = dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
