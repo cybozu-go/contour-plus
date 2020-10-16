@@ -163,6 +163,10 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
 		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
+	err = ctrl.SetControllerReference(hp, obj, r.Scheme)
+	if err != nil {
+		return err
+	}
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
 		FieldManager: "contour-plus",
 	})
@@ -233,7 +237,11 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 			usageClientAuth,
 		},
 	}
-	err := r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+	err := ctrl.SetControllerReference(hp, obj, r.Scheme)
+	if err != nil {
+		return err
+	}
+	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
