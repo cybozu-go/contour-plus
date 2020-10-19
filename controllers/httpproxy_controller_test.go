@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -24,41 +23,25 @@ const (
 
 func certificate() *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "cert-manager.io",
-		Version: "v1",
-		Kind:    CertificateKind,
-	})
+	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
 	return obj
 }
 
 func certificateList() *unstructured.UnstructuredList {
 	obj := &unstructured.UnstructuredList{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "cert-manager.io",
-		Version: "v1",
-		Kind:    CertificateListKind,
-	})
+	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateListKind))
 	return obj
 }
 
 func dnsEndpoint() *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "externaldns.k8s.io",
-		Version: "v1alpha1",
-		Kind:    DNSEndpointKind,
-	})
+	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
 	return obj
 }
 
 func dnsEndpointList() *unstructured.UnstructuredList {
 	obj := &unstructured.UnstructuredList{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "externaldns.k8s.io",
-		Version: "v1alpha1",
-		Kind:    DNSEndpointListKind,
-	})
+	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointListKind))
 	return obj
 }
 

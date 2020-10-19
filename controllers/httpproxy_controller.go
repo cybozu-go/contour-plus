@@ -10,8 +10,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -153,11 +153,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	}
 
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "externaldns.k8s.io",
-		Version: "v1alpha1",
-		Kind:    DNSEndpointKind,
-	})
+	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
 	obj.SetName(r.Prefix + hp.Name)
 	obj.SetNamespace(hp.Namespace)
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
@@ -168,6 +164,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 		return err
 	}
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		Force:        pointer.BoolPtr(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
@@ -215,11 +212,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	}
 
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "cert-manager.io",
-		Version: "v1",
-		Kind:    CertificateKind,
-	})
+	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
 	obj.SetName(r.Prefix + hp.Name)
 	obj.SetNamespace(hp.Namespace)
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
@@ -242,6 +235,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return err
 	}
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		Force:        pointer.BoolPtr(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
@@ -286,20 +280,12 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listHPs})
 	if r.CreateDNSEndpoint {
 		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "externaldns.k8s.io",
-			Version: "v1alpha1",
-			Kind:    DNSEndpointKind,
-		})
+		obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
 		b = b.Owns(obj)
 	}
 	if r.CreateCertificate {
 		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   "cert-manager.io",
-			Version: "v1",
-			Kind:    CertificateKind,
-		})
+		obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
 		b = b.Owns(obj)
 	}
 	return b.Complete(r)
