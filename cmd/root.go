@@ -81,7 +81,7 @@ In addition to flags, the following environment variables are read:
 }
 
 func subMain() error {
-	ctrl.SetLogger(zap.Logger(false))
+	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
 
 	opts := controllers.ReconcilerOptions{
 		Prefix:            viper.GetString("name-prefix"),
