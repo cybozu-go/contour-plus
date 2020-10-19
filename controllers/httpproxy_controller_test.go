@@ -6,13 +6,12 @@ import (
 	"testing"
 	"time"
 
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
-	"github.com/kubernetes-incubator/external-dns/endpoint"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -21,6 +20,30 @@ const (
 	dnsName        = "test.example.com"
 	testSecretName = "test-secret"
 )
+
+func certificate() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
+	return obj
+}
+
+func certificateList() *unstructured.UnstructuredList {
+	obj := &unstructured.UnstructuredList{}
+	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateListKind))
+	return obj
+}
+
+func dnsEndpoint() *unstructured.Unstructured {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
+	return obj
+}
+
+func dnsEndpointList() *unstructured.UnstructuredList {
+	obj := &unstructured.UnstructuredList{}
+	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointListKind))
+	return obj
+}
 
 func testHTTPProxyReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
@@ -36,7 +59,7 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			Prefix:            prefix,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -49,7 +72,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint with prefixed name")
-		de := &endpoint.DNSEndpoint{}
+		de := dnsEndpoint()
 		objKey := client.ObjectKey{
 			Name:      prefix + hpKey.Name,
 			Namespace: hpKey.Namespace,
@@ -57,22 +80,27 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{"10.0.0.0"}))
-		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("getting Certificate with prefixed name")
-		crt := &certmanagerv1alpha2.Certificate{}
+		crt := certificate()
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
-		Expect(crt.Spec.DNSNames).Should(Equal([]string{dnsName}))
-		Expect(crt.Spec.SecretName).Should(Equal(testSecretName))
-		Expect(crt.Spec.CommonName).Should(Equal(dnsName))
-		Expect(crt.Spec.Usages).Should(Equal([]certmanagerv1alpha2.KeyUsage{
-			certmanagerv1alpha2.UsageDigitalSignature,
-			certmanagerv1alpha2.UsageKeyEncipherment,
-			certmanagerv1alpha2.UsageServerAuth,
-			certmanagerv1alpha2.UsageClientAuth,
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
+		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
+		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+			usageDigitalSignature,
+			usageKeyEncipherment,
+			usageServerAuth,
+			usageClientAuth,
 		}))
 	})
 
@@ -89,7 +117,7 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			Prefix:            prefix,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -105,11 +133,11 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that DNSEndpoint and Certificate do not exist")
 		time.Sleep(time.Second)
-		endpointList := &endpoint.DNSEndpointList{}
+		endpointList := dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -125,7 +153,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.ClusterIssuerKind,
+			DefaultIssuerKind: ClusterIssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -137,13 +165,17 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.ClusterIssuerKind))
-		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("test-issuer"))
+
+		By("confirming that specified issuer used")
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["kind"]).Should(Equal(ClusterIssuerKind))
+		Expect(issuerRef["name"]).Should(Equal("test-issuer"))
 	})
 
 	It(`should create Certificate with Issuer specified in "cert-manager.io/issuer"`, func() {
@@ -157,7 +189,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -171,15 +203,17 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
-		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["kind"]).Should(Equal(IssuerKind))
+		Expect(issuerRef["name"]).Should(Equal("custom-issuer"))
 
 	})
 
@@ -194,7 +228,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -209,16 +243,17 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used, cluster-issuer is precedence over issuer")
-		Expect(certificate.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.ClusterIssuerKind))
-		Expect(certificate.Spec.IssuerRef.Name).Should(Equal("custom-cluster-issuer"))
-
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["kind"]).Should(Equal(ClusterIssuerKind))
+		Expect(issuerRef["name"]).Should(Equal("custom-cluster-issuer"))
 	})
 
 	It("should create DNSEndpoint, but should not create Certificate, if `createCertificate` is false", func() {
@@ -233,7 +268,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -246,7 +281,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint")
-		de := &endpoint.DNSEndpoint{}
+		de := dnsEndpoint()
 		objKey := client.ObjectKey{
 			Name:      hpKey.Name,
 			Namespace: hpKey.Namespace,
@@ -254,12 +289,16 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{dummyLoadBalancerIP}))
-		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{dummyLoadBalancerIP}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -275,7 +314,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: false,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
@@ -288,16 +327,17 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
-		Expect(certificate.Spec.SecretName).Should(Equal(testSecretName))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 
 		By("confirming that DNSEndpoint does not exist")
 		time.Sleep(time.Second)
-		endpointList := &endpoint.DNSEndpointList{}
+		endpointList := dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 	})
@@ -314,7 +354,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
 		})).ShouldNot(HaveOccurred())
@@ -329,7 +369,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting DNSEndpoint")
-		de := &endpoint.DNSEndpoint{}
+		de := dnsEndpoint()
 		objKey := client.ObjectKey{
 			Name:      hpKey.Name,
 			Namespace: hpKey.Namespace,
@@ -337,12 +377,15 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		Expect(de.Spec.Endpoints[0].Targets).Should(Equal(endpoint.Targets{dummyLoadBalancerIP}))
-		Expect(de.Spec.Endpoints[0].DNSName).Should(Equal(dnsName))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{dummyLoadBalancerIP}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -357,7 +400,7 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -371,12 +414,14 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate with specified name")
-		crt := &certmanagerv1alpha2.Certificate{}
+		crt := certificate()
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: hpKey.Name}, crt)
 		}).Should(Succeed())
-		Expect(crt.Spec.IssuerRef.Name).Should(Equal("custom-issuer"))
-		Expect(crt.Spec.IssuerRef.Kind).Should(Equal(certmanagerv1alpha2.IssuerKind))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		Expect(issuerRef["name"]).Should(Equal("custom-issuer"))
+		Expect(issuerRef["kind"]).Should(Equal(IssuerKind))
 	})
 
 	It("should not create Certificate, if `DefaultIssuerName` and 'issuer-name' annotation are empty", func() {
@@ -389,7 +434,7 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 		})).ShouldNot(HaveOccurred())
 
@@ -402,7 +447,7 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that Certificate does not exist")
 		time.Sleep(time.Second)
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -418,7 +463,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
@@ -435,11 +480,11 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that DNSEndpoint and Certificate do not exist")
 		time.Sleep(time.Second)
-		endpointList := &endpoint.DNSEndpointList{}
+		endpointList := dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList := &certmanagerv1alpha2.CertificateList{}
+		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 
@@ -450,11 +495,11 @@ func testHTTPProxyReconcile() {
 
 		By("confirming that DNSEndpoint and Certificate do not exist")
 		time.Sleep(time.Second)
-		endpointList = &endpoint.DNSEndpointList{}
+		endpointList = dnsEndpointList()
 		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(endpointList.Items).Should(BeEmpty())
 
-		crtList = &certmanagerv1alpha2.CertificateList{}
+		crtList = certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
 	})
@@ -470,7 +515,7 @@ func testHTTPProxyReconcile() {
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
 			ServiceKey:        testServiceKey,
 			DefaultIssuerName: "test-issuer",
-			DefaultIssuerKind: certmanagerv1alpha2.IssuerKind,
+			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
 		})).ShouldNot(HaveOccurred())
@@ -485,10 +530,10 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("getting Certificate")
-		certificate := &certmanagerv1alpha2.Certificate{}
+		crt := certificate()
 		objKey := client.ObjectKey{Name: hpKey.Name, Namespace: hpKey.Namespace}
 		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, certificate)
+			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
 	})
 }

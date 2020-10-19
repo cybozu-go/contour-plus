@@ -5,14 +5,13 @@ import (
 	"net"
 
 	"github.com/go-logr/logr"
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
-	"github.com/kubernetes-incubator/external-dns/endpoint"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -153,21 +152,26 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 		return nil
 	}
 
-	de := &endpoint.DNSEndpoint{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: hp.Namespace,
-			Name:      r.Prefix + hp.Name,
-		},
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
+	obj.SetName(r.Prefix + hp.Name)
+	obj.SetNamespace(hp.Namespace)
+	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
-	op, err := ctrl.CreateOrUpdate(ctx, r.Client, de, func() error {
-		de.Spec.Endpoints = makeEndpoints(fqdn, serviceIPs)
-		return ctrl.SetControllerReference(hp, de, r.Scheme)
+	err = ctrl.SetControllerReference(hp, obj, r.Scheme)
+	if err != nil {
+		return err
+	}
+	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		Force:        pointer.BoolPtr(true),
+		FieldManager: "contour-plus",
 	})
 	if err != nil {
 		return err
 	}
 
-	log.Info("DNSEndpoint successfully reconciled", "operation", op)
+	log.Info("DNSEndpoint successfully reconciled")
 	return nil
 }
 
@@ -195,11 +199,11 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	issuerKind := r.DefaultIssuerKind
 	if name, ok := hp.Annotations[issuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1alpha2.IssuerKind
+		issuerKind = IssuerKind
 	}
 	if name, ok := hp.Annotations[clusterIssuerNameAnnotation]; ok {
 		issuerName = name
-		issuerKind = certmanagerv1alpha2.ClusterIssuerKind
+		issuerKind = ClusterIssuerKind
 	}
 
 	if issuerName == "" {
@@ -207,28 +211,38 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return nil
 	}
 
-	crt := &certmanagerv1alpha2.Certificate{}
-	crt.SetNamespace(hp.Namespace)
-	crt.SetName(r.Prefix + hp.Name)
-	op, err := ctrl.CreateOrUpdate(ctx, r.Client, crt, func() error {
-		crt.Spec.DNSNames = []string{vh.Fqdn}
-		crt.Spec.SecretName = vh.TLS.SecretName
-		crt.Spec.CommonName = vh.Fqdn
-		crt.Spec.IssuerRef.Name = issuerName
-		crt.Spec.IssuerRef.Kind = issuerKind
-		crt.Spec.Usages = []certmanagerv1alpha2.KeyUsage{
-			certmanagerv1alpha2.UsageDigitalSignature,
-			certmanagerv1alpha2.UsageKeyEncipherment,
-			certmanagerv1alpha2.UsageServerAuth,
-			certmanagerv1alpha2.UsageClientAuth,
-		}
-		return ctrl.SetControllerReference(hp, crt, r.Scheme)
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
+	obj.SetName(r.Prefix + hp.Name)
+	obj.SetNamespace(hp.Namespace)
+	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+		"dnsNames":   []string{vh.Fqdn},
+		"secretName": vh.TLS.SecretName,
+		"commonName": vh.Fqdn,
+		"issuerRef": map[string]interface{}{
+			"kind": issuerKind,
+			"name": issuerName,
+		},
+		"usages": []string{
+			usageDigitalSignature,
+			usageKeyEncipherment,
+			usageServerAuth,
+			usageClientAuth,
+		},
+	}
+	err := ctrl.SetControllerReference(hp, obj, r.Scheme)
+	if err != nil {
+		return err
+	}
+	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		Force:        pointer.BoolPtr(true),
+		FieldManager: "contour-plus",
 	})
 	if err != nil {
 		return err
 	}
 
-	log.Info("Certificate successfully reconciled", "operation", op)
+	log.Info("Certificate successfully reconciled")
 	return nil
 }
 
@@ -265,39 +279,43 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&projectcontourv1.HTTPProxy{}).
 		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listHPs})
 	if r.CreateDNSEndpoint {
-		b = b.Owns(&endpoint.DNSEndpoint{})
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
+		b = b.Owns(obj)
 	}
 	if r.CreateCertificate {
-		b = b.Owns(&certmanagerv1alpha2.Certificate{})
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
+		b = b.Owns(obj)
 	}
 	return b.Complete(r)
 }
 
-func makeEndpoints(hostname string, ips []net.IP) []*endpoint.Endpoint {
+func makeEndpoints(hostname string, ips []net.IP) []map[string]interface{} {
 	ipv4Targets, ipv6Targets := ipsToTargets(ips)
-	var endpoints []*endpoint.Endpoint
+	var endpoints []map[string]interface{}
 	if len(ipv4Targets) != 0 {
-		endpoints = append(endpoints, &endpoint.Endpoint{
-			DNSName:    hostname,
-			Targets:    ipv4Targets,
-			RecordType: endpoint.RecordTypeA,
-			RecordTTL:  3600,
+		endpoints = append(endpoints, map[string]interface{}{
+			"dnsName":    hostname,
+			"targets":    ipv4Targets,
+			"recordType": "A",
+			"recordTTL":  3600,
 		})
 	}
 	if len(ipv6Targets) != 0 {
-		endpoints = append(endpoints, &endpoint.Endpoint{
-			DNSName:    hostname,
-			Targets:    ipv6Targets,
-			RecordType: "AAAA",
-			RecordTTL:  3600,
+		endpoints = append(endpoints, map[string]interface{}{
+			"dnsName":    hostname,
+			"targets":    ipv6Targets,
+			"recordType": "AAAA",
+			"recordTTL":  3600,
 		})
 	}
 	return endpoints
 }
 
-func ipsToTargets(ips []net.IP) (endpoint.Targets, endpoint.Targets) {
-	ipv4Targets := endpoint.Targets{}
-	ipv6Targets := endpoint.Targets{}
+func ipsToTargets(ips []net.IP) ([]string, []string) {
+	var ipv4Targets []string
+	var ipv6Targets []string
 	for _, ip := range ips {
 		if ip.To4() != nil {
 			ipv4Targets = append(ipv4Targets, ip.String())

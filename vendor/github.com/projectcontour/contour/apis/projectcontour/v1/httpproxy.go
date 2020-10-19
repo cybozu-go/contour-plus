@@ -1,4 +1,4 @@
-// Copyright © 2019 VMware
+// Copyright Project Contour Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -21,7 +21,7 @@ import (
 // HTTPProxySpec defines the spec of the CRD.
 type HTTPProxySpec struct {
 	// Virtualhost appears at most once. If it is present, the object is considered
-	// to be a "root".
+	// to be a "root" HTTPProxy.
 	// +optional
 	VirtualHost *VirtualHost `json:"virtualhost,omitempty"`
 	// Routes are the ingress routes. If TCPProxy is present, Routes is ignored.
@@ -30,7 +30,8 @@ type HTTPProxySpec struct {
 	// TCPProxy holds TCP proxy information.
 	// +optional
 	TCPProxy *TCPProxy `json:"tcpproxy,omitempty"`
-	// Includes allow for specific routing configuration to be appended to another HTTPProxy in another namespace.
+	// Includes allow for specific routing configuration to be included from another HTTPProxy,
+	// possibly in another namespace.
 	// +optional
 	Includes []Include `json:"includes,omitempty"`
 }
@@ -42,27 +43,33 @@ type Include struct {
 	// Namespace of the HTTPProxy to include. Defaults to the current namespace if not supplied.
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
-	// Conditions are a set of routing properties that is applied to an HTTPProxy in a namespace.
+	// Conditions are a set of rules that are applied to included HTTPProxies.
+	// In effect, they are added onto the Conditions of included HTTPProxy Route
+	// structs.
+	// When applied, they are merged using AND, with one exception:
+	// There can be only one Prefix MatchCondition per Conditions slice.
+	// More than one Prefix, or contradictory Conditions, will make the
+	// include invalid.
 	// +optional
-	Conditions []Condition `json:"conditions,omitempty"`
+	Conditions []MatchCondition `json:"conditions,omitempty"`
 }
 
-// Condition are policies that are applied on top of HTTPProxies.
+// MatchCondition are a general holder for matching rules for HTTPProxies.
 // One of Prefix or Header must be provided.
-type Condition struct {
+type MatchCondition struct {
 	// Prefix defines a prefix match for a request.
 	// +optional
 	Prefix string `json:"prefix,omitempty"`
 
 	// Header specifies the header condition to match.
 	// +optional
-	Header *HeaderCondition `json:"header,omitempty"`
+	Header *HeaderMatchCondition `json:"header,omitempty"`
 }
 
-// HeaderCondition specifies how to conditionally match against HTTP
+// HeaderMatchCondition specifies how to conditionally match against HTTP
 // headers. The Name field is required, but only one of the remaining
 // fields should be be provided.
-type HeaderCondition struct {
+type HeaderMatchCondition struct {
 	// Name is the name of the header to match against. Name is required.
 	// Header names are case insensitive.
 	Name string `json:"name"`
@@ -94,31 +101,131 @@ type HeaderCondition struct {
 	NotExact string `json:"notexact,omitempty"`
 }
 
+// ExtensionServiceReference names an ExtensionService resource.
+type ExtensionServiceReference struct {
+	// API version of the referent.
+	// If this field is not specified, the default "projectcontour.io/v1alpha1" will be used
+	//
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	APIVersion string `json:"apiVersion,omitempty" protobuf:"bytes,5,opt,name=apiVersion"`
+
+	// Namespace of the referent.
+	// If this field is not specifies, the namespace of the resource that targets the referent will be used.
+	//
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+	//
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+
+	// Name of the referent.
+	//
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+	//
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+}
+
+// AuthorizationServer configures an external server to authenticate
+// client requests. The external server must implement the Envoy
+// external authorization GRPC protocol. Currently, the
+// [v2](https://www.envoyproxy.io/docs/envoy/latest/api-v2/service/auth/v2/external_auth.proto)
+// protocol is always used, but authorization server authors should implement
+// the v3 protocol as well in the expectation that it will be supported
+// in future.
+type AuthorizationServer struct {
+	// ExtensionServiceRef specifies the extension resource that will authorize client requests.
+	//
+	// +required
+	ExtensionServiceRef ExtensionServiceReference `json:"extensionRef"`
+
+	// AuthPolicy sets a default authorization policy for client requests.
+	// This policy will be used unless overridden by individual routes.
+	//
+	// +optional
+	AuthPolicy *AuthorizationPolicy `json:"authPolicy,omitempty"`
+
+	// ResponseTimeout configures maximum time to wait for a check response from the authorization server.
+	// Timeout durations are expressed in the Go [Duration format](https://godoc.org/time#ParseDuration).
+	// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+	// The string "infinity" is also a valid input and specifies no timeout.
+	//
+	// +optional
+	// +kubebuilder:validation:Pattern=`^(((\d*(\.\d*)?h)|(\d*(\.\d*)?m)|(\d*(\.\d*)?s)|(\d*(\.\d*)?ms)|(\d*(\.\d*)?us)|(\d*(\.\d*)?µs)|(\d*(\.\d*)?ns))+|infinity|infinite)$`
+	ResponseTimeout string `json:"responseTimeout,omitempty"`
+
+	// If FailOpen is true, the client request is forwarded to the upstream service
+	// even if the authorization server fails to respond. This field should not be
+	// set in most cases. It is intended for use only while migrating applications
+	// from internal authorization to Contour external authorization.
+	//
+	// +optional
+	FailOpen bool `json:"failOpen,omitempty"`
+}
+
+// AuthorizationPolicy modifies how client requests are authenticated.
+type AuthorizationPolicy struct {
+	// When true, this field disables client request authentication
+	// for the scope of the policy.
+	//
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
+
+	// Context is a set of key/value pairs that are sent to the
+	// authentication server in the check request. If a context
+	// is provided at an enclosing scope, the entries are merged
+	// such that the inner scope overrides matching keys from the
+	// outer scope.
+	//
+	// +optional
+	Context map[string]string `json:"context,omitempty"`
+}
+
 // VirtualHost appears at most once. If it is present, the object is considered
 // to be a "root".
 type VirtualHost struct {
 	// The fully qualified domain name of the root of the ingress tree
-	// all leaves of the DAG rooted at this object relate to the fqdn
+	// all leaves of the DAG rooted at this object relate to the fqdn.
 	Fqdn string `json:"fqdn"`
-	// If present describes tls properties. The SNI names that will be matched on
-	// are described in fqdn, the tls.secretName secret must contain a
-	// matching certificate
+
+	// If present the fields describes TLS properties of the virtual
+	// host. The SNI names that will be matched on are described in fqdn,
+	// the tls.secretName secret must contain a certificate that itself
+	// contains a name that matches the FQDN.
+	//
 	// +optional
 	TLS *TLS `json:"tls,omitempty"`
+
+	// This field configures an extension service to perform
+	// authorization for this virtual host. Authorization can
+	// only be configured on virtual hosts that have TLS enabled.
+	// If the TLS configuration requires client certificate
+	///validation, the client certificate is always included in the
+	// authentication check request.
+	//
+	// +optional
+	Authorization *AuthorizationServer `json:"authorization,omitempty"`
+	// Specifies the cross-origin policy to apply to the VirtualHost.
+	// +optional
+	CORSPolicy *CORSPolicy `json:"corsPolicy,omitempty"`
 }
 
 // TLS describes tls properties. The SNI names that will be matched on
-// are described in fqdn, the tls.secretName secret must contain a
-// matching certificate unless tls.passthrough is set to true.
+// are described in the HTTPProxy's Spec.VirtualHost.Fqdn field.
 type TLS struct {
-	// required, the name of a secret in the current namespace
+	// SecretName is the name of a TLS secret in the current namespace.
+	// Either SecretName or Passthrough must be specified, but not both.
+	// If specified, the named secret must contain a matching certificate
+	// for the virtual host's FQDN.
 	SecretName string `json:"secretName,omitempty"`
 	// Minimum TLS version this vhost should negotiate
 	// +optional
 	MinimumProtocolVersion string `json:"minimumProtocolVersion,omitempty"`
-	// If Passthrough is set to true, the SecretName will be ignored
-	// and the encrypted handshake will be passed through to the
-	// backing cluster.
+	// Passthrough defines whether the encrypted TLS handshake will be
+	// passed through to the backing cluster. Either Passthrough or
+	// SecretName must be specified, but not both.
 	// +optional
 	Passthrough bool `json:"passthrough,omitempty"`
 	// ClientValidation defines how to verify the client certificate
@@ -137,11 +244,46 @@ type TLS struct {
 	EnableFallbackCertificate bool `json:"enableFallbackCertificate,omitempty"`
 }
 
+// CORSHeaderValue specifies the value of the string headers returned by a cross-domain request.
+// +kubebuilder:validation:Pattern="^[a-zA-Z0-9!#$%&'*+.^_`|~-]+$"
+type CORSHeaderValue string
+
+// CORSPolicy allows setting the CORS policy
+type CORSPolicy struct {
+	// Specifies whether the resource allows credentials.
+	//  +optional
+	AllowCredentials bool `json:"allowCredentials,omitempty"`
+	// AllowOrigin specifies the origins that will be allowed to do CORS requests. "*" means
+	// allow any origin.
+	// +kubebuilder:validation:Required
+	AllowOrigin []string `json:"allowOrigin"`
+	// AllowMethods specifies the content for the *access-control-allow-methods* header.
+	// +kubebuilder:validation:Required
+	AllowMethods []CORSHeaderValue `json:"allowMethods"`
+	// AllowHeaders specifies the content for the *access-control-allow-headers* header.
+	//  +optional
+	AllowHeaders []CORSHeaderValue `json:"allowHeaders,omitempty"`
+	// ExposeHeaders Specifies the content for the *access-control-expose-headers* header.
+	//  +optional
+	ExposeHeaders []CORSHeaderValue `json:"exposeHeaders,omitempty"`
+	// MaxAge indicates for how long the results of a preflight request can be cached.
+	// MaxAge durations are expressed in the Go [Duration format](https://godoc.org/time#ParseDuration).
+	// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+	// Only positive values are allowed while 0 disables the cache requiring a preflight OPTIONS
+	// check for all cross-origin requests.
+	//  +optional
+	MaxAge string `json:"maxAge,omitempty"`
+}
+
 // Route contains the set of routes for a virtual host.
 type Route struct {
-	// Conditions are a set of routing properties that is applied to an HTTPProxy in a namespace.
+	// Conditions are a set of rules that are applied to a Route.
+	// When applied, they are merged using AND, with one exception:
+	// There can be only one Prefix MatchCondition per Conditions slice.
+	// More than one Prefix, or contradictory Conditions, will make the
+	// route invalid.
 	// +optional
-	Conditions []Condition `json:"conditions,omitempty"`
+	Conditions []MatchCondition `json:"conditions,omitempty"`
 	// Services are the services to proxy traffic.
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:Required
@@ -153,6 +295,11 @@ type Route struct {
 	// not permitted when a `virtualhost.tls` block is present.
 	// +optional
 	PermitInsecure bool `json:"permitInsecure,omitempty"`
+	// AuthPolicy updates the authorization policy that was set
+	// on the root HTTPProxy object for client requests that
+	// match this route.
+	// +optional
+	AuthPolicy *AuthorizationPolicy `json:"authPolicy,omitempty"`
 	// The timeout policy for this route.
 	// +optional
 	TimeoutPolicy *TimeoutPolicy `json:"timeoutPolicy,omitempty"`
@@ -170,19 +317,13 @@ type Route struct {
 	//
 	// +optional
 	PathRewritePolicy *PathRewritePolicy `json:"pathRewritePolicy,omitempty"`
-	// The policy for managing request headers during proxying
+	// The policy for managing request headers during proxying.
 	// +optional
 	RequestHeadersPolicy *HeadersPolicy `json:"requestHeadersPolicy,omitempty"`
-	// The policy for managing response headers during proxying
+	// The policy for managing response headers during proxying.
+	// Rewriting the 'Host' header is not supported.
 	// +optional
 	ResponseHeadersPolicy *HeadersPolicy `json:"responseHeadersPolicy,omitempty"`
-}
-
-func (r *Route) GetPrefixReplacements() []ReplacePrefix {
-	if r.PathRewritePolicy != nil {
-		return r.PathRewritePolicy.ReplacePrefix
-	}
-	return nil
 }
 
 // TCPProxy contains the set of services to proxy TCP connections.
@@ -191,8 +332,7 @@ type TCPProxy struct {
 	// +optional
 	LoadBalancerPolicy *LoadBalancerPolicy `json:"loadBalancerPolicy,omitempty"`
 	// Services are the services to proxy traffic
-	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:Required
+	// +optional
 	Services []Service `json:"services"`
 	// Include specifies that this tcpproxy should be delegated to another HTTPProxy.
 	// +optional
@@ -244,10 +384,12 @@ type Service struct {
 	UpstreamValidation *UpstreamValidation `json:"validation,omitempty"`
 	// If Mirror is true the Service will receive a read only mirror of the traffic for this route.
 	Mirror bool `json:"mirror,omitempty"`
-	// The policy for managing request headers during proxying
+	// The policy for managing request headers during proxying.
+	// Rewriting the 'Host' header is not supported.
 	// +optional
 	RequestHeadersPolicy *HeadersPolicy `json:"requestHeadersPolicy,omitempty"`
-	// The policy for managing response headers during proxying
+	// The policy for managing response headers during proxying.
+	// Rewriting the 'Host' header is not supported.
 	// +optional
 	ResponseHeadersPolicy *HeadersPolicy `json:"responseHeadersPolicy,omitempty"`
 }
@@ -304,6 +446,7 @@ type TimeoutPolicy struct {
 	// Timeout for receiving a response from the server after processing a request from client.
 	// If not supplied, Envoy's default value of 15s applies.
 	// +optional
+	// +kubebuilder:validation:Pattern=`^(((\d*(\.\d*)?h)|(\d*(\.\d*)?m)|(\d*(\.\d*)?s)|(\d*(\.\d*)?ms)|(\d*(\.\d*)?us)|(\d*(\.\d*)?µs)|(\d*(\.\d*)?ns))+|infinity|infinite)$`
 	Response string `json:"response,omitempty"`
 
 	// Timeout after which, if there are no active requests for this route, the connection between
@@ -311,8 +454,13 @@ type TimeoutPolicy struct {
 	// If not specified, there is no per-route idle timeout, though a connection manager-wide
 	// stream_idle_timeout default of 5m still applies.
 	// +optional
+	// +kubebuilder:validation:Pattern=`^(((\d*(\.\d*)?h)|(\d*(\.\d*)?m)|(\d*(\.\d*)?s)|(\d*(\.\d*)?ms)|(\d*(\.\d*)?us)|(\d*(\.\d*)?µs)|(\d*(\.\d*)?ns))+|infinity|infinite)$`
 	Idle string `json:"idle,omitempty"`
 }
+
+// RetryOn is a string type alias with validation to ensure that the value is valid.
+// +kubebuilder:validation:Enum="5xx";gateway-error;reset;connect-failure;retriable-4xx;refused-stream;retriable-status-codes;retriable-headers;cancelled;deadline-exceeded;internal;resource-exhausted;unavailable
+type RetryOn string
 
 // RetryPolicy defines the attributes associated with retrying policy.
 type RetryPolicy struct {
@@ -323,14 +471,43 @@ type RetryPolicy struct {
 	NumRetries int64 `json:"count"`
 	// PerTryTimeout specifies the timeout per retry attempt.
 	// Ignored if NumRetries is not supplied.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^(((\d*(\.\d*)?h)|(\d*(\.\d*)?m)|(\d*(\.\d*)?s)|(\d*(\.\d*)?ms)|(\d*(\.\d*)?us)|(\d*(\.\d*)?µs)|(\d*(\.\d*)?ns))+|infinity|infinite)$`
 	PerTryTimeout string `json:"perTryTimeout,omitempty"`
+	// RetryOn specifies the conditions on which to retry a request.
+	//
+	// Supported [HTTP conditions](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/router_filter#x-envoy-retry-on):
+	//
+	// - `5xx`
+	// - `gateway-error`
+	// - `reset`
+	// - `connect-failure`
+	// - `retriable-4xx`
+	// - `refused-stream`
+	// - `retriable-status-codes`
+	// - `retriable-headers`
+	//
+	// Supported [gRPC conditions](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/router_filter#x-envoy-retry-grpc-on):
+	//
+	// - `cancelled`
+	// - `deadline-exceeded`
+	// - `internal`
+	// - `resource-exhausted`
+	// - `unavailable`
+	// +optional
+	RetryOn []RetryOn `json:"retryOn,omitempty"`
+	// RetriableStatusCodes specifies the HTTP status codes that should be retried.
+	//
+	// This field is only respected when you include `retriable-status-codes` in the `RetryOn` field.
+	// +optional
+	RetriableStatusCodes []uint32 `json:"retriableStatusCodes,omitempty"`
 }
 
 // ReplacePrefix describes a path prefix replacement.
 type ReplacePrefix struct {
 	// Prefix specifies the URL path prefix to be replaced.
 	//
-	// If Prefix is specified, it must exactly match the Condition
+	// If Prefix is specified, it must exactly match the MatchCondition
 	// prefix that is rendered by the chain of including HTTPProxies
 	// and only that path prefix will be replaced by Replacement.
 	// This allows HTTPProxies that are included through multiple
@@ -418,8 +595,8 @@ type DownstreamValidation struct {
 	CACertificate string `json:"caSecret"`
 }
 
-// Status reports the current state of the HTTPProxy.
-type Status struct {
+// HTTPProxyStatus reports the current state of the HTTPProxy.
+type HTTPProxyStatus struct {
 	// +optional
 	CurrentStatus string `json:"currentStatus,omitempty"`
 	// +optional
@@ -427,12 +604,30 @@ type Status struct {
 	// +optional
 	// LoadBalancer contains the current status of the load balancer.
 	LoadBalancer corev1.LoadBalancerStatus `json:"loadBalancer,omitempty"`
+	// +optional
+	// Conditions contains information about the current status of the HTTPProxy,
+	// in an upstream-friendly container.
+	//
+	// Contour will update a single condition, `Valid`, that is in normal-true polarity.
+	// That is, when `currentStatus` is `valid`, the `Valid` condition will be `status: true`,
+	// and vice versa.
+	//
+	// Contour will leave untouched any other Conditions set in this block,
+	// in case some other controller wants to add a Condition.
+	//
+	// If you are another controller owner and wish to add a condition, you *should*
+	// namespace your condition with a label, like `controller.domain.com/ConditionName`.
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []DetailedCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// HTTPProxy is an Ingress CRD specification
+// HTTPProxy is an Ingress CRD specification.
 // +k8s:openapi-gen=true
 // +kubebuilder:printcolumn:name="FQDN",type="string",JSONPath=".spec.virtualhost.fqdn",description="Fully qualified domain name"
 // +kubebuilder:printcolumn:name="TLS Secret",type="string",JSONPath=".spec.virtualhost.tls.secretName",description="Secret with TLS credentials"
@@ -445,8 +640,9 @@ type HTTPProxy struct {
 	metav1.ObjectMeta `json:"metadata"`
 
 	Spec HTTPProxySpec `json:"spec"`
+	// Status is a container for computed information about the HTTPProxy.
 	// +optional
-	Status Status `json:"status,omitempty"`
+	Status HTTPProxyStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

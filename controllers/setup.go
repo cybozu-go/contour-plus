@@ -1,12 +1,8 @@
 package controllers
 
 import (
-	certmanagerv1alpha2 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1alpha2"
-	"github.com/kubernetes-incubator/external-dns/endpoint"
-	contourv1beta1 "github.com/projectcontour/contour/apis/contour/v1beta1"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,22 +24,6 @@ type ReconcilerOptions struct {
 // SetupScheme initializes a schema
 func SetupScheme(scm *runtime.Scheme) error {
 	projectcontourv1.AddKnownTypes(scm)
-	contourv1beta1.AddKnownTypes(scm)
-
-	// ExternalDNS does not implement AddToScheme
-	groupVersion := ctrl.GroupVersion{
-		Group:   "externaldns.k8s.io",
-		Version: "v1alpha1",
-	}
-	scm.AddKnownTypes(groupVersion,
-		&endpoint.DNSEndpoint{},
-		&endpoint.DNSEndpointList{},
-	)
-	metav1.AddToGroupVersion(scm, groupVersion)
-
-	if err := certmanagerv1alpha2.AddToScheme(scm); err != nil {
-		return err
-	}
 
 	// for corev1.Service
 	if err := corev1.AddToScheme(scm); err != nil {
