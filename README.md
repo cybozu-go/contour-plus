@@ -16,11 +16,11 @@ Supported environments
 - Kubernetes
   - 1.18
 - Contour
-  - 1.6
+  - 1.9
 - ExternalDNS
   - 0.7
 - cert-manager
-  - 0.15
+  - 1.0
 
 Other versions may or may not work.
 
@@ -39,11 +39,11 @@ Documentation
 
 [releases]: https://github.com/cybozu-go/contour-plus/releases
 [godoc]: https://godoc.org/github.com/cybozu-go/contour-plus
-[Contour]: https://github.com/heptio/contour
-[ExternalDNS]: https://github.com/kubernetes-incubator/external-dns
+[Contour]: https://github.com/projectcontour/contour
+[ExternalDNS]: https://github.com/kubernetes-sigs/external-dns
 [cert-manager]: https://github.com/jetstack/cert-manager
 [HTTPProxy]: https://github.com/projectcontour/contour/blob/master/site/docs/master/httpproxy.md
-[DNSEndpoint]: https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source.md
+[DNSEndpoint]: https://github.com/kubernetes-sigs/external-dns/blob/master/docs/contributing/crd-source.md
 [Certificate]: http://docs.cert-manager.io/en/latest/reference/certificates.html
 
 Docker images

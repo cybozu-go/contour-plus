@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2020-10-20
+
+### Changed
+
+- Update contour to 1.9.0 (#48).
+- Use cert-manager v1 API Endpoint (#48).
+- Remove compile dependency on cert-manager and external-dns (#48).
+- Stop using vendoring (#50).
+
 ## [0.5.1] - 2020-10-02
 
 ### Changed
@@ -131,7 +140,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/cybozu-go/contour-plus/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/cybozu-go/contour-plus/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/cybozu-go/contour-plus/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/cybozu-go/contour-plus/compare/v0.4.2...v0.4.3
