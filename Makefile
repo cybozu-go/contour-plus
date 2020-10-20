@@ -5,8 +5,7 @@ IMG ?= quay.io/cybozu/contour-plus:latest
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 GO111MODULE = on
-GOFLAGS     = -mod=vendor
-export GO111MODULE GOFLAGS
+export GO111MODULE
 
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
@@ -23,10 +22,10 @@ all: bin/contour-plus
 # Run tests
 .PHONY: test
 test:
-	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
+	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
 	staticcheck ./...
 	test -z "$$(nilerr ./... 2>&1 | tee /dev/stderr)"
-	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... | grep -v /vendor/ ) 2>&1 | tee /dev/stderr)"
+	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... ) 2>&1 | tee /dev/stderr)"
 	ineffassign .
 	go test -race -v -count 1 ./controllers/... -coverprofile cover.out
 	go install ./...
@@ -84,8 +83,6 @@ setup: custom-checker staticcheck nilerr ineffassign
 .PHONY: mod
 mod:
 	go mod tidy
-	go mod vendor
-	git add -f vendor
 	git add go.mod
 
 .PHONY: download-upstream-crd
