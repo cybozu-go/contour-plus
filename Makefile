@@ -97,7 +97,7 @@ download-upstream-crd:
 .PHONY: custom-checker
 custom-checker:
 	if ! which custom-checker >/dev/null; then \
-		cd /tmp; env GOFLAGS= GO111MODULE=on go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker; \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker; \
 	fi
 
 .PHONY: staticcheck
