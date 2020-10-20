@@ -5,8 +5,8 @@ IMG ?= quay.io/cybozu/contour-plus:latest
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 GO111MODULE = on
-GOFLAGS     = -mod=vendor
-export GO111MODULE GOFLAGS
+KUBEBUILDER_ASSETS := $(PWD)/bin
+export GO111MODULE KUBEBUILDER_ASSETS 
 
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
@@ -23,10 +23,10 @@ all: bin/contour-plus
 # Run tests
 .PHONY: test
 test:
-	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
-	test -z "$$(golint $$(go list ./... | grep -v /vendor/) | tee /dev/stderr)"
+	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
+	staticcheck ./...
 	test -z "$$(nilerr ./... 2>&1 | tee /dev/stderr)"
-	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... | grep -v /vendor/ ) 2>&1 | tee /dev/stderr)"
+	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... ) 2>&1 | tee /dev/stderr)"
 	ineffassign .
 	go test -race -v -count 1 ./controllers/... -coverprofile cover.out
 	go install ./...
@@ -74,18 +74,18 @@ clean:
 	rm -f bin/contour-plus $(CONTROLLER_GEN)
 
 .PHONY: setup
-setup:
-	curl -sL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
-	$(SUDO) mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH) /usr/local/kubebuilder
-	$(SUDO) curl -o /usr/local/kubebuilder/bin/kustomize -sL https://go.kubebuilder.io/kustomize/$(GOOS)/$(GOARCH)
-	$(SUDO) chmod a+x /usr/local/kubebuilder/bin/kustomize
+setup: custom-checker staticcheck nilerr ineffassign
+	mkdir -p bin
+	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
+	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
+	rm -rf /tmp/kubebuilder_*
+	curl -o bin/kustomize -sfL https://go.kubebuilder.io/kustomize/$(GOOS)/$(GOARCH)
+	chmod a+x bin/kustomize
 	go install github.com/jstemmer/go-junit-report
 
 .PHONY: mod
 mod:
 	go mod tidy
-	go mod vendor
-	git add -f vendor
 	git add go.mod
 
 .PHONY: download-upstream-crd
@@ -93,3 +93,27 @@ download-upstream-crd:
 	curl -o config/crd/third/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
 	curl -o config/crd/third/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/docs/contributing/crd-source/crd-manifest.yaml
 	curl -o config/crd/third/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/v$(CONTOUR_VERSION)/examples/contour/01-crds.yaml
+
+.PHONY: custom-checker
+custom-checker:
+	if ! which custom-checker >/dev/null; then \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker; \
+	fi
+
+.PHONY: staticcheck
+staticcheck:
+	if ! which staticcheck >/dev/null; then \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck; \
+	fi
+
+.PHONY: nilerr
+nilerr:
+	if ! which nilerr >/dev/null; then \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr; \
+	fi
+
+.PHONY: ineffassign
+ineffassign:
+	if ! which ineffassign >/dev/null; then \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gordonklaus/ineffassign; \
+	fi
