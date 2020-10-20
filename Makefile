@@ -5,7 +5,8 @@ IMG ?= quay.io/cybozu/contour-plus:latest
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 GO111MODULE = on
-export GO111MODULE
+KUBEBUILDER_ASSETS := $(PWD)/bin
+export GO111MODULE KUBEBUILDER_ASSETS 
 
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
@@ -74,10 +75,12 @@ clean:
 
 .PHONY: setup
 setup: custom-checker staticcheck nilerr ineffassign
-	curl -sL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
-	$(SUDO) mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH) /usr/local/kubebuilder
-	$(SUDO) curl -o /usr/local/kubebuilder/bin/kustomize -sL https://go.kubebuilder.io/kustomize/$(GOOS)/$(GOARCH)
-	$(SUDO) chmod a+x /usr/local/kubebuilder/bin/kustomize
+	mkdir -p bin
+	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
+	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
+	rm -rf /tmp/kubebuilder_*
+	curl -o bin/kustomize -sfL https://go.kubebuilder.io/kustomize/$(GOOS)/$(GOARCH)
+	chmod a+x bin/kustomize
 	go install github.com/jstemmer/go-junit-report
 
 .PHONY: mod
