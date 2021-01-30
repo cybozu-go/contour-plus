@@ -109,14 +109,14 @@ var _ = Describe("Test contour-plus", func() {
 })
 
 func startTestManager(mgr manager.Manager) (stop func()) {
-	ch := make(chan struct{})
 	waitCh := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	stop = func() {
-		close(ch)
+		cancel()
 		<-waitCh
 	}
 	go func() {
-		err := mgr.Start(ch)
+		err := mgr.Start(ctx)
 		if err != nil {
 			panic(err)
 		}

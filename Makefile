@@ -13,9 +13,9 @@ GOARCH = $(shell go env GOARCH)
 SUDO = sudo
 KUBEBUILDER_VERSION = 2.3.1
 CTRLTOOLS_VERSION = 0.2.8
-CERT_MANAGER_VERSION := 1.0.3
-EXTERNAL_DNS_VERSION := 0.7.4
-CONTOUR_VERSION := 1.9.0
+CERT_MANAGER_VERSION := 1.1.0
+EXTERNAL_DNS_VERSION := 0.7.6
+CONTOUR_VERSION := 1.11.0
 
 .PHONY: all
 all: bin/contour-plus
@@ -27,14 +27,13 @@ test:
 	staticcheck ./...
 	test -z "$$(nilerr ./... 2>&1 | tee /dev/stderr)"
 	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... ) 2>&1 | tee /dev/stderr)"
-	ineffassign .
 	go test -race -v -count 1 ./controllers/... -coverprofile cover.out
 	go install ./...
 	go vet ./...
 
 # Build contour-plus binary
 bin/contour-plus: main.go cmd/root.go controllers/httpproxy_controller.go
-	CGO_ENABLED=0 go build -o $@ .
+	CGO_ENABLED=0 go build -ldflags="-w -s" -o $@ .
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
@@ -74,7 +73,7 @@ clean:
 	rm -f bin/contour-plus $(CONTROLLER_GEN)
 
 .PHONY: setup
-setup: custom-checker staticcheck nilerr ineffassign
+setup: custom-checker staticcheck nilerr
 	mkdir -p bin
 	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
 	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
@@ -109,10 +108,4 @@ staticcheck:
 nilerr:
 	if ! which nilerr >/dev/null; then \
 		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr; \
-	fi
-
-.PHONY: ineffassign
-ineffassign:
-	if ! which ineffassign >/dev/null; then \
-		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gordonklaus/ineffassign; \
 	fi
