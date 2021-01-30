@@ -9,17 +9,7 @@ jobs:
     steps:
       - checkout
       - run: make SUDO="" setup
-      - run:
-          name: Run tests
-          command: |
-            mkdir -p ${TEST_RESULTS}
-            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-            make test | tee ${TEST_RESULTS}/go-test.out
-      - store_artifacts: # Upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
-          path: /tmp/test-results
-          destination: raw-test-output
-      - store_test_results: # Upload test results for display in Test Summary: https://circleci.com/docs/2.0/collect-test-data/
-          path: /tmp/test-results
+      - run: make test
       - run: make
       - persist_to_workspace:
           root: /work/bin

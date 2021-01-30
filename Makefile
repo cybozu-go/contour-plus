@@ -81,7 +81,6 @@ setup: custom-checker staticcheck nilerr ineffassign
 	rm -rf /tmp/kubebuilder_*
 	curl -o bin/kustomize -sfL https://go.kubebuilder.io/kustomize/$(GOOS)/$(GOARCH)
 	chmod a+x bin/kustomize
-	go install github.com/jstemmer/go-junit-report
 
 .PHONY: mod
 mod:
