@@ -86,15 +86,15 @@ var _ = BeforeSuite(func() {
 			LoadBalancerIP: dummyLoadBalancerIP,
 			Type:           corev1.ServiceTypeLoadBalancer,
 		},
-		Status: corev1.ServiceStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{{
-					IP: dummyLoadBalancerIP,
-				}},
-			},
-		},
 	}
 	Expect(k8sClient.Create(context.Background(), svc)).ShouldNot(HaveOccurred())
+	svc.Status = corev1.ServiceStatus{
+		LoadBalancer: corev1.LoadBalancerStatus{
+			Ingress: []corev1.LoadBalancerIngress{{
+				IP: dummyLoadBalancerIP,
+			}},
+		},
+	}
 	Expect(k8sClient.Status().Update(context.Background(), svc)).ShouldNot(HaveOccurred())
 }, 60)
 
