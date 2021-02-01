@@ -38,11 +38,11 @@ Documentation
 [docs](docs/) directory contains documents about designs and specifications.
 
 [releases]: https://github.com/cybozu-go/contour-plus/releases
-[godoc]: https://godoc.org/github.com/cybozu-go/contour-plus
+[godoc]: https://pkg.go.dev/github.com/cybozu-go/contour-plus
 [Contour]: https://github.com/projectcontour/contour
 [ExternalDNS]: https://github.com/kubernetes-sigs/external-dns
 [cert-manager]: https://github.com/jetstack/cert-manager
-[HTTPProxy]: https://github.com/projectcontour/contour/blob/master/site/docs/master/httpproxy.md
+[HTTPProxy]: https://projectcontour.io/docs/v1.11.0/config/api/#projectcontour.io/v1.HTTPProxy
 [DNSEndpoint]: https://github.com/kubernetes-sigs/external-dns/blob/master/docs/contributing/crd-source.md
 [Certificate]: http://docs.cert-manager.io/en/latest/reference/certificates.html
 

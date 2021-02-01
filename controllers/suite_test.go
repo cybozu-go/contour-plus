@@ -86,15 +86,15 @@ var _ = BeforeSuite(func() {
 			LoadBalancerIP: dummyLoadBalancerIP,
 			Type:           corev1.ServiceTypeLoadBalancer,
 		},
-		Status: corev1.ServiceStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{{
-					IP: dummyLoadBalancerIP,
-				}},
-			},
-		},
 	}
 	Expect(k8sClient.Create(context.Background(), svc)).ShouldNot(HaveOccurred())
+	svc.Status = corev1.ServiceStatus{
+		LoadBalancer: corev1.LoadBalancerStatus{
+			Ingress: []corev1.LoadBalancerIngress{{
+				IP: dummyLoadBalancerIP,
+			}},
+		},
+	}
 	Expect(k8sClient.Status().Update(context.Background(), svc)).ShouldNot(HaveOccurred())
 }, 60)
 
@@ -109,14 +109,14 @@ var _ = Describe("Test contour-plus", func() {
 })
 
 func startTestManager(mgr manager.Manager) (stop func()) {
-	ch := make(chan struct{})
 	waitCh := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	stop = func() {
-		close(ch)
+		cancel()
 		<-waitCh
 	}
 	go func() {
-		err := mgr.Start(ch)
+		err := mgr.Start(ctx)
 		if err != nil {
 			panic(err)
 		}

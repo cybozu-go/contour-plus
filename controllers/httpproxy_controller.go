@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -51,9 +52,8 @@ type HTTPProxyReconciler struct {
 // +kubebuilder:rbac:groups="",resources=services/status,verbs=get
 
 // Reconcile creates/updates CRDs from given HTTPProxy
-func (r *HTTPProxyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("httpproxy", req.NamespacedName)
+func (r *HTTPProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := crlog.FromContext(ctx)
 
 	// Get HTTPProxy
 	hp := new(projectcontourv1.HTTPProxy)
@@ -248,36 +248,35 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 // SetupWithManager initializes controller manager
 func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	listHPs := handler.ToRequestsFunc(
-		func(a handler.MapObject) []reconcile.Request {
-			if a.Meta.GetNamespace() != r.ServiceKey.Namespace {
-				return nil
-			}
-			if a.Meta.GetName() != r.ServiceKey.Name {
-				return nil
-			}
+	listHPs := func(a client.Object) []reconcile.Request {
+		if a.GetNamespace() != r.ServiceKey.Namespace {
+			return nil
+		}
+		if a.GetName() != r.ServiceKey.Name {
+			return nil
+		}
 
-			ctx := context.Background()
-			var hpList projectcontourv1.HTTPProxyList
-			err := r.List(ctx, &hpList)
-			if err != nil {
-				r.Log.Error(err, "listing HTTPProxy failed")
-				return nil
-			}
+		ctx := context.Background()
+		var hpList projectcontourv1.HTTPProxyList
+		err := r.List(ctx, &hpList)
+		if err != nil {
+			r.Log.Error(err, "listing HTTPProxy failed")
+			return nil
+		}
 
-			requests := make([]reconcile.Request, len(hpList.Items))
-			for i, hp := range hpList.Items {
-				requests[i] = reconcile.Request{NamespacedName: types.NamespacedName{
-					Name:      hp.Name,
-					Namespace: hp.Namespace,
-				}}
-			}
-			return requests
-		})
+		requests := make([]reconcile.Request, len(hpList.Items))
+		for i, hp := range hpList.Items {
+			requests[i] = reconcile.Request{NamespacedName: types.NamespacedName{
+				Name:      hp.Name,
+				Namespace: hp.Namespace,
+			}}
+		}
+		return requests
+	}
 
 	b := ctrl.NewControllerManagedBy(mgr).
 		For(&projectcontourv1.HTTPProxy{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: listHPs})
+		Watches(&source.Kind{Type: &corev1.Service{}}, handler.EnqueueRequestsFromMapFunc(listHPs))
 	if r.CreateDNSEndpoint {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
