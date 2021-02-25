@@ -41,13 +41,32 @@ jobs:
           cp contour-plus bin/
           chmod a+x bin/contour-plus
       - name: Build image
-        run: docker build -t quay.io/cybozu/contour-plus:latest .
+        run: |
+          docker build -t quay.io/cybozu/contour-plus:latest .
+          docker save -o contour-plus.img quay.io/cybozu/contour-plus:latest
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: image
+          path: contour-plus.img
+          retention-days: 1
+
+  push-image:
+    name: push image
+    needs: build-image
+    if: startsWith( github.ref, 'refs/tags/v' )
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Download image
+        uses: actions/download-artifact@v2
+        with:
+          name: image
       - name: Push image to quay.io
-        if: startsWith( github.ref, 'refs/tags/v' )
         run: |
           docker login -u $QUAY_USER -p $QUAY_PASSWORD quay.io
           echo "pushing ${TAG} ..."
           TAG=${GITHUB_REF#refs/tags/}
+          docker load -i contour-plus.img
           docker tag quay.io/cybozu/contour-plus:latest quay.io/cybozu/contour-plus:$TAG
           docker push quay.io/cybozu/contour-plus:$TAG
           if echo $TAG | grep -q -e - ; then
