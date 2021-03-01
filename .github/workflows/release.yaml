@@ -1,0 +1,43 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  image:
+    name: Push image to quay.io
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Validate Release Version
+        id: check_version
+        run: [ $(echo $GITHUB_REF | sed -ne 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\(-.*\)\?\).*/\1/p')  ]
+      - name: Log in quay.io
+        run: echo ${{ secrets.QUAY_PASSWORD  }} | docker login -u ${{ secrets.QUAY_USER  }} --password-stdin quay.io
+      - name: Push image to quay.io
+        run: |
+          TAG=${GITHUB_REF#refs/tags/v}
+          echo "pushing v${TAG} ..."
+          docker tag quay.io/cybozu/contour-plus:latest quay.io/cybozu/contour-plus:$TAG
+          docker push quay.io/cybozu/contour-plus:$TAG
+      - name: Push image to quay.io
+        if: ${{ !contains(github.ref, '-') }}
+        run: docker push quay.io/cybozu/contour-plus:latest
+
+  release:
+    name: Release on GitHub
+    needs: image
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            See [CHANGELOG.md](./CHANGELOG.md) for details.
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
