@@ -8,8 +8,6 @@ jobs:
     name: Push image to quay.io
     runs-on: ubuntu-20.04
     steps:
-      - name: Validate Release Version
-        run: test -n "$(echo $GITHUB_REF | sed -ne 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\(-.*\)\?\).*/\1/p')"
       - uses: actions/checkout@v2
       - name: Build image
         run: |
@@ -17,13 +15,13 @@ jobs:
           make bin/contour-plus
           make docker-build
       - name: Log in quay.io
-        run: echo ${{ secrets.QUAY_PASSWORD  }} | docker login -u ${{ secrets.QUAY_USER  }} --password-stdin quay.io
-      - name: Push image to quay.io
+        run: echo ${{ secrets.QUAY_PASSWORD }} | docker login -u ${{ secrets.QUAY_USER }} --password-stdin quay.io
+      - name: Push versioned image to quay.io
         run: |
           TAG=${GITHUB_REF#refs/tags/v}
           docker tag quay.io/cybozu/contour-plus:latest quay.io/cybozu/contour-plus:$TAG
           docker push quay.io/cybozu/contour-plus:$TAG
-      - name: Push image to quay.io
+      - name: Push latest image to quay.io
         if: ${{ !contains(github.ref, '-') }}
         run: docker push quay.io/cybozu/contour-plus:latest
 
