@@ -15,6 +15,7 @@ jobs:
       - name: Build image
         run: |
           make SUDO="" setup
+          make test
           make bin/contour-plus
           make docker-build
       - name: Log in quay.io
