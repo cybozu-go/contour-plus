@@ -1,5 +1,5 @@
 [![GitHub release](https://img.shields.io/github/release/cybozu-go/contour-plus.svg?maxAge=60)][releases]
-[![CircleCI](https://circleci.com/gh/cybozu-go/contour-plus.svg?style=svg)](https://circleci.com/gh/cybozu-go/contour-plus)
+[![CI](https://github.com/cybozu-go/contour-plus/workflows/main/badge.svg)](https://github.com/cybozu-go/contour-plus/actions)
 [![GoDoc](https://godoc.org/github.com/cybozu-go/contour-plus?status.svg)][godoc]
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/contour-plus)](https://goreportcard.com/report/github.com/cybozu-go/contour-plus)
 
