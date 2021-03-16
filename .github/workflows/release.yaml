@@ -11,10 +11,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: 1.15
+          go-version: 1.16
       - name: Build image
         run: |
-          make SUDO="" setup
+          make setup
           make test
           make bin/contour-plus
           make docker-build
