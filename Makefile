@@ -4,9 +4,8 @@ IMG ?= quay.io/cybozu/contour-plus:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
-GO111MODULE = on
 KUBEBUILDER_ASSETS := $(PWD)/bin
-export GO111MODULE KUBEBUILDER_ASSETS 
+export KUBEBUILDER_ASSETS 
 
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
@@ -82,7 +81,7 @@ setup: custom-checker staticcheck nilerr
 .PHONY: mod
 mod:
 	go mod tidy
-	git add go.mod
+	git add go.mod go.sum
 
 .PHONY: download-upstream-crd
 download-upstream-crd:
@@ -93,17 +92,17 @@ download-upstream-crd:
 .PHONY: custom-checker
 custom-checker:
 	if ! which custom-checker >/dev/null; then \
-		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker; \
+		env GOFLAGS= go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker@latest; \
 	fi
 
 .PHONY: staticcheck
 staticcheck:
 	if ! which staticcheck >/dev/null; then \
-		cd /tmp; env GOFLAGS= GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck; \
+		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest; \
 	fi
 
 .PHONY: nilerr
 nilerr:
 	if ! which nilerr >/dev/null; then \
-		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr; \
+		env GOFLAGS= go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest; \
 	fi
