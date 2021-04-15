@@ -11,12 +11,10 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -42,9 +40,7 @@ const (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Controller Suite")
 }
 
 var _ = BeforeSuite(func() {
@@ -54,14 +50,15 @@ var _ = BeforeSuite(func() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "third")},
 	}
-	var err error
-	cfg, err = testEnv.Start()
-	Expect(err).ToNot(HaveOccurred())
-	Expect(cfg).ToNot(BeNil())
+
+	c, err := testEnv.Start()
+	cfg = c
+	Expect(err).NotTo(HaveOccurred())
+	Expect(cfg).NotTo(BeNil())
 
 	By("setting up scheme")
 	scheme := runtime.NewScheme()
-	Expect(SetupScheme(scheme)).ShouldNot(HaveOccurred())
+	SetupScheme(scheme)
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -128,8 +125,7 @@ func startTestManager(mgr manager.Manager) (stop func()) {
 
 func setupManager() (*runtime.Scheme, manager.Manager) {
 	scm := runtime.NewScheme()
-	scheme.AddToScheme(scm)
-	Expect(SetupScheme(scm)).ShouldNot(HaveOccurred())
+	SetupScheme(scm)
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scm})
 	Expect(err).ShouldNot(HaveOccurred())
 	return scm, mgr
