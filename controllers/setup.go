@@ -2,8 +2,9 @@ package controllers
 
 import (
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -22,16 +23,11 @@ type ReconcilerOptions struct {
 }
 
 // SetupScheme initializes a schema
-func SetupScheme(scm *runtime.Scheme) error {
-	projectcontourv1.AddKnownTypes(scm)
-
-	// for corev1.Service
-	if err := corev1.AddToScheme(scm); err != nil {
-		return err
-	}
+func SetupScheme(scm *runtime.Scheme) {
+	utilruntime.Must(clientgoscheme.AddToScheme(scm))
+	utilruntime.Must(projectcontourv1.AddToScheme(scm))
 
 	// +kubebuilder:scaffold:scheme
-	return nil
 }
 
 // SetupReconciler initializes reconcilers

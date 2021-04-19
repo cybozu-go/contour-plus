@@ -1,3 +1,12 @@
-version: "2"
-domain: projectcontour.io
-repo: github.com/projectcontour/contour
+domain: cybozu.com
+layout:
+- go.kubebuilder.io/v3
+projectName: contour-plus
+repo: github.com/cybozu-go/contour-plus
+resources:
+- controller: true
+  domain: cybozu.com
+  group: projectcontour.io
+  kind: HTTPProxy
+  version: v1
+version: "3"

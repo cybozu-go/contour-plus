@@ -29,7 +29,7 @@ const (
 	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
 )
 
-// HTTPProxyReconciler reconciles a HttpProxy object
+// HTTPProxyReconciler reconciles a HTTPProxy object
 type HTTPProxyReconciler struct {
 	client.Client
 	Log               logr.Logger
@@ -246,7 +246,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	return nil
 }
 
-// SetupWithManager initializes controller manager
+// SetupWithManager sets up the controller with the Manager.
 func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	listHPs := func(a client.Object) []reconcile.Request {
 		if a.GetNamespace() != r.ServiceKey.Namespace {

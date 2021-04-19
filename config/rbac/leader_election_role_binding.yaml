@@ -1,12 +1,11 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: proxy-rolebinding
+  name: contour-plus
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: proxy-role
+  kind: Role
+  name: contour-plus
 subjects:
 - kind: ServiceAccount
-  name: default
-  namespace: system
+  name: contour
