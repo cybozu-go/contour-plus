@@ -41,7 +41,7 @@ endif
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
 manifests: controller-gen
-	$(CONTROLLER_GEN) rbac:roleName=neco-admission webhook paths="./..."
+	$(CONTROLLER_GEN) rbac:roleName=contour-plus webhook paths="./..."
 
 # Generate code
 .PHONY: generate
