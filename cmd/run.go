@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cybozu-go/contour-plus/controllers"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,14 +23,14 @@ func init() {
 }
 
 func run() error {
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOpts)))
 
 	opts := controllers.ReconcilerOptions{
-		Prefix:            config.namePrefix,
-		DefaultIssuerName: config.defaultIssuerName,
+		Prefix:            viper.GetString("name-prefix"),
+		DefaultIssuerName: viper.GetString("default-issuer-name"),
 	}
 
-	crds := config.crds
+	crds := viper.GetStringSlice("crds")
 	if len(crds) == 0 {
 		return errors.New("at least one service need to be enabled")
 	}
@@ -44,7 +45,7 @@ func run() error {
 		}
 	}
 
-	serviceName := config.serviceName
+	serviceName := viper.GetString("service-name")
 	nsname := strings.Split(serviceName, "/")
 	if len(nsname) != 2 || nsname[0] == "" || nsname[1] == "" {
 		return errors.New("service-name should be valid string as namespaced-name")
@@ -54,7 +55,7 @@ func run() error {
 		Name:      nsname[1],
 	}
 
-	defaultIssuerKind := config.defaultIssuerKind
+	defaultIssuerKind := viper.GetString("default-issuer-kind")
 	switch defaultIssuerKind {
 	case controllers.IssuerKind, controllers.ClusterIssuerKind:
 	default:
@@ -62,12 +63,12 @@ func run() error {
 	}
 	opts.DefaultIssuerKind = defaultIssuerKind
 
-	opts.IngressClassName = config.ingressClassName
+	opts.IngressClassName = viper.GetString("ingress-class-name")
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: config.metricsAddr,
-		LeaderElection:     config.leaderElection,
+		MetricsBindAddress: viper.GetString("metrics-addr"),
+		LeaderElection:     viper.GetBool("leader-election"),
 		LeaderElectionID:   "contour-plus-leader",
 	})
 	if err != nil {
