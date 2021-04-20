@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.2] - 2021-04-20
+
+### Changed
+
+- Fix the issue that options cannot be specified with environment variables. (#61)
+
 ## [0.6.1] - 2021-04-19
 
 ### Changed
@@ -154,7 +160,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/cybozu-go/contour-plus/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/cybozu-go/contour-plus/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cybozu-go/contour-plus/compare/v0.5.2...v0.6.0
 [0.5.2]: https://github.com/cybozu-go/contour-plus/compare/v0.5.1...v0.5.2
