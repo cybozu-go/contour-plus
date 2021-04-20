@@ -14,17 +14,7 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
-var config struct {
-	metricsAddr       string
-	crds              []string
-	namePrefix        string
-	serviceName       string
-	defaultIssuerName string
-	defaultIssuerKind string
-	ingressClassName  string
-	leaderElection    bool
-	zapOpts           zap.Options
-}
+var zapOpts zap.Options
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -39,14 +29,14 @@ func init() {
 	controllers.SetupScheme(scheme)
 
 	fs := rootCmd.Flags()
-	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8180", "Bind address for the metrics endpoint")
-	fs.StringSliceVar(&config.crds, "crds", []string{controllers.DNSEndpointKind, controllers.CertificateKind}, "List of CRD names to be created")
-	fs.StringVar(&config.namePrefix, "name-prefix", "", "Prefix of CRD names to be created")
-	fs.StringVar(&config.serviceName, "service-name", "", "NamespacedName of the Contour LoadBalancer Service")
-	fs.StringVar(&config.defaultIssuerName, "default-issuer-name", "", "Issuer name used by default")
-	fs.StringVar(&config.defaultIssuerKind, "default-issuer-kind", controllers.ClusterIssuerKind, "Issuer kind used by default")
-	fs.StringVar(&config.ingressClassName, "ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
-	fs.BoolVar(&config.leaderElection, "leader-election", true, "Enable/disable leader election")
+	fs.String("metrics-addr", ":8180", "Bind address for the metrics endpoint")
+	fs.StringSlice("crds", []string{controllers.DNSEndpointKind, controllers.CertificateKind}, "List of CRD names to be created")
+	fs.String("name-prefix", "", "Prefix of CRD names to be created")
+	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
+	fs.String("default-issuer-name", "", "Issuer name used by default")
+	fs.String("default-issuer-kind", controllers.ClusterIssuerKind, "Issuer kind used by default")
+	fs.String("ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
+	fs.Bool("leader-election", true, "Enable/disable leader election")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
@@ -57,7 +47,7 @@ func init() {
 	// Because k8s.io/klog uses Go flag package, we need to add flags for klog to fs.
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
-	config.zapOpts.BindFlags(goflags)
+	zapOpts.BindFlags(goflags)
 
 	fs.AddGoFlagSet(goflags)
 }
