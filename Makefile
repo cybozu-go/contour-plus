@@ -2,8 +2,8 @@ CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {
 CONTROLLER_TOOLS_VERSION = 0.5.0
 KUSTOMIZE_VERSION = 3.8.10
 CERT_MANAGER_VERSION := 1.3.1
-EXTERNAL_DNS_VERSION := 0.7.6
-CONTOUR_VERSION := 1.14.1
+EXTERNAL_DNS_VERSION := 0.8.0
+CONTOUR_VERSION := 1.15.1
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/cybozu/contour-plus:latest
