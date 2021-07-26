@@ -3,7 +3,7 @@ CONTROLLER_TOOLS_VERSION = 0.5.0
 KUSTOMIZE_VERSION = 3.8.10
 CERT_MANAGER_VERSION := 1.3.1
 EXTERNAL_DNS_VERSION := 0.7.6
-CONTOUR_VERSION := 1.14.1
+CONTOUR_VERSION := 1.17.1
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/cybozu/contour-plus:latest
@@ -26,17 +26,9 @@ crds:
 ENVTEST_ASSETS_DIR := testbin
 ENVTEST_SCRIPT_URL := https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
 .PHONY: test
-test: crds simple-test
-ifeq (,$(wildcard $(ENVTEST_ASSETS_DIR)/setup-envtest.sh))
-	mkdir -p $(ENVTEST_ASSETS_DIR)
-	curl -sSLo $(ENVTEST_ASSETS_DIR)/setup-envtest.sh $(ENVTEST_SCRIPT_URL)
-endif
-	{ \
-	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh && \
-	fetch_envtest_tools $(ENVTEST_ASSETS_DIR) && \
-	setup_envtest_env $(PWD)/$(ENVTEST_ASSETS_DIR) && \
-	go test -race -v -count 1 ./... ; \
-	}
+test: setup-envtest crds simple-test
+	source <($(SETUP_ENVTEST) use -p env); \
+		go test -race -v -count 1 ./...
 
 # Generate manifests e.g. CRD, RBAC etc.
 .PHONY: manifests
@@ -82,6 +74,13 @@ CONTROLLER_GEN := $(PWD)/bin/controller-gen
 .PHONY: controller-gen
 controller-gen:
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION))
+
+SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
+.PHONY: setup-envtest
+setup-envtest: $(SETUP_ENVTEST) ## Download setup-envtest locally if necessary
+$(SETUP_ENVTEST):
+	# see https://github.com/kubernetes-sigs/controller-runtime/tree/master/tools/setup-envtest
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 # Download kustomize locally if necessary
 KUSTOMIZE := $(PWD)/bin/kustomize
@@ -132,4 +131,3 @@ GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
-
