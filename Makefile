@@ -1,5 +1,5 @@
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
-CONTROLLER_TOOLS_VERSION = 0.5.0
+CONTROLLER_TOOLS_VERSION = 0.6.1
 KUSTOMIZE_VERSION = 3.8.10
 CERT_MANAGER_VERSION := 1.3.1
 EXTERNAL_DNS_VERSION := 0.7.6
