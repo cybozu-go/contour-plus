@@ -31,8 +31,8 @@ To disable CRD creation, specify `crds` command-line flag or `CP_CRDS` environme
 In a normal setup, Contour has a `type=LoadBalancer` Service to expose its Envoy pods to Internet.
 By specifying `service-name`, contour-plus can identify the global IP address for FQDNs in HTTPProxy.
 
-If `ingress-class-name` is specified, contour-plus watches only HTTPProxy annotated by `kubernetes.io/ingress.class=<ingress-class-name>` or `projectcontour.io/ingress.class=<ingress-class-name>`.  
-**If both `kubernetes.io/ingress.class=<ingress-class-name>` and `projectcontour.io/ingress.class=<ingress-class-name>` are specified and those values are different, then contour-plus doesn't watch the resource.**
+If `ingress-class-name` is specified, contour-plus watches only HTTPProxy annotated by `kubernetes.io/ingress.class=<ingress-class-name>`, `projectcontour.io/ingress.class=<ingress-class-name>` or with the `HTTPProxy.Spec.IngressClassName` field that matches the given `ingress-class-name`.
+**If both `kubernetes.io/ingress.class=<ingress-class-name>` and `projectcontour.io/ingress.class=<ingress-class-name>` and `HTTPProxy.Spec.IngressClassName` are specified and those values are different, then contour-plus doesn't watch the resource.**
 
 How it works
 ------------
@@ -83,13 +83,42 @@ rules:
     - events
     verbs:
     - create
+  - apiGroups:
+      - coordination.k8s.io
+      resources:
+      - leases
+      verbs:
+      - '*'
+```
+
+### Certificate RBAC
+
+The following permissions are needed to create/update `Certificates`
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: contour-plus
+  namespace: ingress
+rules:
+  - apiGroups:
+    - cert-manager.io
+    resources:
+    - certificates
+    verbs:
+    - get
+    - list
+    - watch
+    - patch
+    - create
 ```
 
 ### Supported annotations
 
 contour-plus interprets following annotations for HTTPProxy.
 
-- `contour-plus.cybozu.com/exclude: "true"` - With this, contour-plus ignores this HTTPProxy. 
+- `contour-plus.cybozu.com/exclude: "true"` - With this, contour-plus ignores this HTTPProxy.
 - `cert-manager.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this HTTPProxy from. The Issuer must be in the same namespace as the HTTPProxy.
 - `cert-manager.io/cluster-issuer` - The name of a [ClusterIssuer][Issuer] to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
 - `kubernetes.io/tls-acme: "true"` - With this, contour-plus generates Certificate automatically from HTTPProxy.
