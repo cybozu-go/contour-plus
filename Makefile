@@ -3,7 +3,7 @@ CONTROLLER_TOOLS_VERSION = 0.6.1
 KUSTOMIZE_VERSION = 3.8.10
 CERT_MANAGER_VERSION := 1.3.1
 EXTERNAL_DNS_VERSION := 0.7.6
-CONTOUR_VERSION := 1.17.1
+CONTOUR_VERSION := 1.18.0
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/cybozu/contour-plus:latest

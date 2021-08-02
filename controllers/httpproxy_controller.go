@@ -111,7 +111,14 @@ func (r *HTTPProxyReconciler) isClassNameMatched(hp *projectcontourv1.HTTPProxy)
 		}
 	}
 
-	if contourIngressClassName == "" && ingressClassName == "" {
+	specIngressClassName := hp.Spec.IngressClassName
+	if specIngressClassName != "" {
+		if specIngressClassName != r.IngressClassName {
+			return false
+		}
+	}
+
+	if contourIngressClassName == "" && ingressClassName == "" && specIngressClassName == "" {
 		return false
 	}
 

@@ -575,6 +575,17 @@ func TestIsClassNameMatched(t *testing.T) {
 			want: false,
 		},
 		{
+			name:             "Spec is not set",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+				Spec: projectcontourv1.HTTPProxySpec{},
+			},
+			want: false,
+		},
+		{
 			name:             "Both annotation are set",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
@@ -588,6 +599,22 @@ func TestIsClassNameMatched(t *testing.T) {
 			want: true,
 		},
 		{
+			name:             "Both annotation and spec are set",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						ingressClassNameAnnotation:        "class-name",
+						contourIngressClassNameAnnotation: "class-name",
+					},
+				},
+				Spec: projectcontourv1.HTTPProxySpec{
+					IngressClassName: "class-name",
+				},
+			},
+			want: true,
+		},
+		{
 			name:             "Both annotation are set but not matched",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
@@ -596,6 +623,22 @@ func TestIsClassNameMatched(t *testing.T) {
 						ingressClassNameAnnotation:        "class-name",
 						contourIngressClassNameAnnotation: "wrong",
 					},
+				},
+			},
+			want: false,
+		},
+		{
+			name:             "Both annotation and spec are set but not matched",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						ingressClassNameAnnotation:        "class-name",
+						contourIngressClassNameAnnotation: "wrong",
+					},
+				},
+				Spec: projectcontourv1.HTTPProxySpec{
+					IngressClassName: "class-name",
 				},
 			},
 			want: false,
@@ -644,6 +687,32 @@ func TestIsClassNameMatched(t *testing.T) {
 					Annotations: map[string]string{
 						contourIngressClassNameAnnotation: "wrong",
 					},
+				},
+			},
+			want: false,
+		},
+		{
+			name:             "Spec is set",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+				Spec: projectcontourv1.HTTPProxySpec{
+					IngressClassName: "class-name",
+				},
+			},
+			want: true,
+		},
+		{
+			name:             "Spec is set but not matched",
+			ingressClassName: "class-name",
+			hp: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+				Spec: projectcontourv1.HTTPProxySpec{
+					IngressClassName: "wrong",
 				},
 			},
 			want: false,
