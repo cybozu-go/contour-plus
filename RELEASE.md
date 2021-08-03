@@ -37,7 +37,7 @@ Bump version
 2. Make a branch to release
 
     ```console
-    $ git neco dev "$VERSION"`
+    $ git neco dev "$VERSION"
     ```
 
 4. Edit `CHANGELOG.md` for the new version ([example][]).
