@@ -32,7 +32,7 @@ In a normal setup, Contour has a `type=LoadBalancer` Service to expose its Envoy
 By specifying `service-name`, contour-plus can identify the global IP address for FQDNs in HTTPProxy.
 
 If `ingress-class-name` is specified, contour-plus watches only HTTPProxy annotated by `kubernetes.io/ingress.class=<ingress-class-name>`, `projectcontour.io/ingress.class=<ingress-class-name>` or with the `HTTPProxy.Spec.IngressClassName` field that matches the given `ingress-class-name`.
-**If both `kubernetes.io/ingress.class=<ingress-class-name>` and `projectcontour.io/ingress.class=<ingress-class-name>` and `HTTPProxy.Spec.IngressClassName` are specified and those values are different, then contour-plus doesn't watch the resource.**
+**If `kubernetes.io/ingress.class=<ingress-class-name>` , `projectcontour.io/ingress.class=<ingress-class-name>` and `HTTPProxy.Spec.IngressClassName` are all specified and those values are different from the given `ingress-class-name`, then contour-plus doesn't watch the resource.**
 
 How it works
 ------------
