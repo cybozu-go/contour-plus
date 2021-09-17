@@ -18,9 +18,9 @@ Supported environments
 - Contour
   - 1.18
 - ExternalDNS
-  - 0.7
+  - 0.9
 - cert-manager
-  - 1.3
+  - 1.5
 
 Other versions may or may not work.
 
