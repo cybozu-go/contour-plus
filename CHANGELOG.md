@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.5] - 2021-09-17
+
+## Changed
+- follow golang 1.17 and dependent software updates (#71)
+  - golang 1.17
+  - contour 1.18.1
+  - cert-manager 1.5.3
+  - external-dns 0.9.0
+
 ## [0.6.4] - 2021-08-03
 
 ### Changed
@@ -172,7 +181,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.6.5...HEAD
+[0.6.5]: https://github.com/cybozu-go/contour-plus/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/cybozu-go/contour-plus/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/cybozu-go/contour-plus/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/cybozu-go/contour-plus/compare/v0.6.1...v0.6.2
