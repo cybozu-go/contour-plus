@@ -14,13 +14,13 @@ Supported environments
 ----------------------
 
 - Kubernetes
-  - 1.21
+  - 1.22
 - Contour
-  - 1.18
+  - 1.19
 - ExternalDNS
-  - 0.9
+  - 0.10
 - cert-manager
-  - 1.5
+  - 1.6
 
 Other versions may or may not work.
 
