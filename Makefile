@@ -4,6 +4,7 @@ KUSTOMIZE_VERSION = 4.4.1
 CERT_MANAGER_VERSION := 1.6.1
 EXTERNAL_DNS_VERSION := 0.10.1
 CONTOUR_VERSION := 1.19.1
+ENVTEST_K8S_VERSION = 1.22.1
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/cybozu/contour-plus:latest
@@ -27,7 +28,7 @@ ENVTEST_ASSETS_DIR := testbin
 ENVTEST_SCRIPT_URL := https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
 .PHONY: test
 test: setup-envtest crds simple-test
-	source <($(SETUP_ENVTEST) use -p env); \
+	source <($(SETUP_ENVTEST) use -p env $(ENVTEST_K8S_VERSION)) && \
 		go test -race -v -count 1 ./...
 
 # Generate manifests e.g. CRD, RBAC etc.
