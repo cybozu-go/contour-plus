@@ -1,10 +1,20 @@
-CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION = 0.7.0
-KUSTOMIZE_VERSION = 4.4.1
+KUSTOMIZE_VERSION = 4.5.4
 CERT_MANAGER_VERSION := 1.6.1
 EXTERNAL_DNS_VERSION := 0.10.1
 CONTOUR_VERSION := 1.19.1
 ENVTEST_K8S_VERSION = 1.22.1
+
+PROJECT_DIR := $(CURDIR)
+BIN_DIR := $(PROJECT_DIR)/bin
+CRD_DIR := $(PROJECT_DIR)/config/crd/third
+
+KUSTOMIZE := $(BIN_DIR)/kustomize
+CONTROLLER_GEN := $(BIN_DIR)/controller-gen
+SETUP_ENVTEST := $(BIN_DIR)/setup-envtest
+NILERR := $(BIN_DIR)/nilerr
+STATICCHECK := $(BIN_DIR)/staticcheck
+CUSTOMCHECKER := $(BIN_DIR)/custom-checker
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/cybozu/contour-plus:latest
@@ -14,121 +24,71 @@ SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
 
 .PHONY: all
-all: build
+all: help
 
-.PHONY: crds
-crds:
-	mkdir -p config/crd/third
-	curl -fsL -o config/crd/third/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
-	curl -fsL -o config/crd/third/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/docs/contributing/crd-source/crd-manifest.yaml
-	curl -fsL -o config/crd/third/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/v$(CONTOUR_VERSION)/examples/contour/01-crds.yaml
+##@ Basic
+.PHONY: help
+help: ## Display this help
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-# Run tests, and set up envtest if not done already.
-ENVTEST_ASSETS_DIR := testbin
-ENVTEST_SCRIPT_URL := https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
-.PHONY: test
-test: setup-envtest crds simple-test
-	source <($(SETUP_ENVTEST) use -p env $(ENVTEST_K8S_VERSION)) && \
-		go test -race -v -count 1 ./...
+.PHONY: setup
+setup: download-tools download-crds ## Setup
 
-# Generate manifests e.g. CRD, RBAC etc.
+.PHONY: download-tools
+download-tools:
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v4@v$(KUSTOMIZE_VERSION)
+	GOBIN=$(BIN_DIR) go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker@latest
+	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
+	GOBIN=$(BIN_DIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
+
+.PHONY: download-crds
+download-crds:
+	curl -fsL -o $(CRD_DIR)/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
+	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/docs/contributing/crd-source/crd-manifest.yaml
+	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/v$(CONTOUR_VERSION)/examples/contour/01-crds.yaml
+
+.PHONY: clean
+clean: ## Clean files
+	rm -rf $(BIN_DIR)/* $(CRD_DIR)/*
+
+##@ Build
+
 .PHONY: manifests
-manifests: controller-gen
+manifests: ## Generate manifests e.g. CRD, RBAC etc.
 	$(CONTROLLER_GEN) rbac:roleName=contour-plus webhook paths="./..."
 
-# Generate code
 .PHONY: generate
-generate: controller-gen
+generate: ## Generate code
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-.PHONY: simple-test
-simple-test: test-tools
-	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
-	staticcheck ./...
-	test -z "$$(custom-checker -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... ) 2>&1 | tee /dev/stderr)"
-	test -z "$$(nilerr $$(go list ./...) 2>&1 | tee /dev/stderr)"
-	go vet ./...
-
-.PHONY: check-generate
-check-generate:
-	$(MAKE) manifests
-	$(MAKE) generate
-	git diff --exit-code --name-only
-
-# Build manager binary
 .PHONY: build
-build:
+build: ## Build manager binary
 	CGO_ENABLED=0 go build -o bin/contour-plus -ldflags="-w -s" main.go
 
-# Build the docker image
 .PHONY: docker-build
-docker-build: build
+docker-build: build ## Build the docker image
 	docker build . -t ${IMG}
 
-# Push the docker image
-.PHONY: docker-push
-docker-push:
-	docker push ${IMG}
+##@ Test
 
-# Download controller-gen locally if necessary
-CONTROLLER_GEN := $(PWD)/bin/controller-gen
-.PHONY: controller-gen
-controller-gen:
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION))
-
-SETUP_ENVTEST := $(shell pwd)/bin/setup-envtest
-.PHONY: setup-envtest
-setup-envtest: $(SETUP_ENVTEST) ## Download setup-envtest locally if necessary
-$(SETUP_ENVTEST):
-	# see https://github.com/kubernetes-sigs/controller-runtime/tree/master/tools/setup-envtest
-	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-
-# Download kustomize locally if necessary
-KUSTOMIZE := $(PWD)/bin/kustomize
-.PHONY: kustomize
-kustomize:
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v$(KUSTOMIZE_VERSION))
-
-.PHONY: mod
-mod:
+.PHONY: check-generate
+check-generate: ## Check for commit omissions of auto-generated files
+	$(MAKE) manifests
+	$(MAKE) generate
 	go mod tidy
-	git add go.mod go.sum
+	git diff --exit-code --name-only
 
-.PHONY: test-tools
-test-tools: custom-checker staticcheck nilerr
+.PHONY: lint
+lint: ## Run lint tools
+	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
+	$(STATICCHECK) ./...
+	test -z "$$($(CUSTOMCHECKER) -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... ) 2>&1 | tee /dev/stderr)"
+	test -z "$$($(NILERR) $$(go list ./...) 2>&1 | tee /dev/stderr)"
+	go vet ./...
 
-.PHONY: custom-checker
-custom-checker:
-	if ! which custom-checker >/dev/null; then \
-		env GOFLAGS= go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker@latest; \
-	fi
-
-.PHONY: staticcheck
-staticcheck:
-	if ! which staticcheck >/dev/null; then \
-		env GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest; \
-	fi
-
-.PHONY: nilerr
-nilerr:
-	if ! which nilerr >/dev/null; then \
-		env GOFLAGS= go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest; \
-	fi
-
-clean:
-	rm -rf bin testbin
-	rm -f config/crd/third/*
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
+.PHONY: test
+test: ## Run unit tests
+	source <($(SETUP_ENVTEST) use -p env $(ENVTEST_K8S_VERSION)) && \
+		go test -race -v -count 1 ./...
