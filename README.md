@@ -41,10 +41,10 @@ Documentation
 [godoc]: https://pkg.go.dev/github.com/cybozu-go/contour-plus
 [Contour]: https://github.com/projectcontour/contour
 [ExternalDNS]: https://github.com/kubernetes-sigs/external-dns
-[cert-manager]: https://github.com/jetstack/cert-manager
+[cert-manager]: https://github.com/cert-manager/cert-manager
 [HTTPProxy]: https://projectcontour.io/docs/v1.11.0/config/api/#projectcontour.io/v1.HTTPProxy
 [DNSEndpoint]: https://github.com/kubernetes-sigs/external-dns/blob/master/docs/contributing/crd-source.md
-[Certificate]: http://docs.cert-manager.io/en/latest/reference/certificates.html
+[Certificate]: https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.Certificate
 
 Docker images
 -------------
