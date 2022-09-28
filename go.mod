@@ -9,12 +9,12 @@ require (
 	github.com/projectcontour/contour v1.22.1
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.13.0
-	k8s.io/api v0.24.2
-	k8s.io/apimachinery v0.24.2
-	k8s.io/client-go v0.24.2
+	k8s.io/api v0.24.6
+	k8s.io/apimachinery v0.24.6
+	k8s.io/client-go v0.24.6
 	k8s.io/klog/v2 v2.80.1
 	k8s.io/utils v0.0.0-20220922133306-665eaaec4324
-	sigs.k8s.io/controller-runtime v0.12.1
+	sigs.k8s.io/controller-runtime v0.12.3
 )
 
 require (
