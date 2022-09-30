@@ -1,9 +1,9 @@
-CONTROLLER_TOOLS_VERSION = 0.8.0
-KUSTOMIZE_VERSION = 4.5.4
-CERT_MANAGER_VERSION := 1.7.2
-EXTERNAL_DNS_VERSION := 0.11.0
-CONTOUR_VERSION := 1.20.1
-ENVTEST_K8S_VERSION = 1.23.3
+CONTROLLER_TOOLS_VERSION = 0.10.0
+KUSTOMIZE_VERSION = 4.5.7
+CERT_MANAGER_VERSION := 1.9.1
+EXTERNAL_DNS_VERSION := 0.12.2
+CONTOUR_VERSION := 1.22.1
+ENVTEST_K8S_VERSION = 1.24.2
 
 PROJECT_DIR := $(CURDIR)
 BIN_DIR := $(PROJECT_DIR)/bin
@@ -12,7 +12,6 @@ CRD_DIR := $(PROJECT_DIR)/config/crd/third
 KUSTOMIZE := $(BIN_DIR)/kustomize
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
 SETUP_ENVTEST := $(BIN_DIR)/setup-envtest
-NILERR := $(BIN_DIR)/nilerr
 STATICCHECK := $(BIN_DIR)/staticcheck
 CUSTOMCHECKER := $(BIN_DIR)/custom-checker
 
@@ -41,7 +40,6 @@ download-tools:
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v4@v$(KUSTOMIZE_VERSION)
 	GOBIN=$(BIN_DIR) go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker@latest
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
-	GOBIN=$(BIN_DIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
 
 .PHONY: download-crds
 download-crds:
@@ -85,7 +83,6 @@ lint: ## Run lint tools
 	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
 	$(STATICCHECK) ./...
 	test -z "$$($(CUSTOMCHECKER) -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... ) 2>&1 | tee /dev/stderr)"
-	test -z "$$($(NILERR) $$(go list ./...) 2>&1 | tee /dev/stderr)"
 	go vet ./...
 
 .PHONY: test
