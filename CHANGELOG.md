@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2022-11-02
+
+### Changed
+
+- Update dependencies (#86)
+  - Kubernetes: 1.25
+  - Contour: 1.23
+
+
 ## [0.8.0] - 2022-09-30
 
 ### Changed
@@ -216,7 +225,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/cybozu-go/contour-plus/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/cybozu-go/contour-plus/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/cybozu-go/contour-plus/compare/v0.6.6...v0.7.0
 [0.6.6]: https://github.com/cybozu-go/contour-plus/compare/v0.6.5...v0.6.6
