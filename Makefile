@@ -1,9 +1,9 @@
-CONTROLLER_TOOLS_VERSION = 0.10.0
-KUSTOMIZE_VERSION = 4.5.7
-CERT_MANAGER_VERSION := 1.9.1
-EXTERNAL_DNS_VERSION := 0.12.2
-CONTOUR_VERSION := 1.23.0
-ENVTEST_K8S_VERSION = 1.25.0
+CONTROLLER_TOOLS_VERSION = 0.11.4
+KUSTOMIZE_VERSION = 5.0.1
+CERT_MANAGER_VERSION := 1.10.2
+EXTERNAL_DNS_VERSION := 0.13.4
+CONTOUR_VERSION := 1.24.3
+ENVTEST_K8S_VERSION = 1.26.1
 
 PROJECT_DIR := $(CURDIR)
 BIN_DIR := $(PROJECT_DIR)/bin
@@ -37,7 +37,7 @@ setup: download-tools download-crds ## Setup
 download-tools:
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v4@v$(KUSTOMIZE_VERSION)
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@v$(KUSTOMIZE_VERSION)
 	GOBIN=$(BIN_DIR) go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker@latest
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
 
