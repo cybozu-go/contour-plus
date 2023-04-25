@@ -171,7 +171,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 		return err
 	}
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        pointer.BoolPtr(true),
+		Force:        pointer.Bool(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
@@ -242,7 +242,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return err
 	}
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        pointer.BoolPtr(true),
+		Force:        pointer.Bool(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
