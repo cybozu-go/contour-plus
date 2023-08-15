@@ -38,7 +38,7 @@ download-tools:
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@v$(KUSTOMIZE_VERSION)
-	GOBIN=$(BIN_DIR) go install github.com/cybozu/neco-containers/golang/analyzer/cmd/custom-checker@latest
+	GOBIN=$(BIN_DIR) go install github.com/cybozu-go/golang-custom-analyzer/cmd/custom-checker@latest
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
 
 .PHONY: download-crds
