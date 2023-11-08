@@ -175,7 +175,7 @@ define upstream-tag
 $(shell echo $1 | sed -E 's/^(.*)\.[[:digit:]]+$$/v\1/')
 endef
 
-# usage update-version OWNER/REPO VAR MAJOR
+# usage update-version OWNER/REPO VERSION MAJOR
 define update-version
 	$(call get-latest-gh,$1)
 	NEW_VERSION=$$(echo $(latest_gh) | if [ -z "$3" ]; then cut -b 2-; else cut -b 2; fi); \
