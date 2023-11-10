@@ -11,6 +11,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
@@ -66,10 +67,12 @@ func run() error {
 	opts.IngressClassName = viper.GetString("ingress-class-name")
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: viper.GetString("metrics-addr"),
-		LeaderElection:     viper.GetBool("leader-election"),
-		LeaderElectionID:   "contour-plus-leader",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: viper.GetString("metrics-addr"),
+		},
+		LeaderElection:   viper.GetBool("leader-election"),
+		LeaderElectionID: "contour-plus-leader",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

@@ -1,19 +1,19 @@
-CONTROLLER_TOOLS_VERSION = 0.11.4
-KUSTOMIZE_VERSION = 5.0.1
-CERT_MANAGER_VERSION := 1.10.2
-EXTERNAL_DNS_VERSION := 0.13.4
-CONTOUR_VERSION := 1.24.3
-ENVTEST_K8S_VERSION = 1.26.1
+include Makefile.versions
+
+CONTROLLER_TOOLS_VERSION = 0.13.0
 
 PROJECT_DIR := $(CURDIR)
 BIN_DIR := $(PROJECT_DIR)/bin
 CRD_DIR := $(PROJECT_DIR)/config/crd/third
+WORKFLOWS_DIR := $(PROJECT_DIR)/.github/workflows
 
 KUSTOMIZE := $(BIN_DIR)/kustomize
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
 SETUP_ENVTEST := $(BIN_DIR)/setup-envtest
 STATICCHECK := $(BIN_DIR)/staticcheck
 CUSTOMCHECKER := $(BIN_DIR)/custom-checker
+GH := $(BIN_DIR)/gh
+YQ := $(BIN_DIR)/yq
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/cybozu/contour-plus:latest
@@ -34,7 +34,7 @@ help: ## Display this help
 setup: download-tools download-crds ## Setup
 
 .PHONY: download-tools
-download-tools:
+download-tools: $(GH) $(YQ)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@v$(KUSTOMIZE_VERSION)
@@ -46,6 +46,16 @@ download-crds:
 	curl -fsL -o $(CRD_DIR)/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
 	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/docs/contributing/crd-source/crd-manifest.yaml
 	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/v$(CONTOUR_VERSION)/examples/contour/01-crds.yaml
+
+$(GH):
+	mkdir -p $(BIN_DIR)
+	wget -qO - https://github.com/cli/cli/releases/download/v$(GH_VERSION)/gh_$(GH_VERSION)_linux_amd64.tar.gz | tar -zx -O gh_$(GH_VERSION)_linux_amd64/bin/gh > $@
+	chmod +x $@
+
+$(YQ):
+	mkdir -p $(BIN_DIR)
+	wget -qO $@ https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_linux_amd64
+	chmod +x $@
 
 .PHONY: clean
 clean: ## Clean files
@@ -69,6 +79,65 @@ build: ## Build manager binary
 docker-build: build ## Build the docker image
 	docker build . -t ${IMG}
 
+##@ Maintenance
+.PHONY: login-gh
+login-gh: ## Login to GitHub
+	if ! $(GH) auth status 2>/dev/null; then \
+		echo; \
+		echo '!! You need login to GitHub to proceed. Please follow the next command with "Authenticate Git with your GitHub credentials? (Y)".'; \
+		echo; \
+		$(GH) auth login -h github.com -p HTTPS -w; \
+	fi
+
+.PHONY: logout-gh
+logout-gh: ## Logout from GitHub
+	$(GH) auth logout
+
+.PHONY: update-contour
+update-contour: ## Update Contour and Kubernetes in go.mod
+	$(call get-latest-quay-tag,contour)
+	go get github.com/projectcontour/contour@$(call upstream-tag,$(latest_tag))
+	K8S_MINOR_VERSION="0."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
+	K8S_PACKAGE_VERSION="$$(go list -m -versions k8s.io/api | tr ' ' '\n' | grep $${K8S_MINOR_VERSION} | sort -V | tail -n 1)"; \
+	go get k8s.io/api@$${K8S_PACKAGE_VERSION}; \
+	go get k8s.io/apimachinery@$${K8S_PACKAGE_VERSION}; \
+	go get k8s.io/client-go@$${K8S_PACKAGE_VERSION}; \
+	go mod tidy
+
+.PHONY: version
+version: login-gh ## Update dependent versions
+	$(call update-version,actions/checkout,ACTIONS_CHECKOUT_VERSION,1)
+	$(call update-version,actions/create-release,ACTIONS_CREATE_RELEASE_VERSION,1)
+	$(call update-version,actions/setup-go,ACTIONS_SETUP_GO_VERSION,1)
+	$(call update-version-quay,cert-manager,CERT_MANAGER_VERSION)
+	$(call update-version-quay,contour,CONTOUR_VERSION)
+	$(call update-version-quay,external-dns,EXTERNAL_DNS_VERSION)
+
+	$(call get-latest-quay-tag,argocd)
+	NEW_VERSION=$$(docker run quay.io/cybozu/argocd:$(latest_tag) kustomize version | cut -c2-); \
+	sed -i -e "s/KUSTOMIZE_VERSION := .*/KUSTOMIZE_VERSION := $${NEW_VERSION}/g" Makefile.versions
+
+	K8S_MINOR_VERSION="1."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
+	NEW_VERSION=$$($(SETUP_ENVTEST) list | tr -s ' ' | cut -d' ' -f2 | fgrep $${K8S_MINOR_VERSION} | sort -V | tail -n 1 | cut -c2-); \
+	sed -i -e "s/ENVTEST_K8S_VERSION := .*/ENVTEST_K8S_VERSION := $${NEW_VERSION}/g" Makefile.versions
+
+.PHONY: update-actions
+update-actions:
+	$(call update-trusted-action,actions/checkout,$(ACTIONS_CHECKOUT_VERSION))
+	$(call update-trusted-action,actions/create-release,$(ACTIONS_CREATE_RELEASE_VERSION))
+	$(call update-trusted-action,actions/setup-go,$(ACTIONS_SETUP_GO_VERSION))
+
+.PHONY: maintenance
+maintenance: ## Update dependent manifests
+	$(MAKE) update-actions
+	$(MAKE) download-crds
+
+.PHONY: list-actions
+list-actions: ## List used GitHub Actions
+	@{ for i in $(shell ls $(WORKFLOWS_DIR)); do \
+		$(YQ) '.. | select(has("uses")).uses' $(WORKFLOWS_DIR)/$$i; \
+	done } | sort | uniq
+
 ##@ Test
 
 .PHONY: check-generate
@@ -89,3 +158,40 @@ lint: ## Run lint tools
 test: ## Run unit tests
 	source <($(SETUP_ENVTEST) use -p env $(ENVTEST_K8S_VERSION)) && \
 		go test -race -v -count 1 ./...
+
+# usage get-latest-gh OWNER/REPO
+define get-latest-gh
+	$(eval latest_gh := $(shell $(GH) release list --repo $1 | grep Latest | cut -f3))
+endef
+
+# usage: get-latest-quay-tag NAME
+define get-latest-quay-tag
+	$(eval latest_tag := $(shell wget -O - https://quay.io/api/v1/repository/cybozu/$1/tag/ | jq -r '.tags[] | .name' | awk '/.*\..*\./ {print $$1; exit}'))
+endef
+
+# usage: upstream-tag 1.2.3.4
+# do not indent because it appears on output
+define upstream-tag
+$(shell echo $1 | sed -E 's/^(.*)\.[[:digit:]]+$$/v\1/')
+endef
+
+# usage update-version OWNER/REPO VAR MAJOR
+define update-version
+	$(call get-latest-gh,$1)
+	NEW_VERSION=$$(echo $(latest_gh) | if [ -z "$3" ]; then cut -b 2-; else cut -b 2; fi); \
+	sed -i -e "s/$2 := .*/$2 := $${NEW_VERSION}/g" Makefile.versions
+endef
+
+# usage update-version-quay NAME VAR
+define update-version-quay
+	$(call get-latest-quay-tag,$1)
+	NEW_VERSION=$$(echo $(call upstream-tag,$(latest_tag)) | cut -b 2-); \
+	sed -i -e "s/$2 := .*/$2 := $${NEW_VERSION}/g" Makefile.versions
+endef
+
+# usage update-trusted-action OWNER/REPO VERSION
+define update-trusted-action
+	for i in $(shell ls $(WORKFLOWS_DIR)); do \
+		$(YQ) -i '(.. | select(has("uses")) | select(.uses | contains("$1"))).uses = "$1@v$2"' $(WORKFLOWS_DIR)/$$i; \
+	done
+endef

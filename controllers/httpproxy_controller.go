@@ -11,13 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -171,7 +170,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 		return err
 	}
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        pointer.Bool(true),
+		Force:        ptr.To(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
@@ -242,7 +241,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return err
 	}
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        pointer.Bool(true),
+		Force:        ptr.To(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
@@ -255,7 +254,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	listHPs := func(a client.Object) []reconcile.Request {
+	listHPs := func(ctx context.Context, a client.Object) []reconcile.Request {
 		if a.GetNamespace() != r.ServiceKey.Namespace {
 			return nil
 		}
@@ -263,7 +262,6 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		}
 
-		ctx := context.Background()
 		var hpList projectcontourv1.HTTPProxyList
 		err := r.List(ctx, &hpList)
 		if err != nil {
@@ -283,7 +281,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	b := ctrl.NewControllerManagedBy(mgr).
 		For(&projectcontourv1.HTTPProxy{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, handler.EnqueueRequestsFromMapFunc(listHPs))
+		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(listHPs))
 	if r.CreateDNSEndpoint {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
