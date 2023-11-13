@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2023-11-13
+
+### Changed
+
+- Update contour to 1.27.0 and Kubernetes to 1.28 (#94)
+  - Kubernetes: 1.28
+  - Contour: 1.27
+  - ExternalDNS: 0.13
+  - cert-manager: 1.13
+
 ## [0.9.0] - 2023-04-27
 
 ### Changed
@@ -235,7 +245,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/cybozu-go/contour-plus/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cybozu-go/contour-plus/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/cybozu-go/contour-plus/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/cybozu-go/contour-plus/compare/v0.7.0...v0.8.0
