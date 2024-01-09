@@ -16,7 +16,7 @@ GH := $(BIN_DIR)/gh
 YQ := $(BIN_DIR)/yq
 
 # Image URL to use all building/pushing image targets
-IMG ?= quay.io/cybozu/contour-plus:latest
+IMG ?= ghcr.io/cybozu/contour-plus:latest
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
@@ -95,7 +95,7 @@ logout-gh: ## Logout from GitHub
 
 .PHONY: update-contour
 update-contour: ## Update Contour and Kubernetes in go.mod
-	$(call get-latest-quay-tag,contour)
+	$(call get-latest-gh-package-tag,contour)
 	go get github.com/projectcontour/contour@$(call upstream-tag,$(latest_tag))
 	K8S_MINOR_VERSION="0."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
 	K8S_PACKAGE_VERSION="$$(go list -m -versions k8s.io/api | tr ' ' '\n' | grep $${K8S_MINOR_VERSION} | sort -V | tail -n 1)"; \
@@ -109,12 +109,12 @@ version: login-gh ## Update dependent versions
 	$(call update-version,actions/checkout,ACTIONS_CHECKOUT_VERSION,1)
 	$(call update-version,actions/create-release,ACTIONS_CREATE_RELEASE_VERSION,1)
 	$(call update-version,actions/setup-go,ACTIONS_SETUP_GO_VERSION,1)
-	$(call update-version-quay,cert-manager,CERT_MANAGER_VERSION)
-	$(call update-version-quay,contour,CONTOUR_VERSION)
-	$(call update-version-quay,external-dns,EXTERNAL_DNS_VERSION)
+	$(call update-version-ghcr,cert-manager,CERT_MANAGER_VERSION)
+	$(call update-version-ghcr,contour,CONTOUR_VERSION)
+	$(call update-version-ghcr,external-dns,EXTERNAL_DNS_VERSION)
 
-	$(call get-latest-quay-tag,argocd)
-	NEW_VERSION=$$(docker run quay.io/cybozu/argocd:$(latest_tag) kustomize version | cut -c2-); \
+	$(call get-latest-gh-package-tag,argocd)
+	NEW_VERSION=$$(docker run ghcr.io/cybozu/argocd:$(latest_tag) kustomize version | cut -c2-); \
 	sed -i -e "s/KUSTOMIZE_VERSION := .*/KUSTOMIZE_VERSION := $${NEW_VERSION}/g" Makefile.versions
 
 	K8S_MINOR_VERSION="1."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
@@ -164,9 +164,9 @@ define get-latest-gh
 	$(eval latest_gh := $(shell $(GH) release list --repo $1 | grep Latest | cut -f3))
 endef
 
-# usage: get-latest-quay-tag NAME
-define get-latest-quay-tag
-	$(eval latest_tag := $(shell wget -O - https://quay.io/api/v1/repository/cybozu/$1/tag/ | jq -r '.tags[] | .name' | awk '/.*\..*\./ {print $$1; exit}'))
+# usage: get-latest-gh-package-tag NAME
+define get-latest-gh-package-tag
+$(eval latest_tag := $(shell curl -sSf -H "Authorization: Bearer $(shell curl -sSf "https://ghcr.io/token?scope=repository%3Acybozu%2F$1%3Apull&service=ghcr.io" | jq -r .token)" https://ghcr.io/v2/cybozu/$1/tags/list | jq -r '.tags[]' | sort -Vr | head -n 1))
 endef
 
 # usage: upstream-tag 1.2.3.4
@@ -182,9 +182,9 @@ define update-version
 	sed -i -e "s/$2 := .*/$2 := $${NEW_VERSION}/g" Makefile.versions
 endef
 
-# usage update-version-quay NAME VAR
-define update-version-quay
-	$(call get-latest-quay-tag,$1)
+# usage update-version-ghcr NAME VAR
+define update-version-ghcr
+	$(call get-latest-gh-package-tag,$1)
 	NEW_VERSION=$$(echo $(call upstream-tag,$(latest_tag)) | cut -b 2-); \
 	sed -i -e "s/$2 := .*/$2 := $${NEW_VERSION}/g" Makefile.versions
 endef

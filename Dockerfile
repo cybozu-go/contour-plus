@@ -1,4 +1,5 @@
 FROM scratch
+LABEL org.opencontainers.image.source="https://github.com/cybozu-go/contour-plus"
 
 COPY bin/contour-plus /contour-plus
 COPY LICENSE          /LICENSE
