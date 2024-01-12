@@ -16,7 +16,7 @@ GH := $(BIN_DIR)/gh
 YQ := $(BIN_DIR)/yq
 
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/cybozu/contour-plus:latest
+IMG ?= ghcr.io/cybozu-go/contour-plus:latest
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
