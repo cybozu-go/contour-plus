@@ -17,6 +17,7 @@ type ReconcilerOptions struct {
 	Prefix            string
 	DefaultIssuerName string
 	DefaultIssuerKind string
+	CSRRevisionLimit  uint
 	CreateDNSEndpoint bool
 	CreateCertificate bool
 	IngressClassName  string
@@ -40,6 +41,7 @@ func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts Reconcile
 		Prefix:            opts.Prefix,
 		DefaultIssuerName: opts.DefaultIssuerName,
 		DefaultIssuerKind: opts.DefaultIssuerKind,
+		CSRRevisionLimit:  opts.CSRRevisionLimit,
 		CreateDNSEndpoint: opts.CreateDNSEndpoint,
 		CreateCertificate: opts.CreateCertificate,
 		IngressClassName:  opts.IngressClassName,

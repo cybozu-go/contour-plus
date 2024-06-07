@@ -102,6 +102,7 @@ func testHTTPProxyReconcile() {
 			usageServerAuth,
 			usageClientAuth,
 		}))
+		Expect(crtSpec["revisionHistoryLimit"]).Should(BeNil())
 	})
 
 	It(`should not create DNSEndpoint and Certificate if "contour-plus.cybozu.com/exclude"" is "true"`, func() {
@@ -535,6 +536,52 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
+	})
+
+	It(`should create Certificate with revisionHistoryLimit set if specified`, func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+			CSRRevisionLimit:  1,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
+		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
+		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+			usageDigitalSignature,
+			usageKeyEncipherment,
+			usageServerAuth,
+			usageClientAuth,
+		}))
+		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(1)))
 	})
 }
 
