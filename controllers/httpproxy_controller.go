@@ -38,6 +38,7 @@ type HTTPProxyReconciler struct {
 	Prefix            string
 	DefaultIssuerName string
 	DefaultIssuerKind string
+	CSRRevisionLimit  uint
 	CreateDNSEndpoint bool
 	CreateCertificate bool
 	IngressClassName  string
@@ -217,11 +218,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return nil
 	}
 
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-	obj.SetName(r.Prefix + hp.Name)
-	obj.SetNamespace(hp.Namespace)
-	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+	certificateSpec := map[string]interface{}{
 		"dnsNames":   []string{vh.Fqdn},
 		"secretName": vh.TLS.SecretName,
 		"commonName": vh.Fqdn,
@@ -236,6 +233,16 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 			usageClientAuth,
 		},
 	}
+
+	if r.CSRRevisionLimit > 0 {
+		certificateSpec["revisionHistoryLimit"] = r.CSRRevisionLimit
+	}
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
+	obj.SetName(r.Prefix + hp.Name)
+	obj.SetNamespace(hp.Namespace)
+	obj.UnstructuredContent()["spec"] = certificateSpec
 	err := ctrl.SetControllerReference(hp, obj, r.Scheme)
 	if err != nil {
 		return err
