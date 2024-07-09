@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	dnsName        = "test.example.com"
-	testSecretName = "test-secret"
+	dnsName            = "test.example.com"
+	testSecretName     = "test-secret"
+	testDelegationName = "acme.example.com"
 )
 
 func certificate() *unstructured.Unstructured {
@@ -86,6 +87,16 @@ func testHTTPProxyReconcile() {
 		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
+		By("ensuring additional DNSEndpoint does not exist")
+		dde := dnsEndpoint()
+		dObjKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name + "-delegation",
+			Namespace: hpKey.Namespace,
+		}
+		Consistently(func() error {
+			return k8sClient.Get(context.Background(), dObjKey, dde)
+		}, 5*time.Second).ShouldNot(Succeed())
+
 		By("getting Certificate with prefixed name")
 		crt := certificate()
 		Eventually(func() error {
@@ -141,6 +152,187 @@ func testHTTPProxyReconcile() {
 		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
+	})
+
+	It("should create delegation DNSEndpoint if requested", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		prefix := "test-"
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:             testServiceKey,
+			Prefix:                 prefix,
+			DefaultIssuerName:      "test-issuer",
+			DefaultIssuerKind:      IssuerKind,
+			DefaultDelegatedDomain: testDelegationName,
+			CreateDNSEndpoint:      true,
+			CreateCertificate:      true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
+
+		By("getting DNSEndpoint with prefixed name")
+		de := dnsEndpoint()
+		objKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, de)
+		}, 5*time.Second).Should(Succeed())
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
+
+		By("ensuring additional DNSEndpoint has been created")
+		dde := dnsEndpoint()
+		dObjKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name + "-delegation",
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), dObjKey, dde)
+		}, 5*time.Second).Should(Succeed())
+		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]interface{})
+		dEndPoints := ddeSpec["endpoints"].([]interface{})
+		dEndPoint := dEndPoints[0].(map[string]interface{})
+		Expect(dEndPoint["targets"]).Should(Equal([]interface{}{"_acme-challenge." + dnsName + "." + testDelegationName}))
+		Expect(dEndPoint["dnsName"]).Should(Equal("_acme-challenge." + dnsName))
+		Expect(dEndPoint["recordType"]).Should(Equal("CNAME"))
+	})
+
+	It("should create delegation DNSEndpoint if requested via annotation", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		prefix := "test-"
+		customDelegationName := "test." + testDelegationName
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:             testServiceKey,
+			Prefix:                 prefix,
+			DefaultIssuerName:      "test-issuer",
+			DefaultIssuerKind:      IssuerKind,
+			DefaultDelegatedDomain: testDelegationName,
+			AllowCustomDelegations: true,
+			CreateDNSEndpoint:      true,
+			CreateCertificate:      true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[delegatedDomainAnnotation] = customDelegationName
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting DNSEndpoint with prefixed name")
+		de := dnsEndpoint()
+		objKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, de)
+		}, 5*time.Second).Should(Succeed())
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
+
+		By("ensuring additional DNSEndpoint has been created")
+		dde := dnsEndpoint()
+		dObjKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name + "-delegation",
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), dObjKey, dde)
+		}, 5*time.Second).Should(Succeed())
+		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]interface{})
+		dEndPoints := ddeSpec["endpoints"].([]interface{})
+		dEndPoint := dEndPoints[0].(map[string]interface{})
+		Expect(dEndPoint["targets"]).Should(Equal([]interface{}{"_acme-challenge." + dnsName + "." + customDelegationName}))
+		Expect(dEndPoint["dnsName"]).Should(Equal("_acme-challenge." + dnsName))
+		Expect(dEndPoint["recordType"]).Should(Equal("CNAME"))
+	})
+
+	It("should ignore custom delegated domain if not permitted", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		prefix := "test-"
+		customDelegationName := "test." + testDelegationName
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:             testServiceKey,
+			Prefix:                 prefix,
+			DefaultIssuerName:      "test-issuer",
+			DefaultIssuerKind:      IssuerKind,
+			DefaultDelegatedDomain: testDelegationName,
+			CreateDNSEndpoint:      true,
+			CreateCertificate:      true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[delegatedDomainAnnotation] = customDelegationName
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting DNSEndpoint with prefixed name")
+		de := dnsEndpoint()
+		objKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, de)
+		}, 5*time.Second).Should(Succeed())
+		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
+		endPoints := deSpec["endpoints"].([]interface{})
+		endPoint := endPoints[0].(map[string]interface{})
+		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
+
+		By("ensuring additional DNSEndpoint has been created")
+		dde := dnsEndpoint()
+		dObjKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name + "-delegation",
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), dObjKey, dde)
+		}, 5*time.Second).Should(Succeed())
+		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]interface{})
+		dEndPoints := ddeSpec["endpoints"].([]interface{})
+		dEndPoint := dEndPoints[0].(map[string]interface{})
+		Expect(dEndPoint["targets"]).Should(Equal([]interface{}{"_acme-challenge." + dnsName + "." + testDelegationName}))
+		Expect(dEndPoint["dnsName"]).Should(Equal("_acme-challenge." + dnsName))
+		Expect(dEndPoint["recordType"]).Should(Equal("CNAME"))
 	})
 
 	It("should create Certificate with specified IssuerKind", func() {
@@ -772,6 +964,50 @@ func TestIsClassNameMatched(t *testing.T) {
 			}
 			if got := r.isClassNameMatched(tt.hp); got != tt.want {
 				t.Errorf("HTTPProxyReconciler.isClassNameMatched() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMakeDelegationEndpoint(t *testing.T) {
+	tests := []struct {
+		name            string
+		hostname        string
+		delegatedDomain string
+		expectDNSName   string
+		expectTarget    string
+	}{
+		{
+			name:            "Hostname without trailing dot",
+			hostname:        "example.com",
+			delegatedDomain: "delegated.com",
+			expectDNSName:   "_acme-challenge.example.com",
+			expectTarget:    "_acme-challenge.example.com.delegated.com",
+		},
+		{
+			name:            "Fully-qualified domain name",
+			hostname:        "example.com.",
+			delegatedDomain: "delegated.com",
+			expectDNSName:   "_acme-challenge.example.com",
+			expectTarget:    "_acme-challenge.example.com.delegated.com",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actuals := makeDelegationEndpoint(tc.hostname, tc.delegatedDomain)
+			if len(actuals) != 1 {
+				t.Errorf("HTTPProxyReconciler.makeDelegationEndpoint() = %v, want 1 item", len(actuals))
+			}
+			actual := actuals[0]
+			if actual["dnsName"] != tc.expectDNSName {
+				t.Errorf("HTTPProxyReconciler.makeDelegationEndpoint() dnsName = %v, want %v", actual["dnsName"], tc.expectDNSName)
+			}
+			actualTargets := actual["targets"].([]string)
+			if len(actualTargets) != 1 {
+				t.Errorf("HTTPProxyReconciler.makeDelegationEndpoint() targets = %v, want 1 item", len(actualTargets))
+			}
+			if actualTargets[0] != tc.expectTarget {
+				t.Errorf("HTTPProxyReconciler.makeDelegationEndpoint() target = %v, want %v", actualTargets[0], tc.expectTarget)
 			}
 		})
 	}

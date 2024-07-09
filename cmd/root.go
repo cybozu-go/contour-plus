@@ -35,6 +35,8 @@ func init() {
 	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
 	fs.String("default-issuer-name", "", "Issuer name used by default")
 	fs.String("default-issuer-kind", controllers.ClusterIssuerKind, "Issuer kind used by default")
+	fs.String("default-delegated-domain", "", "Delegated domain used by default")
+	fs.Bool("allow-custom-delegations", false, "Allow custom delegated domains via annotations")
 	fs.Uint("csr-revision-limit", 0, "Maximum number of CertificateRequest revisions to keep")
 	fs.String("ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
 	fs.Bool("leader-election", true, "Enable/disable leader election")
@@ -60,15 +62,17 @@ var rootCmd = &cobra.Command{
 	
 In addition to flags, the following environment variables are read:
 
-	CP_METRICS_ADDR          Bind address for the metrics endpoint
-	CP_CRDS                  Comma-separated list of CRD names
-	CP_NAME_PREFIX           Prefix of CRD names to be created
-	CP_SERVICE_NAME          NamespacedName of the Contour LoadBalancer Service
-	CP_DEFAULT_ISSUER_NAME   Issuer name used by default
-	CP_DEFAULT_ISSUER_KIND   Issuer kind used by default
-	CP_CSR_REVISION_LIMIT    Maximum number of CertificateRequest revisions to keep
-	CP_LEADER_ELECTION       Disable leader election if set to "false"
-	CP_INGRESS_CLASS_NAME    Ingress class name that watched by Contour Plus. If not specified, then all classes are watched`,
+	CP_METRICS_ADDR             Bind address for the metrics endpoint
+	CP_CRDS                     Comma-separated list of CRD names
+	CP_NAME_PREFIX              Prefix of CRD names to be created
+	CP_SERVICE_NAME             NamespacedName of the Contour LoadBalancer Service
+	CP_DEFAULT_ISSUER_NAME      Issuer name used by default
+	CP_DEFAULT_ISSUER_KIND      Issuer kind used by default
+	CP_DEFAULT_DELEGATED_DOMAIN Delegation domain used by default
+	CP_ALLOW_CUSTOM_DELEGATIONS Allow custom delegated domains via annotations
+	CP_CSR_REVISION_LIMIT       Maximum number of CertificateRequest revisions to keep
+	CP_LEADER_ELECTION          Disable leader election if set to "false"
+	CP_INGRESS_CLASS_NAME       Ingress class name that watched by Contour Plus. If not specified, then all classes are watched`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		return run()
