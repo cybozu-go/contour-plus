@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -25,6 +26,7 @@ const (
 	testACMETLSAnnotation             = "kubernetes.io/tls-acme"
 	issuerNameAnnotation              = "cert-manager.io/issuer"
 	clusterIssuerNameAnnotation       = "cert-manager.io/cluster-issuer"
+	revisionHistoryLimitAnnotation    = "cert-manager.io/revision-history-limit"
 	ingressClassNameAnnotation        = "kubernetes.io/ingress.class"
 	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
 	delegatedDomainAnnotation         = "contour-plus.cybozu.com/delegated-domain"
@@ -290,6 +292,14 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 	if r.CSRRevisionLimit > 0 {
 		certificateSpec["revisionHistoryLimit"] = r.CSRRevisionLimit
+	}
+	if value, ok := hp.Annotations[revisionHistoryLimitAnnotation]; ok {
+		limit, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			log.Error(err, "invalid revisionHistoryLimit", "value", value)
+			return nil
+		}
+		certificateSpec["revisionHistoryLimit"] = limit
 	}
 
 	obj := &unstructured.Unstructured{}

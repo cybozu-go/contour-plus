@@ -775,6 +775,101 @@ func testHTTPProxyReconcile() {
 		}))
 		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(1)))
 	})
+
+	It(`should create Certificate with revisionHistoryLimit set if cert-manager.io/revision-history-limit is specified`, func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[revisionHistoryLimitAnnotation] = "2"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
+		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
+		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+			usageDigitalSignature,
+			usageKeyEncipherment,
+			usageServerAuth,
+			usageClientAuth,
+		}))
+		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(2)))
+	})
+
+	It(`should prioritize revisionHistoryLimit set by cert-manager.io/revision-history-limit is specified`, func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+			CSRRevisionLimit:  1,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[revisionHistoryLimitAnnotation] = "2"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
+		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
+		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+			usageDigitalSignature,
+			usageKeyEncipherment,
+			usageServerAuth,
+			usageClientAuth,
+		}))
+		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(2)))
+	})
 }
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
