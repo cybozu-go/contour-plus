@@ -19,11 +19,15 @@ If both is specified, command-line flags take precedence.
 | `service-name`        | `CP_SERVICE_NAME`        | ""                        | NamespacedName of the Contour LoadBalancer Service |
 | `default-issuer-name` | `CP_DEFAULT_ISSUER_NAME` | ""                        | Issuer name used by default                        |
 | `default-issuer-kind` | `CP_DEFAULT_ISSUER_KIND` | `ClusterIssuer`           | Issuer kind used by default                        |
+| `default-delegated-domain` | `CP_DEFAULT_DELEGATED_DOMAIN` | ""            | Domain to which DNS-01 validation is delegated to   |
+| `allow-custom-delegations` | `CP_ALLOW_CUSTOM_DELEGATIONS` | `false`       | Allow users to specify a custom delegated domain |
 | `leader-election`     | `CP_LEADER_ELECTION`     | `true`                    | Enable / disable leader election                   |
 | `ingress-class-name`  | `CP_INGRESS_CLASS_NAME`  | ""                        | Ingress class name that watched by Contour Plus. If not specified, then all classes are watched    |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
+
+When a delegated domain is specified, either via `default-delegated-domain` or the `contour-plus.cybozu.com/delegated-domain` annotation, contour-plus creates an additional [DNSEndpoint][] delegating DNS-01 validation to the given delegation domain. The delegation record will not be created if the DNSEndpoint for `spec.virtualhost.fqdn` cannot be created.
 
 To disable CRD creation, specify `crds` command-line flag or `CP_CRDS` environment variable.
 
@@ -122,6 +126,7 @@ contour-plus interprets following annotations for HTTPProxy.
 - `cert-manager.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this HTTPProxy from. The Issuer must be in the same namespace as the HTTPProxy.
 - `cert-manager.io/cluster-issuer` - The name of a [ClusterIssuer][Issuer] to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
 - `kubernetes.io/tls-acme: "true"` - With this, contour-plus generates Certificate automatically from HTTPProxy.
+- `contour-plus.cybozu.com/delegated-domain: "acme.example.com"` - With this, contour-plus generates a [DNSEndpoint][] to create a CNAME record pointing to the delegation domain for use when performing DNS-01 DCV during the Certificate creation.
 
 If both of `cert-manager.io/issuer` and `cert-manager.io/cluster-issuer` exist, `cluster-issuer` takes precedence.
 

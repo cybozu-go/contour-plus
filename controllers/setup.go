@@ -13,14 +13,16 @@ import (
 
 // ReconcilerOptions is a set of options for reconcilers
 type ReconcilerOptions struct {
-	ServiceKey        client.ObjectKey
-	Prefix            string
-	DefaultIssuerName string
-	DefaultIssuerKind string
-	CSRRevisionLimit  uint
-	CreateDNSEndpoint bool
-	CreateCertificate bool
-	IngressClassName  string
+	ServiceKey             client.ObjectKey
+	Prefix                 string
+	DefaultIssuerName      string
+	DefaultIssuerKind      string
+	DefaultDelegatedDomain string
+	AllowCustomDelegations bool
+	CSRRevisionLimit       uint
+	CreateDNSEndpoint      bool
+	CreateCertificate      bool
+	IngressClassName       string
 }
 
 // SetupScheme initializes a schema
@@ -34,17 +36,19 @@ func SetupScheme(scm *runtime.Scheme) {
 // SetupReconciler initializes reconcilers
 func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts ReconcilerOptions) error {
 	httpProxyReconciler := &HTTPProxyReconciler{
-		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
-		Scheme:            scheme,
-		ServiceKey:        opts.ServiceKey,
-		Prefix:            opts.Prefix,
-		DefaultIssuerName: opts.DefaultIssuerName,
-		DefaultIssuerKind: opts.DefaultIssuerKind,
-		CSRRevisionLimit:  opts.CSRRevisionLimit,
-		CreateDNSEndpoint: opts.CreateDNSEndpoint,
-		CreateCertificate: opts.CreateCertificate,
-		IngressClassName:  opts.IngressClassName,
+		Client:                 mgr.GetClient(),
+		Log:                    ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
+		Scheme:                 scheme,
+		ServiceKey:             opts.ServiceKey,
+		Prefix:                 opts.Prefix,
+		DefaultIssuerName:      opts.DefaultIssuerName,
+		DefaultIssuerKind:      opts.DefaultIssuerKind,
+		DefaultDelegatedDomain: opts.DefaultDelegatedDomain,
+		AllowCustomDelegations: opts.AllowCustomDelegations,
+		CSRRevisionLimit:       opts.CSRRevisionLimit,
+		CreateDNSEndpoint:      opts.CreateDNSEndpoint,
+		CreateCertificate:      opts.CreateCertificate,
+		IngressClassName:       opts.IngressClassName,
 	}
 	err := httpProxyReconciler.SetupWithManager(mgr)
 	if err != nil {

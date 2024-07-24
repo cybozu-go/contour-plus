@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"net"
+	"strings"
 
 	"github.com/go-logr/logr"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
@@ -26,22 +27,25 @@ const (
 	clusterIssuerNameAnnotation       = "cert-manager.io/cluster-issuer"
 	ingressClassNameAnnotation        = "kubernetes.io/ingress.class"
 	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
+	delegatedDomainAnnotation         = "contour-plus.cybozu.com/delegated-domain"
 )
 
 // HTTPProxyReconciler reconciles a HTTPProxy object
 type HTTPProxyReconciler struct {
 	client.Client
-	Log               logr.Logger
-	Scheme            *runtime.Scheme
-	ServiceKey        client.ObjectKey
-	IssuerKey         client.ObjectKey
-	Prefix            string
-	DefaultIssuerName string
-	DefaultIssuerKind string
-	CSRRevisionLimit  uint
-	CreateDNSEndpoint bool
-	CreateCertificate bool
-	IngressClassName  string
+	Log                    logr.Logger
+	Scheme                 *runtime.Scheme
+	ServiceKey             client.ObjectKey
+	IssuerKey              client.ObjectKey
+	Prefix                 string
+	DefaultIssuerName      string
+	DefaultIssuerKind      string
+	DefaultDelegatedDomain string
+	AllowCustomDelegations bool
+	CSRRevisionLimit       uint
+	CreateDNSEndpoint      bool
+	CreateCertificate      bool
+	IngressClassName       string
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch
@@ -86,6 +90,11 @@ func (r *HTTPProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if err := r.reconcileDNSEndpoint(ctx, hp, log); err != nil {
 		log.Error(err, "unable to reconcile DNSEndpoint")
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileDelegationDNSEndpoint(ctx, hp, log); err != nil {
+		log.Error(err, "unable to reconcile delegation DNSEndpoint")
 		return ctrl.Result{}, err
 	}
 
@@ -179,6 +188,51 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	}
 
 	log.Info("DNSEndpoint successfully reconciled")
+	return nil
+}
+
+func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
+	if !r.CreateDNSEndpoint {
+		return nil
+	}
+
+	delegatedDomain := r.DefaultDelegatedDomain
+	if hp.Annotations[delegatedDomainAnnotation] != "" && r.AllowCustomDelegations {
+		delegatedDomain = hp.Annotations[delegatedDomainAnnotation]
+	}
+
+	if delegatedDomain == "" {
+		return nil
+	}
+
+	if hp.Spec.VirtualHost == nil {
+		return nil
+	}
+	fqdn := hp.Spec.VirtualHost.Fqdn
+	if len(fqdn) == 0 {
+		return nil
+	}
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
+	obj.SetName(r.Prefix + hp.Name + "-delegation")
+	obj.SetNamespace(hp.Namespace)
+	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain),
+	}
+
+	if err := ctrl.SetControllerReference(hp, obj, r.Scheme); err != nil {
+		return err
+	}
+
+	if err := r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		Force:        ptr.To(true),
+		FieldManager: "contour-plus",
+	}); err != nil {
+		return err
+	}
+
+	log.Info("Delegation DNSEndpoint successfully reconciled")
 	return nil
 }
 
@@ -335,4 +389,16 @@ func ipsToTargets(ips []net.IP) ([]string, []string) {
 		ipv6Targets = append(ipv6Targets, ip.String())
 	}
 	return ipv4Targets, ipv6Targets
+}
+
+func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]interface{} {
+	fqdn := strings.Trim(hostname, ".")
+	return []map[string]interface{}{
+		{
+			"dnsName":    "_acme-challenge." + fqdn,
+			"targets":    []string{"_acme-challenge." + fqdn + "." + delegatedDomain},
+			"recordType": "CNAME",
+			"recordTTL":  3600,
+		},
+	}
 }
