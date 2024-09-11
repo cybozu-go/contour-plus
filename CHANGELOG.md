@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2024-09-11
+### Added
+- Add support for specifying revisionHistoryLimit for the generated Certificate (#104)
+- Add support for specifying revision history limit via annotation (#105)
+- Add support for using delegated domains for DNS-01 (#106)
+
+### Changed
+- Update contour to 1.29.1 (#107)
+  - Kubernetes: 1.30
+  - Contour: 1.29
+  - ExternalDNS: 0.15
+  - cert-manager: 1.15
+
 ## [0.12.0] - 2024-04-18
 
 ### Changed
@@ -271,7 +284,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/cybozu-go/contour-plus/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/cybozu-go/contour-plus/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/cybozu-go/contour-plus/compare/v0.10.0...v0.11.1
 [0.10.0]: https://github.com/cybozu-go/contour-plus/compare/v0.9.0...v0.10.0
