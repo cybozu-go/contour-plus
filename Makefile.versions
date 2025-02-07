@@ -10,4 +10,4 @@ YQ_VERSION := 4.44.5
 
 # Follow the kustomize version installed in the Argo CD container
 # https://github.com/cybozu/neco-containers/blob/main/argocd/Dockerfile#L10
-KUSTOMIZE_VERSION := 5.2.1
+KUSTOMIZE_VERSION := 5.4.3
