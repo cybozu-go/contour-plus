@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.1] - 2025-02-17
+### Changed
+- Update for k8s 1.31 (#111)
+
 ## [0.14.0] - 2024-11-20
 ### Changed
 - Update contour to 1.30.1 (#109)
@@ -292,7 +296,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/cybozu-go/contour-plus/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/cybozu-go/contour-plus/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/cybozu-go/contour-plus/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/cybozu-go/contour-plus/compare/v0.11.1...v0.12.0
