@@ -1,6 +1,6 @@
 include Makefile.versions
 
-CONTROLLER_TOOLS_VERSION = 0.17.2
+CONTROLLER_TOOLS_VERSION = 0.18.0
 
 PROJECT_DIR := $(CURDIR)
 BIN_DIR := $(PROJECT_DIR)/bin
@@ -44,7 +44,7 @@ download-tools: $(GH) $(YQ)
 .PHONY: download-crds
 download-crds:
 	curl -fsL -o $(CRD_DIR)/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
-	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/docs/contributing/crd-source/crd-manifest.yaml
+	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
 	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/v$(CONTOUR_VERSION)/examples/contour/01-crds.yaml
 
 $(GH):
