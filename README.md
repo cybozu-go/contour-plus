@@ -16,11 +16,11 @@ Supported environments
 - Kubernetes
   - 1.32
 - Contour
-  - 1.30
+  - 1.32
 - ExternalDNS
-  - 0.15
+  - 0.18
 - cert-manager
-  - 1.17
+  - 1.18
 
 Other versions may or may not work.
 
@@ -42,8 +42,8 @@ Documentation
 [Contour]: https://github.com/projectcontour/contour
 [ExternalDNS]: https://github.com/kubernetes-sigs/external-dns
 [cert-manager]: https://github.com/cert-manager/cert-manager
-[HTTPProxy]: https://projectcontour.io/docs/v1.11.0/config/api/#projectcontour.io/v1.HTTPProxy
-[DNSEndpoint]: https://github.com/kubernetes-sigs/external-dns/blob/master/docs/contributing/crd-source.md
+[HTTPProxy]: https://projectcontour.io/docs/1.32/config/api/#projectcontour.io/v1.HTTPProxy
+[DNSEndpoint]: https://github.com/kubernetes-sigs/external-dns/blob/master/docs/sources/crd.md
 [Certificate]: https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.Certificate
 
 Docker images
