@@ -870,6 +870,128 @@ func testHTTPProxyReconcile() {
 		}))
 		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(2)))
 	})
+
+	It("should create a Certificate with the specified key algorithm and default size", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy with key algorithm annotation")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[privateKeyAlgorithmAnnotation] = "ECDSA"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		keySpec := crtSpec["privateKey"].(map[string]interface{})
+		Expect(keySpec["algorithm"]).Should(Equal("ECDSA"))
+		Expect(keySpec["size"]).Should(BeNil())
+	})
+
+	It("should create a Certificate with the specified key algorithm and size", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy with key algorithm annotation")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[privateKeyAlgorithmAnnotation] = "ECDSA"
+		hp.Annotations[privateKeySizeAnnotation] = "384"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		keySpec := crtSpec["privateKey"].(map[string]interface{})
+		Expect(keySpec["algorithm"]).Should(Equal("ECDSA"))
+		Expect(keySpec["size"]).Should(Equal(int64(384)))
+	})
+
+	It("should create a Certificate with the specified key algorithm and fallback to default size", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy with key algorithm annotation")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[privateKeyAlgorithmAnnotation] = "RSA"
+		hp.Annotations[privateKeySizeAnnotation] = "four thousand ninty six"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		keySpec := crtSpec["privateKey"].(map[string]interface{})
+		Expect(keySpec["algorithm"]).Should(Equal("RSA"))
+		Expect(keySpec["size"]).Should(BeNil())
+	})
 }
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
