@@ -127,6 +127,8 @@ contour-plus interprets following annotations for HTTPProxy.
 - `cert-manager.io/issuer` - The name of an  [Issuer][] to acquire the certificate required for this HTTPProxy from. The Issuer must be in the same namespace as the HTTPProxy.
 - `cert-manager.io/cluster-issuer` - The name of a [ClusterIssuer][Issuer] to acquire the certificate required for this ingress from. It does not matter which namespace your Ingress resides, as ClusterIssuers are non-namespaced resources.
 - `cert-manager.io/revision-history-limit` - The maximum number of CertificateRequests to keep for a given Certificate.
+- `cert-manager.io/private-key-algorithm` - The algorithm for the private key generation for a Certificate.
+- `cert-manager.io/private-key-size` - If `cert-manager.io/private-key-algorithm` is set, this annotation allows the specification of the size of the private key.
 - `kubernetes.io/tls-acme: "true"` - With this, contour-plus generates Certificate automatically from HTTPProxy.
 - `contour-plus.cybozu.com/delegated-domain: "acme.example.com"` - With this, contour-plus generates a [DNSEndpoint][] to create a CNAME record pointing to the delegation domain for use when performing DNS-01 DCV during the Certificate creation.
 

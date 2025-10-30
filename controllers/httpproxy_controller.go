@@ -27,6 +27,8 @@ const (
 	issuerNameAnnotation              = "cert-manager.io/issuer"
 	clusterIssuerNameAnnotation       = "cert-manager.io/cluster-issuer"
 	revisionHistoryLimitAnnotation    = "cert-manager.io/revision-history-limit"
+	privateKeyAlgorithmAnnotation     = "cert-manager.io/private-key-algorithm"
+	privateKeySizeAnnotation          = "cert-manager.io/private-key-size"
 	ingressClassNameAnnotation        = "kubernetes.io/ingress.class"
 	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
 	delegatedDomainAnnotation         = "contour-plus.cybozu.com/delegated-domain"
@@ -300,6 +302,21 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 			return nil
 		}
 		certificateSpec["revisionHistoryLimit"] = limit
+	}
+
+	if algorithm, ok := hp.Annotations[privateKeyAlgorithmAnnotation]; ok {
+		privateKeySpec := map[string]interface{}{
+			"algorithm": algorithm,
+		}
+		if value, ok := hp.Annotations[privateKeySizeAnnotation]; ok {
+			size, err := strconv.ParseUint(value, 10, 32)
+			if err == nil {
+				privateKeySpec["size"] = size
+			} else {
+				log.Error(err, "invalid privateKey size", "value", value)
+			}
+		}
+		certificateSpec["privateKey"] = privateKeySpec
 	}
 
 	obj := &unstructured.Unstructured{}
