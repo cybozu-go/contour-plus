@@ -68,6 +68,9 @@ func run() error {
 
 	opts.CSRRevisionLimit = viper.GetUint("csr-revision-limit")
 
+	opts.PropagatedAnnotations = viper.GetStringSlice("propagated-annotations")
+	opts.PropagatedLabels = viper.GetStringSlice("propagated-labels")
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{

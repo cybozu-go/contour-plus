@@ -24,6 +24,8 @@ If both is specified, command-line flags take precedence.
 | `csr-revision-limit`  | `CP_CSR_REVISION_LIMIT`  | 0                         | Maximum number of CertificateRequests to be kept for a Certificate. By default, all CertificateRequests are kept             |
 | `leader-election`     | `CP_LEADER_ELECTION`     | `true`                    | Enable / disable leader election                   |
 | `ingress-class-name`  | `CP_INGRESS_CLASS_NAME`  | ""                        | Ingress class name that watched by Contour Plus. If not specified, then all classes are watched    |
+| `propagated-annotations`  | `CP_PROPAGATED_ANNOTATIONS`  | ""                | Comma-separated list of annotation keys that should be propagated to the resources contour-plus generates |
+| `propagated-labels     `  | `CP_PROPAGATED_LABELS`       | ""                | Comma-separated list of label keys that should be propagated to the resources contour-plus generates      |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.

@@ -50,6 +50,8 @@ type HTTPProxyReconciler struct {
 	CreateDNSEndpoint      bool
 	CreateCertificate      bool
 	IngressClassName       string
+	PropagatedAnnotations  []string
+	PropagatedLabels       []string
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch
@@ -176,6 +178,8 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
 	obj.SetName(r.Prefix + hp.Name)
 	obj.SetNamespace(hp.Namespace)
+	obj.SetAnnotations(r.generateObjectAnnotations(hp))
+	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
 		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
@@ -221,6 +225,8 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
 	obj.SetName(r.Prefix + hp.Name + "-delegation")
 	obj.SetNamespace(hp.Namespace)
+	obj.SetAnnotations(r.generateObjectAnnotations(hp))
+	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
 		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain),
 	}
@@ -303,6 +309,13 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		}
 		certificateSpec["revisionHistoryLimit"] = limit
 	}
+	annotations := r.generateObjectAnnotations(hp)
+	labels := r.generateObjectLabels(hp)
+	secretTemplate := map[string]interface{}{
+		"annotations": annotations,
+		"labels":      labels,
+	}
+	certificateSpec["secretTemplate"] = secretTemplate
 
 	if algorithm, ok := hp.Annotations[privateKeyAlgorithmAnnotation]; ok {
 		privateKeySpec := map[string]interface{}{
@@ -324,6 +337,10 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	obj.SetName(r.Prefix + hp.Name)
 	obj.SetNamespace(hp.Namespace)
 	obj.UnstructuredContent()["spec"] = certificateSpec
+
+	obj.SetAnnotations(annotations)
+	obj.SetLabels(labels)
+
 	err := ctrl.SetControllerReference(hp, obj, r.Scheme)
 	if err != nil {
 		return err
@@ -338,6 +355,26 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 	log.Info("Certificate successfully reconciled")
 	return nil
+}
+
+func (r *HTTPProxyReconciler) generateObjectAnnotations(hp *projectcontourv1.HTTPProxy) map[string]string {
+	annotations := map[string]string{}
+	for _, key := range r.PropagatedAnnotations {
+		if annotation, ok := hp.Annotations[key]; ok {
+			annotations[key] = annotation
+		}
+	}
+	return annotations
+}
+
+func (r *HTTPProxyReconciler) generateObjectLabels(hp *projectcontourv1.HTTPProxy) map[string]string {
+	labels := map[string]string{}
+	for _, key := range r.PropagatedLabels {
+		if label, ok := hp.Labels[key]; ok {
+			labels[key] = label
+		}
+	}
+	return labels
 }
 
 // SetupWithManager sets up the controller with the Manager.
