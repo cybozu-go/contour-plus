@@ -13,18 +13,19 @@ import (
 
 // ReconcilerOptions is a set of options for reconcilers
 type ReconcilerOptions struct {
-	ServiceKey             client.ObjectKey
-	Prefix                 string
-	DefaultIssuerName      string
-	DefaultIssuerKind      string
-	DefaultDelegatedDomain string
-	AllowCustomDelegations bool
-	CSRRevisionLimit       uint
-	CreateDNSEndpoint      bool
-	CreateCertificate      bool
-	IngressClassName       string
-	PropagatedAnnotations  []string
-	PropagatedLabels       []string
+	ServiceKey              client.ObjectKey
+	Prefix                  string
+	DefaultIssuerName       string
+	DefaultIssuerKind       string
+	DefaultDelegatedDomain  string
+	AllowedDelegatedDomains []string
+	AllowCustomDelegations  bool
+	CSRRevisionLimit        uint
+	CreateDNSEndpoint       bool
+	CreateCertificate       bool
+	IngressClassName        string
+	PropagatedAnnotations   []string
+	PropagatedLabels        []string
 }
 
 // SetupScheme initializes a schema
@@ -38,21 +39,22 @@ func SetupScheme(scm *runtime.Scheme) {
 // SetupReconciler initializes reconcilers
 func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts ReconcilerOptions) error {
 	httpProxyReconciler := &HTTPProxyReconciler{
-		Client:                 mgr.GetClient(),
-		Log:                    ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
-		Scheme:                 scheme,
-		ServiceKey:             opts.ServiceKey,
-		Prefix:                 opts.Prefix,
-		DefaultIssuerName:      opts.DefaultIssuerName,
-		DefaultIssuerKind:      opts.DefaultIssuerKind,
-		DefaultDelegatedDomain: opts.DefaultDelegatedDomain,
-		AllowCustomDelegations: opts.AllowCustomDelegations,
-		CSRRevisionLimit:       opts.CSRRevisionLimit,
-		CreateDNSEndpoint:      opts.CreateDNSEndpoint,
-		CreateCertificate:      opts.CreateCertificate,
-		IngressClassName:       opts.IngressClassName,
-		PropagatedAnnotations:  opts.PropagatedAnnotations,
-		PropagatedLabels:       opts.PropagatedLabels,
+		Client:                  mgr.GetClient(),
+		Log:                     ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
+		Scheme:                  scheme,
+		ServiceKey:              opts.ServiceKey,
+		Prefix:                  opts.Prefix,
+		DefaultIssuerName:       opts.DefaultIssuerName,
+		DefaultIssuerKind:       opts.DefaultIssuerKind,
+		DefaultDelegatedDomain:  opts.DefaultDelegatedDomain,
+		AllowedDelegatedDomains: opts.AllowedDelegatedDomains,
+		AllowCustomDelegations:  opts.AllowCustomDelegations,
+		CSRRevisionLimit:        opts.CSRRevisionLimit,
+		CreateDNSEndpoint:       opts.CreateDNSEndpoint,
+		CreateCertificate:       opts.CreateCertificate,
+		IngressClassName:        opts.IngressClassName,
+		PropagatedAnnotations:   opts.PropagatedAnnotations,
+		PropagatedLabels:        opts.PropagatedLabels,
 	}
 	err := httpProxyReconciler.SetupWithManager(mgr)
 	if err != nil {

@@ -20,6 +20,7 @@ If both is specified, command-line flags take precedence.
 | `default-issuer-name` | `CP_DEFAULT_ISSUER_NAME` | ""                        | Issuer name used by default                        |
 | `default-issuer-kind` | `CP_DEFAULT_ISSUER_KIND` | `ClusterIssuer`           | Issuer kind used by default                        |
 | `default-delegated-domain` | `CP_DEFAULT_DELEGATED_DOMAIN` | ""            | Domain to which DNS-01 validation is delegated to   |
+| `allowed-delegated-domains` | `CP_ALLOWED_DELEGATED_DOMAINS` | []            | Comma-separated list of allowed delegated domains |
 | `allow-custom-delegations` | `CP_ALLOW_CUSTOM_DELEGATIONS` | `false`       | Allow users to specify a custom delegated domain |
 | `csr-revision-limit`  | `CP_CSR_REVISION_LIMIT`  | 0                         | Maximum number of CertificateRequests to be kept for a Certificate. By default, all CertificateRequests are kept             |
 | `leader-election`     | `CP_LEADER_ELECTION`     | `true`                    | Enable / disable leader election                   |
@@ -30,7 +31,7 @@ If both is specified, command-line flags take precedence.
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
 
-When a delegated domain is specified, either via `default-delegated-domain` or the `contour-plus.cybozu.com/delegated-domain` annotation, contour-plus creates an additional [DNSEndpoint][] delegating DNS-01 validation to the given delegation domain. The delegation record will not be created if the DNSEndpoint for `spec.virtualhost.fqdn` cannot be created.
+When a delegated domain is specified, either via `default-delegated-domain` or the `contour-plus.cybozu.com/delegated-domain` annotation, contour-plus creates an additional [DNSEndpoint][] delegating DNS-01 validation to the given delegation domain. The delegation record will not be created if the DNSEndpoint for `spec.virtualhost.fqdn` cannot be created. If `allow-custom-delegations` is enabled, users will be able to specify a custom domain for delegation via the `contour-plus.cybozu.com/delegated-domain` annotation. To prevent users from being able to specify any arbitrary delegation domains, `allowed-delegated-domains` can be used to specify a list of permitted domains.
 
 To disable CRD creation, specify `crds` command-line flag or `CP_CRDS` environment variable.
 
