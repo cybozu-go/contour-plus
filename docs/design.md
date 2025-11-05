@@ -9,7 +9,7 @@ and [cert-manager][] does not recognize it unlike the standard `Ingress`.
 
 Fortunately, ExternalDNS can watch arbitrary CRD resources and manages external
 DNS service such as AWS Route53 according to the CRD contents.  An example of
-such a CRD is [`DNSEndpoint`](https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source/crd-manifest.yaml).
+such a CRD is [`DNSEndpoint`][DNSEndpoint].
 
 Similarly, cert-manager watches [`Certificate`][Certificate] CRD and issues
 TLS certificates.
@@ -39,24 +39,22 @@ This way, DNS records can be managed and TLS certificates can be issued automati
 
 Contour provides Go types and API to manage `HTTPProxy` resource:
 
-- [`contourv1Client`](https://github.com/projectcontour/contour/blob/81f2c011656304973d2bd00fa6034d2b1ea6e60f/apis/generated/clientset/versioned/typed/contour/v1beta1/contour_client.go#L70)
-- [`projectcontourv1Client`](https://github.com/projectcontour/contour/blob/81f2c011656304973d2bd00fa6034d2b1ea6e60f/apis/generated/clientset/versioned/typed/projectcontour/v1/projectcontour_client.go#L70)
-- [`HTTPProxy`](https://github.com/projectcontour/contour/blob/81f2c011656304973d2bd00fa6034d2b1ea6e60f/apis/projectcontour/v1/httpproxy.go#L268)
+- [`HTTPProxy`][HTTPProxy]
 
 
 cert-manager provides Go types and API to manage `Certificate` resource:
 
-- [`Certificate`](https://github.com/jetstack/cert-manager/blob/0aba30b25123e729d9dc8602cdcc4a5cc4b73bef/pkg/apis/certmanager/v1alpha2/types_certificate.go#L37)
-- [`certmanagerv1alpha2Client`](https://github.com/jetstack/cert-manager/blob/0aba30b25123e729d9dc8602cdcc4a5cc4b73bef/pkg/client/clientset/versioned/typed/certmanager/v1alpha2/certmanager_client.go#L80)
+- [`Certificate`](https://pkg.go.dev/github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1#Certificate)
 
 ExternalDNS provides Go types for `DNSEndpoint`, but does not provide strictly-typed
 API client.  Therefore, `contour-plus` uses [kubebuilder][] to generate strictly-typed
 API client for itself.
 
-- [`DNSEndpoint`](https://github.com/kubernetes-incubator/external-dns/blob/d1bc8fe147f0ffd7cc4be3e9c6f693186b0aa0bf/endpoint/endpoint.go#L191)
+- [`DNSEndpoint`][DNSEndpoint]
 
-[HTTPProxy]: https://github.com/projectcontour/contour/blob/master/site/docs/master/httpproxy.md
-[ExternalDNS]: https://github.com/kubernetes-incubator/external-dns
+[HTTPProxy]: https://pkg.go.dev/github.com/projectcontour/contour/apis/projectcontour/v1#HTTPProxy
+[ExternalDNS]: https://github.com/kubernetes-sigs/external-dns
 [cert-manager]: https://github.com/jetstack/cert-manager
-[Certificate]: https://docs.cert-manager.io/en/latest/reference/certificates.html
+[Certificate]: https://cert-manager.io/docs/usage/certificate/
 [kubebuilder]: https://github.com/kubernetes-sigs/kubebuilder
+[DNSEndpoint]: https://pkg.go.dev/github.com/kubernetes-sigs/external-dns/endpoint#DNSEndpoint
