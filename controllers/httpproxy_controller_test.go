@@ -111,7 +111,6 @@ func testHTTPProxyReconcile() {
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
-			usageClientAuth,
 		}))
 		Expect(crtSpec["revisionHistoryLimit"]).Should(BeNil())
 	})
@@ -771,7 +770,6 @@ func testHTTPProxyReconcile() {
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
-			usageClientAuth,
 		}))
 		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(1)))
 	})
@@ -818,7 +816,6 @@ func testHTTPProxyReconcile() {
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
-			usageClientAuth,
 		}))
 		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(2)))
 	})
@@ -866,7 +863,6 @@ func testHTTPProxyReconcile() {
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
-			usageClientAuth,
 		}))
 		Expect(crtSpec["revisionHistoryLimit"]).Should(Equal(int64(2)))
 	})
