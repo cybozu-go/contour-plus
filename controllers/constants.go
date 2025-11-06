@@ -2,12 +2,13 @@ package controllers
 
 // Constants for Kinds
 const (
-	ClusterIssuerKind   = "ClusterIssuer"
-	IssuerKind          = "Issuer"
-	CertificateKind     = "Certificate"
-	CertificateListKind = "CertificateList"
-	DNSEndpointKind     = "DNSEndpoint"
-	DNSEndpointListKind = "DNSEndpointList"
+	ClusterIssuerKind            = "ClusterIssuer"
+	IssuerKind                   = "Issuer"
+	CertificateKind              = "Certificate"
+	CertificateListKind          = "CertificateList"
+	DNSEndpointKind              = "DNSEndpoint"
+	DNSEndpointListKind          = "DNSEndpointList"
+	TLSCertificateDelegationKind = "TLSCertificateDelegation"
 )
 
 // Constants for certificate usages

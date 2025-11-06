@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -33,6 +34,10 @@ const (
 	ingressClassNameAnnotation        = "kubernetes.io/ingress.class"
 	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
 	delegatedDomainAnnotation         = "contour-plus.cybozu.com/delegated-domain"
+	dnsNamespaceAnnotation            = "contour-plus.cybozu.com/dns-namespace"
+	issuerNamespaceAnnotation         = "contour-plus.cybozu.com/issuer-namespace"
+	crossNamespaceOwnerAnnotation     = "contour-plus.cybozu.com/owned-by"
+	finalizerName                     = "contour-plus.cybozu.com/finalizer"
 )
 
 // HTTPProxyReconciler reconciles a HTTPProxy object
@@ -43,8 +48,9 @@ type HTTPProxyReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch
+// +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies/status,verbs=get
+// +kubebuilder:rbac:groups=projectcontour.io.resources=tlscertificatedelegations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
@@ -70,7 +76,11 @@ func (r *HTTPProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if hp.DeletionTimestamp != nil {
-		return ctrl.Result{}, nil
+		if !controllerutil.ContainsFinalizer(hp, finalizerName) {
+			return ctrl.Result{}, nil
+		}
+		// Clean up owned resources in other namespaces
+		return ctrl.Result{}, r.cleanupCrossNamespaceResources(ctx, hp, log)
 	}
 
 	if hp.Annotations[excludeAnnotation] == "true" {
@@ -95,6 +105,16 @@ func (r *HTTPProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if err := r.reconcileCertificate(ctx, hp, log); err != nil {
 		log.Error(err, "unable to reconcile Certificate")
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileTLSCertificateDelegation(ctx, hp, log); err != nil {
+		log.Error(err, "unable to reconcile TLSCertificateDelegation")
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileSecretName(ctx, hp, log); err != nil {
+		log.Error(err, "unable to reconcile HTTPProxy SecretName")
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -163,16 +183,22 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 		return nil
 	}
 
+	dnsEndpointName := getDNSEndpointName(r, hp)
+	targetNamespace := hp.Namespace
+	if ns, ok := hp.Annotations[dnsNamespaceAnnotation]; ok && ns != "" {
+		targetNamespace = ns
+	}
+
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
-	obj.SetName(r.Prefix + hp.Name)
-	obj.SetNamespace(hp.Namespace)
+	obj.SetName(dnsEndpointName)
+	obj.SetNamespace(targetNamespace)
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
 		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
-	err = ctrl.SetControllerReference(hp, obj, r.Scheme)
+	err = r.trackResourceForCleanup(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -211,17 +237,23 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 		return nil
 	}
 
+	dnsEndpointName := getDNSEndpointName(r, hp)
+	targetNamespace := hp.Namespace
+	if ns, ok := hp.Annotations[dnsNamespaceAnnotation]; ok && ns != "" {
+		targetNamespace = ns
+	}
+
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
-	obj.SetName(r.Prefix + hp.Name + "-delegation")
-	obj.SetNamespace(hp.Namespace)
+	obj.SetName(dnsEndpointName + "-delegation")
+	obj.SetNamespace(targetNamespace)
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
 		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain),
 	}
 
-	if err := ctrl.SetControllerReference(hp, obj, r.Scheme); err != nil {
+	if err := r.trackResourceForCleanup(hp, obj); err != nil {
 		return err
 	}
 
@@ -321,16 +353,22 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		certificateSpec["privateKey"] = privateKeySpec
 	}
 
+	certificateName := getCertificateName(r, hp)
+	targetNamespace := hp.Namespace
+	if ns, ok := hp.Annotations[issuerNamespaceAnnotation]; ok && ns != "" {
+		targetNamespace = ns
+	}
+
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-	obj.SetName(r.Prefix + hp.Name)
-	obj.SetNamespace(hp.Namespace)
+	obj.SetName(certificateName)
+	obj.SetNamespace(targetNamespace)
 	obj.UnstructuredContent()["spec"] = certificateSpec
 
 	obj.SetAnnotations(annotations)
 	obj.SetLabels(labels)
 
-	err := ctrl.SetControllerReference(hp, obj, r.Scheme)
+	err := r.trackResourceForCleanup(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -364,6 +402,219 @@ func (r *HTTPProxyReconciler) generateObjectLabels(hp *projectcontourv1.HTTPProx
 		}
 	}
 	return labels
+}
+
+func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
+	namespace, ok := hp.Annotations[issuerNamespaceAnnotation]
+	if !ok || namespace == "" || namespace == hp.Namespace {
+		return nil
+	}
+	certificateName := getCertificateName(r, hp)
+
+	cert := &unstructured.Unstructured{}
+	cert.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
+	certKey := client.ObjectKey{
+		Namespace: namespace,
+		Name:      certificateName,
+	}
+	err := r.Get(ctx, certKey, cert)
+	if k8serrors.IsNotFound(err) {
+		log.Info("Certificate not found for TLSCertificateDelegation", "namespace", namespace, "name", certificateName)
+		return err
+	}
+
+	delegationSpec := map[string]interface{}{
+		"delegations": []map[string]interface{}{
+			{
+				"secretName": certificateName,
+				"targetNamespaces": []string{
+					hp.Namespace,
+				},
+			},
+		},
+	}
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationKind))
+	obj.SetName(certificateName)
+	obj.SetNamespace(namespace)
+	obj.SetAnnotations(r.generateObjectAnnotations(hp))
+	obj.SetLabels(r.generateObjectLabels(hp))
+	obj.UnstructuredContent()["spec"] = delegationSpec
+	err = r.trackResourceForCleanup(hp, obj)
+	if err != nil {
+		return err
+	}
+	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+		Force:        ptr.To(true),
+		FieldManager: "contour-plus",
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Info("TLSCertificateDelegation successfully reconciled")
+	return nil
+}
+
+func (r *HTTPProxyReconciler) reconcileSecretName(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
+	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
+	if !ok || certNamespace == "" || certNamespace == hp.Namespace {
+		return nil
+	}
+	certificateName := getCertificateName(r, hp)
+	hp.Spec.VirtualHost.TLS.SecretName = certNamespace + "/" + certificateName
+
+	err := r.Patch(ctx, hp, client.Merge)
+	if err != nil {
+		return err
+	}
+
+	log.Info("HTTPProxy SecretName successfully reconciled")
+	return nil
+}
+
+func (r *HTTPProxyReconciler) trackResourceForCleanup(hp *projectcontourv1.HTTPProxy, obj *unstructured.Unstructured) error {
+	if obj.GetNamespace() == hp.Namespace {
+		return ctrl.SetControllerReference(hp, obj, r.Scheme)
+	}
+
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[crossNamespaceOwnerAnnotation] = hp.Namespace + "/" + hp.Name
+	obj.SetAnnotations(annotations)
+
+	if !controllerutil.ContainsFinalizer(hp, finalizerName) {
+		controllerutil.AddFinalizer(hp, finalizerName)
+		err := r.Update(context.Background(), hp)
+		return err
+	}
+	return nil
+}
+
+func (r *HTTPProxyReconciler) cleanupCrossNamespaceResources(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
+	if !controllerutil.ContainsFinalizer(hp, finalizerName) {
+		return nil
+	}
+
+	if err := r.cleanupCrossNamespaceDNSEndpoints(ctx, hp, log); err != nil {
+		return err
+	}
+
+	if err := r.cleanupCrossNamespaceCertificates(ctx, hp, log); err != nil {
+		return err
+	}
+
+	if err := r.cleanupCrossNamespaceTLSCertificateDelegations(ctx, hp, log); err != nil {
+		return err
+	}
+
+	controllerutil.RemoveFinalizer(hp, finalizerName)
+	return r.Update(ctx, hp)
+}
+
+func (r *HTTPProxyReconciler) cleanupCrossNamespaceDNSEndpoints(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
+	if !r.CreateDNSEndpoint {
+		return nil
+	}
+
+	deNs, ok := hp.Annotations[dnsNamespaceAnnotation]
+	if !ok || deNs == "" || deNs == hp.Namespace {
+		return nil
+	}
+
+	del := &unstructured.UnstructuredList{}
+	del.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
+	err := r.List(ctx, del, &client.ListOptions{Namespace: deNs})
+	if err != nil {
+		return err
+	}
+
+	for _, de := range del.Items {
+		annotations := de.GetAnnotations()
+		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		if !ok || owner != hp.Namespace+"/"+hp.Name {
+			continue
+		}
+
+		err := r.Delete(ctx, &de)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			log.Error(err, "failed to delete cross-namespace DNSEndpoint", "name", de.GetName(), "namespace", de.GetNamespace())
+			return err
+		}
+		log.Info("deleted cross-namespace DNSEndpoint", "name", de.GetName(), "namespace", de.GetNamespace())
+	}
+	return nil
+}
+
+func (r *HTTPProxyReconciler) cleanupCrossNamespaceCertificates(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
+	if !r.CreateCertificate {
+		return nil
+	}
+
+	issuerNs, ok := hp.Annotations[issuerNamespaceAnnotation]
+	if !ok || issuerNs == "" || issuerNs == hp.Namespace {
+		return nil
+	}
+
+	certList := &unstructured.UnstructuredList{}
+	certList.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
+	err := r.List(ctx, certList, &client.ListOptions{Namespace: issuerNs})
+	if err != nil {
+		return err
+	}
+
+	for _, cert := range certList.Items {
+		annotations := cert.GetAnnotations()
+		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		if !ok || owner != hp.Namespace+"/"+hp.Name {
+			continue
+		}
+
+		err := r.Delete(ctx, &cert)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			log.Error(err, "failed to delete cross-namespace Certificate", "name", cert.GetName(), "namespace", cert.GetNamespace())
+			return err
+		}
+		log.Info("deleted cross-namespace Certificate", "name", cert.GetName(), "namespace", cert.GetNamespace())
+	}
+	return nil
+}
+
+func (r *HTTPProxyReconciler) cleanupCrossNamespaceTLSCertificateDelegations(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
+	if !r.CreateCertificate {
+		return nil
+	}
+
+	issuerNs, ok := hp.Annotations[issuerNamespaceAnnotation]
+	if !ok || issuerNs == "" || issuerNs == hp.Namespace {
+		return nil
+	}
+
+	tcdList := &unstructured.UnstructuredList{}
+	tcdList.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationKind))
+	err := r.List(ctx, tcdList, &client.ListOptions{Namespace: issuerNs})
+	if err != nil {
+		return err
+	}
+
+	for _, tcd := range tcdList.Items {
+		annotations := tcd.GetAnnotations()
+		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		if !ok || owner != hp.Namespace+"/"+hp.Name {
+			continue
+		}
+
+		err := r.Delete(ctx, &tcd)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			log.Error(err, "failed to delete cross-namespace TLSCertificateDelegation", "name", tcd.GetName(), "namespace", tcd.GetNamespace())
+			return err
+		}
+		log.Info("deleted cross-namespace TLSCertificateDelegation", "name", tcd.GetName(), "namespace", tcd.GetNamespace())
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -405,6 +656,9 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
 		b = b.Owns(obj)
+		tcdObj := &unstructured.Unstructured{}
+		tcdObj.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationKind))
+		b = b.Owns(tcdObj)
 	}
 	return b.Complete(r)
 }
@@ -454,4 +708,20 @@ func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]inter
 			"recordTTL":  3600,
 		},
 	}
+}
+
+func getCertificateName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) string {
+	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
+	if !ok || certNamespace == "" || certNamespace == hp.Namespace {
+		return r.Prefix + hp.Name
+	}
+	return r.Prefix + hp.Namespace + "-" + hp.Name
+}
+
+func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) string {
+	deNamespace, ok := hp.Annotations[dnsNamespaceAnnotation]
+	if !ok || deNamespace == "" || deNamespace == hp.Namespace {
+		return r.Prefix + hp.Name
+	}
+	return r.Prefix + hp.Namespace + "-" + hp.Name
 }
