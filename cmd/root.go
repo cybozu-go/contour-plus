@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/cybozu-go/contour-plus/controllers"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -43,8 +46,9 @@ func init() {
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
+	envKeyReplacer := strings.NewReplacer("-", "_")
 	viper.SetEnvPrefix("cp")
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.SetEnvKeyReplacer(envKeyReplacer)
 	viper.AutomaticEnv()
 
 	// Because k8s.io/klog uses Go flag package, we need to add flags for klog to fs.
@@ -53,26 +57,24 @@ func init() {
 	zapOpts.BindFlags(goflags)
 
 	fs.AddGoFlagSet(goflags)
+	rootCmd.Long = rootCmd.Short + "\n\n" + generateEnvDoc(fs, envKeyReplacer)
+}
+
+func generateEnvDoc(fs *pflag.FlagSet, replacer *strings.Replacer) string {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 4, ' ', 0)
+	_, _ = w.Write([]byte("In addition to flags, the following environment variables are read:\n\n"))
+	fs.VisitAll(func(f *pflag.Flag) {
+		envName := "CP_" + strings.ToUpper(replacer.Replace(f.Name))
+		fmt.Fprintf(w, "\t\t%s\t%s\n", envName, f.Usage)
+	})
+	w.Flush()
+	return buf.String()
 }
 
 var rootCmd = &cobra.Command{
 	Use:   "contour-plus",
 	Short: "contour-plus is a custom controller for Contour HTTPProxy",
-	Long: `contour-plus is a custom controller for Contour HTTPProxy.
-	
-In addition to flags, the following environment variables are read:
-
-	CP_METRICS_ADDR             Bind address for the metrics endpoint
-	CP_CRDS                     Comma-separated list of CRD names
-	CP_NAME_PREFIX              Prefix of CRD names to be created
-	CP_SERVICE_NAME             NamespacedName of the Contour LoadBalancer Service
-	CP_DEFAULT_ISSUER_NAME      Issuer name used by default
-	CP_DEFAULT_ISSUER_KIND      Issuer kind used by default
-	CP_DEFAULT_DELEGATED_DOMAIN Delegation domain used by default
-	CP_ALLOW_CUSTOM_DELEGATIONS Allow custom delegated domains via annotations
-	CP_CSR_REVISION_LIMIT       Maximum number of CertificateRequest revisions to keep
-	CP_LEADER_ELECTION          Disable leader election if set to "false"
-	CP_INGRESS_CLASS_NAME       Ingress class name that watched by Contour Plus. If not specified, then all classes are watched`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		return run()
