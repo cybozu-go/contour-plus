@@ -345,5 +345,5 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
 [kubebuilder]: https://github.com/kubernetes-sigs/kubebuilder
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [Contour]: https://github.com/heptio/contour
-[ExternalDNS]: https://github.com/kubernetes-incubator/external-dns
+[ExternalDNS]: https://github.com/kubernetes-sigs/external-dns
 [cert-manager]: https://github.com/jetstack/cert-manager/tree/v0.8.0

@@ -136,10 +136,10 @@ If both of `cert-manager.io/issuer` and `cert-manager.io/cluster-issuer` exist, 
 
 If `cert-manager.io/revision-history-limit` is present, it takes precedence over the value globally specified via the `--csr-revision-limit` command-line flag.
 
-[Contour]: https://github.com/heptio/contour
-[HTTPProxy]: https://github.com/projectcontour/contour/blob/master/site/docs/master/httpproxy.md
-[DNSEndpoint]: https://github.com/kubernetes-incubator/external-dns/blob/master/docs/contributing/crd-source.md
-[external-dns]: https://github.com/kubernetes-incubator/external-dns
-[Certificate]: http://docs.cert-manager.io/en/latest/reference/certificates.html
-[cert-manager]: http://docs.cert-manager.io/en/latest/index.html
-[Issuer]: https://docs.cert-manager.io/en/latest/reference/issuers.html
+[Contour]: https://github.com/projectcontour/contour
+[HTTPProxy]: https://projectcontour.io/docs/main/config/fundamentals/
+[DNSEndpoint]: https://pkg.go.dev/github.com/kubernetes-sigs/external-dns/endpoint#DNSEndpoint
+[external-dns]: https://github.com/kubernetes-sigs/external-dns
+[Certificate]: https://cert-manager.io/docs/usage/certificate/
+[cert-manager]: https://cert-manager.io/docs/
+[Issuer]: https://cert-manager.io/docs/configuration/issuers/
