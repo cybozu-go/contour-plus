@@ -43,6 +43,8 @@ func init() {
 	fs.Uint("csr-revision-limit", 0, "Maximum number of CertificateRequest revisions to keep")
 	fs.String("ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
 	fs.Bool("leader-election", true, "Enable/disable leader election")
+	fs.StringSlice("propagated-annotations", []string{}, "List of annotation keys to be propagated from HTTPProxy to generated resources")
+	fs.StringSlice("propagated-labels", []string{}, "List of label keys to be propagated from HTTPProxy to generated resources")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}

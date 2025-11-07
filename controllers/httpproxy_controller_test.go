@@ -992,6 +992,138 @@ func testHTTPProxyReconcile() {
 		Expect(keySpec["algorithm"]).Should(Equal("RSA"))
 		Expect(keySpec["size"]).Should(BeNil())
 	})
+
+	It("should propagate annotations to the generated resources", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+			CreateDNSEndpoint: true,
+			PropagatedAnnotations: []string{
+				"example.com/propagate-me",
+			},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy with annotations")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations["example.com/propagate-me"] = "yes"
+		hp.Annotations["example.com/do-not-propagate-me"] = "yes"
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtAnnotations := crt.GetAnnotations()
+		Expect(crtAnnotations).ToNot(BeNil())
+		Expect(crtAnnotations["example.com/propagate-me"]).To(Equal("yes"))
+		Expect(crtAnnotations).ToNot(HaveKey("example.com/do-not-propagate-me"))
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec).ToNot(BeNil())
+		secretTemplate := crtSpec["secretTemplate"].(map[string]interface{})
+		Expect(secretTemplate).ToNot(BeNil())
+		secretAnnotations := secretTemplate["annotations"].(map[string]interface{})
+		Expect(secretAnnotations).ToNot(BeNil())
+		Expect(secretAnnotations["example.com/propagate-me"]).To(Equal("yes"))
+		Expect(secretAnnotations).ToNot(HaveKey("example.com/do-not-propagate-me"))
+
+		By("getting DNSEndpoint")
+		de := dnsEndpoint()
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, de)
+		}).Should(Succeed())
+
+		deAnnotations := de.GetAnnotations()
+		Expect(deAnnotations).ToNot(BeNil())
+		Expect(deAnnotations["example.com/propagate-me"]).To(Equal("yes"))
+		Expect(deAnnotations).ToNot(HaveKey("example.com/do-not-propagate-me"))
+	})
+
+	It("should progatate labels to the generated resources", func() {
+		ns := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:        testServiceKey,
+			DefaultIssuerName: "test-issuer",
+			DefaultIssuerKind: IssuerKind,
+			CreateCertificate: true,
+			CreateDNSEndpoint: true,
+			PropagatedLabels: []string{
+				"example.com/propagate-me",
+			},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy with labels")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Labels = map[string]string{
+			"example.com/propagate-me":     "yes",
+			"example.com/do-not-propagate": "yes",
+		}
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("getting Certificate")
+		crt := certificate()
+		objKey := client.ObjectKey{
+			Name:      hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).Should(Succeed())
+
+		crtLabels := crt.GetLabels()
+		Expect(crtLabels).ToNot(BeNil())
+		Expect(crtLabels["example.com/propagate-me"]).To(Equal("yes"))
+		Expect(crtLabels).ToNot(HaveKey("example.com/do-not-propagate"))
+
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		Expect(crtSpec).ToNot(BeNil())
+		secretTemplate := crtSpec["secretTemplate"].(map[string]interface{})
+		Expect(secretTemplate).ToNot(BeNil())
+		secretLabels := secretTemplate["labels"].(map[string]interface{})
+		Expect(secretLabels).ToNot(BeNil())
+		Expect(secretLabels["example.com/propagate-me"]).To(Equal("yes"))
+		Expect(secretLabels).ToNot(HaveKey("example.com/do-not-propagate"))
+
+		By("getting DNSEndpoint")
+		de := dnsEndpoint()
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, de)
+		}).Should(Succeed())
+
+		deLabels := de.GetLabels()
+		Expect(deLabels).ToNot(BeNil())
+		Expect(deLabels["example.com/propagate-me"]).To(Equal("yes"))
+		Expect(deLabels).ToNot(HaveKey("example.com/do-not-propagate"))
+	})
 }
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {

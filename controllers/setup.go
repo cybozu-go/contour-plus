@@ -23,6 +23,8 @@ type ReconcilerOptions struct {
 	CreateDNSEndpoint      bool
 	CreateCertificate      bool
 	IngressClassName       string
+	PropagatedAnnotations  []string
+	PropagatedLabels       []string
 }
 
 // SetupScheme initializes a schema
@@ -49,6 +51,8 @@ func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts Reconcile
 		CreateDNSEndpoint:      opts.CreateDNSEndpoint,
 		CreateCertificate:      opts.CreateCertificate,
 		IngressClassName:       opts.IngressClassName,
+		PropagatedAnnotations:  opts.PropagatedAnnotations,
+		PropagatedLabels:       opts.PropagatedLabels,
 	}
 	err := httpProxyReconciler.SetupWithManager(mgr)
 	if err != nil {
