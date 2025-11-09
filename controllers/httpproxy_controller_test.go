@@ -1325,6 +1325,7 @@ func testHTTPProxyReconcile() {
 		By("creating HTTPProxy with Certificate namespace annotation")
 		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
 		hp := newDummyHTTPProxy(hpKey)
+		hp.Spec.VirtualHost.TLS = nil
 		hp.Annotations[issuerNamespaceAnnotation] = certNs
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 

@@ -282,9 +282,9 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return nil
 	case vh.Fqdn == "":
 		return nil
-	case vh.TLS == nil:
-		return nil
-	case vh.TLS.SecretName == "":
+	}
+	secretName := getCertificateSecretName(r, hp)
+	if secretName == "" {
 		return nil
 	}
 
@@ -306,7 +306,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 	certificateSpec := map[string]interface{}{
 		"dnsNames":   []string{vh.Fqdn},
-		"secretName": vh.TLS.SecretName,
+		"secretName": secretName,
 		"commonName": vh.Fqdn,
 		"issuerRef": map[string]interface{}{
 			"kind": issuerKind,
@@ -463,6 +463,9 @@ func (r *HTTPProxyReconciler) reconcileSecretName(ctx context.Context, hp *proje
 		return nil
 	}
 	certificateName := getCertificateName(r, hp)
+	if hp.Spec.VirtualHost.TLS == nil {
+		hp.Spec.VirtualHost.TLS = &projectcontourv1.TLS{}
+	}
 	hp.Spec.VirtualHost.TLS.SecretName = certNamespace + "/" + certificateName
 
 	err := r.Patch(ctx, hp, client.Merge)
@@ -714,6 +717,17 @@ func getCertificateName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) 
 	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
 	if !ok || certNamespace == "" || certNamespace == hp.Namespace {
 		return r.Prefix + hp.Name
+	}
+	return r.Prefix + hp.Namespace + "-" + hp.Name
+}
+
+func getCertificateSecretName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) string {
+	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
+	if !ok || certNamespace == "" || certNamespace == hp.Namespace {
+		if hp.Spec.VirtualHost.TLS == nil {
+			return ""
+		}
+		return hp.Spec.VirtualHost.TLS.SecretName
 	}
 	return r.Prefix + hp.Namespace + "-" + hp.Name
 }
