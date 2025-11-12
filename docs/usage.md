@@ -134,6 +134,8 @@ contour-plus interprets following annotations for HTTPProxy.
 - `cert-manager.io/private-key-size` - If `cert-manager.io/private-key-algorithm` is set, this annotation allows the specification of the size of the private key.
 - `kubernetes.io/tls-acme: "true"` - With this, contour-plus generates Certificate automatically from HTTPProxy.
 - `contour-plus.cybozu.com/delegated-domain: "acme.example.com"` - With this, contour-plus generates a [DNSEndpoint][] to create a CNAME record pointing to the delegation domain for use when performing DNS-01 DCV during the Certificate creation.
+- `contour-plus.cybozu.com/dns-namespace` - The namespace in which contour-plus will place a DNSEndpoint.
+- `contour-plus.cybozu.com/issuer-namespace` - The namespace in which contour-plus will place a Certificate.
 
 If both of `cert-manager.io/issuer` and `cert-manager.io/cluster-issuer` exist, `cluster-issuer` takes precedence.
 

@@ -49,6 +49,8 @@ rules:
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - projectcontour.io
@@ -56,3 +58,13 @@ rules:
   - httpproxies/status
   verbs:
   - get
+- apiGroups:
+  - projectcontour.io.resources=tlscertificatedelegations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
