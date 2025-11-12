@@ -15,5 +15,4 @@ const (
 	usageDigitalSignature = "digital signature"
 	usageKeyEncipherment  = "key encipherment"
 	usageServerAuth       = "server auth"
-	usageClientAuth       = "client auth"
 )
