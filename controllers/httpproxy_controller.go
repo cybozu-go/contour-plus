@@ -297,7 +297,6 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
-			usageClientAuth,
 		},
 	}
 
