@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -37,21 +38,22 @@ const (
 // HTTPProxyReconciler reconciles a HTTPProxy object
 type HTTPProxyReconciler struct {
 	client.Client
-	Log                    logr.Logger
-	Scheme                 *runtime.Scheme
-	ServiceKey             client.ObjectKey
-	IssuerKey              client.ObjectKey
-	Prefix                 string
-	DefaultIssuerName      string
-	DefaultIssuerKind      string
-	DefaultDelegatedDomain string
-	AllowCustomDelegations bool
-	CSRRevisionLimit       uint
-	CreateDNSEndpoint      bool
-	CreateCertificate      bool
-	IngressClassName       string
-	PropagatedAnnotations  []string
-	PropagatedLabels       []string
+	Log                     logr.Logger
+	Scheme                  *runtime.Scheme
+	ServiceKey              client.ObjectKey
+	IssuerKey               client.ObjectKey
+	Prefix                  string
+	DefaultIssuerName       string
+	DefaultIssuerKind       string
+	DefaultDelegatedDomain  string
+	AllowedDelegatedDomains []string
+	AllowCustomDelegations  bool
+	CSRRevisionLimit        uint
+	CreateDNSEndpoint       bool
+	CreateCertificate       bool
+	IngressClassName        string
+	PropagatedAnnotations   []string
+	PropagatedLabels        []string
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch
@@ -205,8 +207,9 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 	}
 
 	delegatedDomain := r.DefaultDelegatedDomain
-	if hp.Annotations[delegatedDomainAnnotation] != "" && r.AllowCustomDelegations {
-		delegatedDomain = hp.Annotations[delegatedDomainAnnotation]
+	userDelegatedDomain := hp.Annotations[delegatedDomainAnnotation]
+	if userDelegatedDomain != "" && r.AllowCustomDelegations && slices.Contains(r.AllowedDelegatedDomains, userDelegatedDomain) {
+		delegatedDomain = userDelegatedDomain
 	}
 
 	if delegatedDomain == "" {

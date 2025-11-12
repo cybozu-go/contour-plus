@@ -71,6 +71,10 @@ func run() error {
 	opts.PropagatedAnnotations = viper.GetStringSlice("propagated-annotations")
 	opts.PropagatedLabels = viper.GetStringSlice("propagated-labels")
 
+	opts.DefaultDelegatedDomain = viper.GetString("default-delegated-domain")
+	opts.AllowCustomDelegations = viper.GetBool("allow-custom-delegations")
+	opts.AllowedDelegatedDomains = viper.GetStringSlice("allowed-delegated-domains")
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{

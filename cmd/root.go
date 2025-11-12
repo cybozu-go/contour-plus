@@ -39,6 +39,7 @@ func init() {
 	fs.String("default-issuer-name", "", "Issuer name used by default")
 	fs.String("default-issuer-kind", controllers.ClusterIssuerKind, "Issuer kind used by default")
 	fs.String("default-delegated-domain", "", "Delegated domain used by default")
+	fs.StringSlice("allowed-delegated-domains", []string{}, "List of allowed delegated domains")
 	fs.Bool("allow-custom-delegations", false, "Allow custom delegated domains via annotations")
 	fs.Uint("csr-revision-limit", 0, "Maximum number of CertificateRequest revisions to keep")
 	fs.String("ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
