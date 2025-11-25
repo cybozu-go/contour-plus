@@ -26,6 +26,8 @@ type ReconcilerOptions struct {
 	IngressClassName        string
 	PropagatedAnnotations   []string
 	PropagatedLabels        []string
+	AllowedDNSNamespaces    []string
+	AllowedIssuerNamespaces []string
 }
 
 // SetupScheme initializes a schema

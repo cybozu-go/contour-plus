@@ -52,6 +52,12 @@ func tlsCertificateDelegation() *unstructured.Unstructured {
 	return obj
 }
 
+func tlsCertificateDelegationList() *unstructured.UnstructuredList {
+	obj := &unstructured.UnstructuredList{}
+	obj.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationListKind))
+	return obj
+}
+
 func testHTTPProxyReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
 		ns := testNamespacePrefix + randomString(10)
@@ -1203,8 +1209,9 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
-			ServiceKey:        testServiceKey,
-			CreateDNSEndpoint: true,
+			ServiceKey:           testServiceKey,
+			CreateDNSEndpoint:    true,
+			AllowedDNSNamespaces: []string{deNs},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1254,6 +1261,7 @@ func testHTTPProxyReconcile() {
 			ServiceKey:             testServiceKey,
 			CreateDNSEndpoint:      true,
 			DefaultDelegatedDomain: testDelegationName,
+			AllowedDNSNamespaces:   []string{deNs},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1313,10 +1321,11 @@ func testHTTPProxyReconcile() {
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
-			ServiceKey:        testServiceKey,
-			CreateCertificate: true,
-			DefaultIssuerKind: IssuerKind,
-			DefaultIssuerName: "test-issuer",
+			ServiceKey:              testServiceKey,
+			CreateCertificate:       true,
+			DefaultIssuerKind:       IssuerKind,
+			DefaultIssuerName:       "test-issuer",
+			AllowedIssuerNamespaces: []string{certNs},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1373,6 +1382,82 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, tcd)
 		}, 5*time.Second).ShouldNot(Succeed())
+	})
+
+	It("should not create DNSEndpoint if the namespace is not allowed", func() {
+		ns := testNamespacePrefix + randomString(10)
+		deNs := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: deNs},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:           testServiceKey,
+			CreateDNSEndpoint:    true,
+			AllowedDNSNamespaces: []string{},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy with DNSEndpoint namespace annotation")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Annotations[dnsNamespaceAnnotation] = deNs
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("confirming that DNSEndpoint does not exist")
+		time.Sleep(time.Second)
+		del := dnsEndpointList()
+		Expect(k8sClient.List(context.Background(), del, client.InNamespace(deNs))).ShouldNot(HaveOccurred())
+		Expect(del.Items).Should(BeEmpty())
+	})
+
+	It("should not create Certificate if the issuer namespace is not allowed", func() {
+		ns := testNamespacePrefix + randomString(10)
+		certNs := testNamespacePrefix + randomString(10)
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: ns},
+		})).ShouldNot(HaveOccurred())
+		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{Name: certNs},
+		})).ShouldNot(HaveOccurred())
+
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:              testServiceKey,
+			CreateCertificate:       true,
+			DefaultIssuerKind:       IssuerKind,
+			DefaultIssuerName:       "test-issuer",
+			AllowedIssuerNamespaces: []string{},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy with Certificate namespace annotation")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Spec.VirtualHost.TLS = nil
+		hp.Annotations[issuerNamespaceAnnotation] = certNs
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+
+		By("confirming that Certificate does not exist")
+		time.Sleep(time.Second)
+		crtList := certificateList()
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(certNs))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+
+		By("confirming that TLSCertificateDelegation does not exist")
+		tcdList := tlsCertificateDelegationList()
+		Expect(k8sClient.List(context.Background(), tcdList, client.InNamespace(certNs))).ShouldNot(HaveOccurred())
+		Expect(tcdList.Items).Should(BeEmpty())
 	})
 }
 
@@ -1635,7 +1720,9 @@ func TestGetCertificateName(t *testing.T) {
 		{
 			name: "Default name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				Prefix: "prefix-",
+				ReconcilerOptions: ReconcilerOptions{
+					Prefix: "prefix-",
+				},
 			},
 			proxy: &projectcontourv1.HTTPProxy{
 				ObjectMeta: v1.ObjectMeta{
@@ -1662,7 +1749,9 @@ func TestGetCertificateName(t *testing.T) {
 		{
 			name: "Namespaced name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				Prefix: "prefix-",
+				ReconcilerOptions: ReconcilerOptions{
+					Prefix: "prefix-",
+				},
 			},
 			proxy: &projectcontourv1.HTTPProxy{
 				ObjectMeta: v1.ObjectMeta{
@@ -1708,7 +1797,9 @@ func TestGetDNSEndpointName(t *testing.T) {
 		{
 			name: "Default name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				Prefix: "prefix-",
+				ReconcilerOptions: ReconcilerOptions{
+					Prefix: "prefix-",
+				},
 			},
 			proxy: &projectcontourv1.HTTPProxy{
 				ObjectMeta: v1.ObjectMeta{
@@ -1735,7 +1826,9 @@ func TestGetDNSEndpointName(t *testing.T) {
 		{
 			name: "Namespaced name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				Prefix: "prefix-",
+				ReconcilerOptions: ReconcilerOptions{
+					Prefix: "prefix-",
+				},
 			},
 			proxy: &projectcontourv1.HTTPProxy{
 				ObjectMeta: v1.ObjectMeta{

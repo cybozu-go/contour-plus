@@ -27,6 +27,8 @@ If both is specified, command-line flags take precedence.
 | `ingress-class-name`  | `CP_INGRESS_CLASS_NAME`  | ""                        | Ingress class name that watched by Contour Plus. If not specified, then all classes are watched    |
 | `propagated-annotations`  | `CP_PROPAGATED_ANNOTATIONS`  | ""                | Comma-separated list of annotation keys that should be propagated to the resources contour-plus generates |
 | `propagated-labels     `  | `CP_PROPAGATED_LABELS`       | ""                | Comma-separated list of label keys that should be propagated to the resources contour-plus generates      |
+| `allowed-dns-namespaces`    | `CP_ALLOWED_DNS_NAMESPACES`    | ""                | List of namespaces where DNSEndpoint resources can be created. If empty, no namespaces are allowed |
+| `allowed-issuer-namespaces` | `CP_ALLOWED_ISSUER_NAMESPACES` | ""                | List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
@@ -41,6 +43,8 @@ By specifying `service-name`, contour-plus can identify the global IP address fo
 
 If `ingress-class-name` is specified, contour-plus watches only HTTPProxy annotated by `kubernetes.io/ingress.class=<ingress-class-name>`, `projectcontour.io/ingress.class=<ingress-class-name>` or with the `HTTPProxy.Spec.IngressClassName` field that matches the given `ingress-class-name`.
 **If `kubernetes.io/ingress.class=<ingress-class-name>` , `projectcontour.io/ingress.class=<ingress-class-name>` and `HTTPProxy.Spec.IngressClassName` are all specified and those values are different from the given `ingress-class-name`, then contour-plus doesn't watch the resource.**
+
+It is possible to specify different namespaces to install the `DNSEndpoint` and/or `Certificate` resources via annotations. That behavior is constrained via the `allowed-dns-namespaces` and `allowed-issuer-namespaces` flags.
 
 How it works
 ------------

@@ -75,6 +75,9 @@ func run() error {
 	opts.AllowCustomDelegations = viper.GetBool("allow-custom-delegations")
 	opts.AllowedDelegatedDomains = viper.GetStringSlice("allowed-delegated-domains")
 
+	opts.AllowedDNSNamespaces = viper.GetStringSlice("allowed-dns-namespaces")
+	opts.AllowedIssuerNamespaces = viper.GetStringSlice("allowed-certificate-namespaces")
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{

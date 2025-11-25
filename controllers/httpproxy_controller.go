@@ -185,7 +185,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 
 	dnsEndpointName := getDNSEndpointName(r, hp)
 	targetNamespace := hp.Namespace
-	if ns, ok := hp.Annotations[dnsNamespaceAnnotation]; ok && ns != "" {
+	if ns, ok := hp.Annotations[dnsNamespaceAnnotation]; ok && slices.Contains(r.AllowedDNSNamespaces, ns) {
 		targetNamespace = ns
 	}
 
@@ -239,7 +239,7 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 
 	dnsEndpointName := getDNSEndpointName(r, hp)
 	targetNamespace := hp.Namespace
-	if ns, ok := hp.Annotations[dnsNamespaceAnnotation]; ok && ns != "" {
+	if ns, ok := hp.Annotations[dnsNamespaceAnnotation]; ok && slices.Contains(r.AllowedDNSNamespaces, ns) {
 		targetNamespace = ns
 	}
 
@@ -355,7 +355,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 	certificateName := getCertificateName(r, hp)
 	targetNamespace := hp.Namespace
-	if ns, ok := hp.Annotations[issuerNamespaceAnnotation]; ok && ns != "" {
+	if ns, ok := hp.Annotations[issuerNamespaceAnnotation]; ok && slices.Contains(r.AllowedIssuerNamespaces, ns) {
 		targetNamespace = ns
 	}
 
@@ -406,7 +406,7 @@ func (r *HTTPProxyReconciler) generateObjectLabels(hp *projectcontourv1.HTTPProx
 
 func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
 	namespace, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || namespace == "" || namespace == hp.Namespace {
+	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, namespace) {
 		return nil
 	}
 	certificateName := getCertificateName(r, hp)
@@ -459,7 +459,7 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 
 func (r *HTTPProxyReconciler) reconcileSecretName(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
 	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || certNamespace == "" || certNamespace == hp.Namespace {
+	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, certNamespace) {
 		return nil
 	}
 	certificateName := getCertificateName(r, hp)
@@ -524,7 +524,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceDNSEndpoints(ctx context.Cont
 	}
 
 	deNs, ok := hp.Annotations[dnsNamespaceAnnotation]
-	if !ok || deNs == "" || deNs == hp.Namespace {
+	if !ok || !slices.Contains(r.AllowedDNSNamespaces, deNs) {
 		return nil
 	}
 
@@ -558,7 +558,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceCertificates(ctx context.Cont
 	}
 
 	issuerNs, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || issuerNs == "" || issuerNs == hp.Namespace {
+	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, issuerNs) {
 		return nil
 	}
 
@@ -592,12 +592,12 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceTLSCertificateDelegations(ctx
 	}
 
 	issuerNs, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || issuerNs == "" || issuerNs == hp.Namespace {
+	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, issuerNs) {
 		return nil
 	}
 
 	tcdList := &unstructured.UnstructuredList{}
-	tcdList.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationKind))
+	tcdList.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationListKind))
 	err := r.List(ctx, tcdList, &client.ListOptions{Namespace: issuerNs})
 	if err != nil {
 		return err
