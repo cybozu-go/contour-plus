@@ -39,9 +39,8 @@ const (
 type HTTPProxyReconciler struct {
 	client.Client
 	ReconcilerOptions
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	IssuerKey client.ObjectKey
+	Log    logr.Logger
+	Scheme *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch
