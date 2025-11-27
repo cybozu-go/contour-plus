@@ -1368,7 +1368,9 @@ func TestIsClassNameMatched(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &HTTPProxyReconciler{
-				IngressClassName: tt.ingressClassName,
+				ReconcilerOptions: ReconcilerOptions{
+					IngressClassName: tt.ingressClassName,
+				},
 			}
 			if got := r.isClassNameMatched(tt.hp); got != tt.want {
 				t.Errorf("HTTPProxyReconciler.isClassNameMatched() = %v, want %v", got, tt.want)

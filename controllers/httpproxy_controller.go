@@ -38,22 +38,9 @@ const (
 // HTTPProxyReconciler reconciles a HTTPProxy object
 type HTTPProxyReconciler struct {
 	client.Client
-	Log                     logr.Logger
-	Scheme                  *runtime.Scheme
-	ServiceKey              client.ObjectKey
-	IssuerKey               client.ObjectKey
-	Prefix                  string
-	DefaultIssuerName       string
-	DefaultIssuerKind       string
-	DefaultDelegatedDomain  string
-	AllowedDelegatedDomains []string
-	AllowCustomDelegations  bool
-	CSRRevisionLimit        uint
-	CreateDNSEndpoint       bool
-	CreateCertificate       bool
-	IngressClassName        string
-	PropagatedAnnotations   []string
-	PropagatedLabels        []string
+	ReconcilerOptions
+	Log    logr.Logger
+	Scheme *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch
