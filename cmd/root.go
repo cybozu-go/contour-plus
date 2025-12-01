@@ -8,12 +8,13 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/cybozu-go/contour-plus/controllers"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/cybozu-go/contour-plus/controllers"
 	// +kubebuilder:scaffold:imports
 )
 

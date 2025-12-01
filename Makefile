@@ -12,6 +12,7 @@ CONTROLLER_GEN := $(BIN_DIR)/controller-gen
 SETUP_ENVTEST := $(BIN_DIR)/setup-envtest
 STATICCHECK := $(BIN_DIR)/staticcheck
 CUSTOMCHECKER := $(BIN_DIR)/custom-checker
+GOIMPORTS := $(BIN_DIR)/goimports
 GH := $(BIN_DIR)/gh
 YQ := $(BIN_DIR)/yq
 
@@ -40,6 +41,7 @@ download-tools: $(GH) $(YQ)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@v$(KUSTOMIZE_VERSION)
 	GOBIN=$(BIN_DIR) go install github.com/cybozu-go/golang-custom-analyzer/cmd/custom-checker@latest
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
+	GOBIN=$(BIN_DIR) go install golang.org/x/tools/cmd/goimports@latest
 
 .PHONY: download-crds
 download-crds:
@@ -144,6 +146,7 @@ list-actions: ## List used GitHub Actions
 check-generate: ## Check for commit omissions of auto-generated files
 	$(MAKE) manifests
 	$(MAKE) generate
+	$(GOIMPORTS) -w -local github.com/cybozu-go/contour-plus .
 	go mod tidy
 	git diff --exit-code --name-only
 
