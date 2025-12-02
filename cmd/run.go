@@ -5,13 +5,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cybozu-go/contour-plus/controllers"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/cybozu-go/contour-plus/controllers"
 )
 
 var (
