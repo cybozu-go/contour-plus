@@ -47,6 +47,8 @@ func init() {
 	fs.Bool("leader-election", true, "Enable/disable leader election")
 	fs.StringSlice("propagated-annotations", []string{}, "List of annotation keys to be propagated from HTTPProxy to generated resources")
 	fs.StringSlice("propagated-labels", []string{}, "List of label keys to be propagated from HTTPProxy to generated resources")
+	fs.StringSlice("allowed-dns-namespaces", []string{}, "List of namespaces where DNSEndpoint resources can be created. If empty, no namespaces are allowed")
+	fs.StringSlice("allowed-issuer-namespaces", []string{}, "List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
