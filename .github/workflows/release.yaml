@@ -8,8 +8,8 @@ jobs:
     name: Push container image
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - run: make setup
@@ -36,7 +36,7 @@ jobs:
     needs: image
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
