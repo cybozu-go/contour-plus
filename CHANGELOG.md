@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2025-12-08
+### Changed
+- Add support for cert-manager key algorithm related annotations (#118)
+- feat: add annotation and label propagation to generated resources (#119)
+- add whitelisting of allowed custom delegation domains (#120)
+- remove id-kp-clientAuth EKU from certificate spec (#121)
+- docs: update dead/outdated links (#122)
+- feat: support the creation of child resources in isolated namespaces (#123)
+- refactor: avoid repetition by auto-generating description (#124)
+- Embed ReconcilerOptions (#125)
+- use goimports (#126)
+- chore: update dependencies for 2025/11 regular update (#127)
+
 ## [0.14.3] - 2025-07-22
 ### Changed
 - regular update 202507 (#116)
@@ -304,7 +317,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.14.3...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.15.0...HEAD
+[0.14.3]: https://github.com/cybozu-go/contour-plus/compare/v0.14.3...v0.15.0
 [0.14.3]: https://github.com/cybozu-go/contour-plus/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/cybozu-go/contour-plus/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/cybozu-go/contour-plus/compare/v0.14.0...v0.14.1
