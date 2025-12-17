@@ -330,13 +330,18 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		}
 		certificateSpec["revisionHistoryLimit"] = limit
 	}
+	secretTemplate := make(map[string]interface{})
 	annotations := r.generateObjectAnnotations(hp)
-	labels := r.generateObjectLabels(hp)
-	secretTemplate := map[string]interface{}{
-		"annotations": annotations,
-		"labels":      labels,
+	if annotations != nil {
+		secretTemplate["annotations"] = annotations
 	}
-	certificateSpec["secretTemplate"] = secretTemplate
+	labels := r.generateObjectLabels(hp)
+	if labels != nil {
+		secretTemplate["labels"] = labels
+	}
+	if len(secretTemplate) > 0 {
+		certificateSpec["secretTemplate"] = secretTemplate
+	}
 
 	if algorithm, ok := hp.Annotations[privateKeyAlgorithmAnnotation]; ok {
 		privateKeySpec := map[string]interface{}{
@@ -384,6 +389,9 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	return nil
 }
 
+// generateObjectAnnotations creates a map that contains annotations that should be propagated to child resources from HTTPProxy.
+// The map can be used to set annotations on unstructured.Unstructured.
+// Returns uninitizalied map (nil) when the map is empty to avoid SSA patching with empty map.
 func (r *HTTPProxyReconciler) generateObjectAnnotations(hp *projectcontourv1.HTTPProxy) map[string]string {
 	annotations := map[string]string{}
 	for _, key := range r.PropagatedAnnotations {
@@ -391,15 +399,24 @@ func (r *HTTPProxyReconciler) generateObjectAnnotations(hp *projectcontourv1.HTT
 			annotations[key] = annotation
 		}
 	}
+	if len(annotations) == 0 {
+		return nil
+	}
 	return annotations
 }
 
+// generateObjectLabels creates a map that contains labels that should be propagated to child resources from HTTPProxy.
+// The map can be used to set labels on unstructured.Unstructured.
+// Returns uninitizalied map (nil) when the map is empty to avoid SSA patching with empty map.
 func (r *HTTPProxyReconciler) generateObjectLabels(hp *projectcontourv1.HTTPProxy) map[string]string {
 	labels := map[string]string{}
 	for _, key := range r.PropagatedLabels {
 		if label, ok := hp.Labels[key]; ok {
 			labels[key] = label
 		}
+	}
+	if len(labels) == 0 {
+		return nil
 	}
 	return labels
 }
