@@ -24,9 +24,8 @@ type Applier[T client.Object] interface {
 
 var _ Applier[*cmv1.Certificate] = &CertificateApplier{}
 
-// CertificateApplier implements ApplyWorker[cmv1.Certificate] without a workqueue.
+// CertificateApplier implements Applier[cmv1.Certificate] without a workqueue.
 // Any objects applied with Apply method will be applied without going through a queue.
-// Start method returns error unconditionally, as no worker should be started.
 type CertificateApplier struct {
 	client client.Client
 }
@@ -41,6 +40,8 @@ func NewCertificateApplier(client client.Client) *CertificateApplier {
 	}
 }
 
+// ApplyWorker is Applier with Start method so that it can be used directly by manager.Manager.Add
+// Imlement ApplyWorker if the Applier requires a worker that runs in a background and start it via controller manager.
 type ApplyWorker[T client.Object] interface {
 	Applier[T]
 	// manager.Runnable defines signature for Start
@@ -49,6 +50,7 @@ type ApplyWorker[T client.Object] interface {
 
 var _ ApplyWorker[*cmv1.Certificate] = &CertificateApplyWorker{}
 
+// CertificateApplyWorker implements Applier and ApplyWorker.
 type CertificateApplyWorker struct {
 	mu sync.Mutex
 	ReconcilerOptions
