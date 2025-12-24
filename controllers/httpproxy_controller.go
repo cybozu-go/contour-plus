@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	"github.com/go-logr/logr"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -50,6 +52,8 @@ type HTTPProxyReconciler struct {
 	ReconcilerOptions
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	CertApplier Applier[*cmv1.Certificate]
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch;update;patch
@@ -308,23 +312,23 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return nil
 	}
 
-	certificateSpec := map[string]interface{}{
-		"dnsNames":   []string{vh.Fqdn},
-		"secretName": secretName,
-		"commonName": vh.Fqdn,
-		"issuerRef": map[string]interface{}{
-			"kind": issuerKind,
-			"name": issuerName,
+	certificateSpec := cmv1.CertificateSpec{
+		DNSNames:   []string{vh.Fqdn},
+		SecretName: secretName,
+		CommonName: vh.Fqdn,
+		IssuerRef: cmmeta.IssuerReference{
+			Kind: issuerKind,
+			Name: issuerName,
 		},
-		"usages": []string{
-			usageDigitalSignature,
-			usageKeyEncipherment,
-			usageServerAuth,
+		Usages: []cmv1.KeyUsage{
+			cmv1.UsageDigitalSignature,
+			cmv1.UsageKeyEncipherment,
+			cmv1.UsageServerAuth,
 		},
 	}
 
 	if r.CSRRevisionLimit > 0 {
-		certificateSpec["revisionHistoryLimit"] = r.CSRRevisionLimit
+		certificateSpec.RevisionHistoryLimit = ptr.To(int32(r.CSRRevisionLimit))
 	}
 	if value, ok := hp.Annotations[revisionHistoryLimitAnnotation]; ok {
 		limit, err := strconv.ParseUint(value, 10, 32)
@@ -332,34 +336,34 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 			log.Error(err, "invalid revisionHistoryLimit", "value", value)
 			return nil
 		}
-		certificateSpec["revisionHistoryLimit"] = limit
+		certificateSpec.RevisionHistoryLimit = ptr.To(int32(limit))
 	}
-	secretTemplate := make(map[string]interface{})
+	secretTemplate := &cmv1.CertificateSecretTemplate{}
 	annotations := r.generateObjectAnnotations(hp)
 	if annotations != nil {
-		secretTemplate["annotations"] = annotations
+		secretTemplate.Annotations = annotations
 	}
 	labels := r.generateObjectLabels(hp)
 	if labels != nil {
-		secretTemplate["labels"] = labels
+		secretTemplate.Labels = labels
 	}
-	if len(secretTemplate) > 0 {
-		certificateSpec["secretTemplate"] = secretTemplate
+	if secretTemplate.Annotations != nil || secretTemplate.Labels != nil {
+		certificateSpec.SecretTemplate = secretTemplate
 	}
 
 	if algorithm, ok := hp.Annotations[privateKeyAlgorithmAnnotation]; ok {
-		privateKeySpec := map[string]interface{}{
-			"algorithm": algorithm,
+		privateKeySpec := &cmv1.CertificatePrivateKey{
+			Algorithm: cmv1.PrivateKeyAlgorithm(algorithm),
 		}
 		if value, ok := hp.Annotations[privateKeySizeAnnotation]; ok {
 			size, err := strconv.ParseUint(value, 10, 32)
 			if err == nil {
-				privateKeySpec["size"] = size
+				privateKeySpec.Size = int(size)
 			} else {
 				log.Error(err, "invalid privateKey size", "value", value)
 			}
 		}
-		certificateSpec["privateKey"] = privateKeySpec
+		certificateSpec.PrivateKey = privateKeySpec
 	}
 
 	certificateName := getCertificateName(r, hp)
@@ -368,11 +372,11 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		targetNamespace = ns
 	}
 
-	obj := &unstructured.Unstructured{}
+	obj := &cmv1.Certificate{}
 	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
 	obj.SetName(certificateName)
 	obj.SetNamespace(targetNamespace)
-	obj.UnstructuredContent()["spec"] = certificateSpec
+	obj.Spec = certificateSpec
 
 	obj.SetAnnotations(annotations)
 	obj.SetLabels(labels)
@@ -381,16 +385,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	if err != nil {
 		return err
 	}
-	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        ptr.To(true),
-		FieldManager: "contour-plus",
-	})
-	if err != nil {
-		return err
-	}
-
-	log.Info("Certificate successfully reconciled")
-	return nil
+	return r.CertApplier.Apply(ctx, obj)
 }
 
 // generateObjectAnnotations creates a map that contains annotations that should be propagated to child resources from HTTPProxy.
@@ -498,7 +493,7 @@ func (r *HTTPProxyReconciler) reconcileSecretName(ctx context.Context, hp *proje
 	return nil
 }
 
-func (r *HTTPProxyReconciler) trackResourceForCleanup(hp *projectcontourv1.HTTPProxy, obj *unstructured.Unstructured) error {
+func (r *HTTPProxyReconciler) trackResourceForCleanup(hp *projectcontourv1.HTTPProxy, obj client.Object) error {
 	if obj.GetNamespace() == hp.Namespace {
 		return ctrl.SetControllerReference(hp, obj, r.Scheme)
 	}
@@ -643,6 +638,12 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceTLSCertificateDelegations(ctx
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// start worker if CertApplier requires one
+	if certWorker, ok := r.CertApplier.(ApplyWorker[*cmv1.Certificate]); ok {
+		if err := mgr.Add(certWorker); err != nil {
+			return err
+		}
+	}
 	listHPs := func(ctx context.Context, a client.Object) []reconcile.Request {
 		if a.GetNamespace() != r.ServiceKey.Namespace {
 			return nil
@@ -726,9 +727,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		b = b.Owns(obj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
 	}
 	if r.CreateCertificate {
-		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-		b = b.Owns(obj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
+		b = b.Owns(&cmv1.Certificate{}, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
 		tcdObj := &unstructured.Unstructured{}
 		tcdObj.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationKind))
 		b = b.Owns(tcdObj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))

@@ -49,6 +49,7 @@ func init() {
 	fs.StringSlice("propagated-labels", []string{}, "List of label keys to be propagated from HTTPProxy to generated resources")
 	fs.StringSlice("allowed-dns-namespaces", []string{}, "List of namespaces where DNSEndpoint resources can be created. If empty, no namespaces are allowed")
 	fs.StringSlice("allowed-issuer-namespaces", []string{}, "List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed")
+	fs.Float64("certificate-apply-limit", 0, "Maximum number of certificate apply operations allowed per second (0 disables rate limiting)")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}

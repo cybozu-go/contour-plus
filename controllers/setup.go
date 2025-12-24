@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	cmapiv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -28,29 +29,46 @@ type ReconcilerOptions struct {
 	PropagatedLabels        []string
 	AllowedDNSNamespaces    []string
 	AllowedIssuerNamespaces []string
+	CertificateApplyLimit   float64
 }
 
 // SetupScheme initializes a schema
 func SetupScheme(scm *runtime.Scheme) {
 	utilruntime.Must(clientgoscheme.AddToScheme(scm))
 	utilruntime.Must(projectcontourv1.AddToScheme(scm))
+	utilruntime.Must(cmapiv1.AddToScheme(scm))
 
 	// +kubebuilder:scaffold:scheme
 }
 
 // SetupReconciler initializes reconcilers
 func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts ReconcilerOptions) error {
+	var certWorker Applier[*cmapiv1.Certificate]
+	certWorker = NewCertificateApplier(mgr.GetClient())
+	if opts.CertificateApplyLimit > 0 {
+		certWorker = NewCertificateApplyWorker(mgr.GetClient(), opts)
+	}
+	_, err := SetupAndGetReconciler(mgr, scheme, opts, certWorker)
+
+	// +kubebuilder:scaffold:builder
+	return err
+}
+
+// SetupAndGetReconciler initializes reconcilers and return the reconciler struct
+// c
+func SetupAndGetReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts ReconcilerOptions, certWorker Applier[*cmapiv1.Certificate]) (*HTTPProxyReconciler, error) {
 	httpProxyReconciler := &HTTPProxyReconciler{
 		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("HTTPProxy"),
 		Scheme:            scheme,
 		ReconcilerOptions: opts,
-	}
-	err := httpProxyReconciler.SetupWithManager(mgr)
-	if err != nil {
-		return err
+		CertApplier:       certWorker,
 	}
 
-	// +kubebuilder:scaffold:builder
-	return nil
+	err := httpProxyReconciler.SetupWithManager(mgr)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpProxyReconciler, nil
 }
