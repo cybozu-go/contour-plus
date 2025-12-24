@@ -60,11 +60,6 @@ func tlsCertificateDelegationList() *unstructured.UnstructuredList {
 
 func testHTTPProxyReconcile() {
 	It("should create DNSEndpoint and Certificate", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		prefix := "test-"
@@ -128,11 +123,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should not create DNSEndpoint and Certificate if "contour-plus.cybozu.com/exclude"" is "true"`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		prefix := "test-"
@@ -166,11 +156,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create delegation DNSEndpoint if requested", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		prefix := "test-"
@@ -224,11 +209,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create delegation DNSEndpoint if requested via annotation", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		prefix := "test-"
@@ -287,11 +267,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should ignore custom delegated domain if not permitted", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		prefix := "test-"
@@ -349,11 +324,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should ignore custom delegated domain if not whitelisted", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		prefix := "test-"
@@ -410,11 +380,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create Certificate with specified IssuerKind", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("setup manager with ClusterIssuer")
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -446,11 +411,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should create Certificate with Issuer specified in "cert-manager.io/issuer"`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("setup manager")
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -485,11 +445,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should create Certificate with Issuer specified in "cert-manager.io/cluster-issuer"`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("setup manager")
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -524,11 +479,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create DNSEndpoint, but should not create Certificate, if `createCertificate` is false", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("disabling the feature to create Certificate")
 		scm, mgr := setupManager()
 
@@ -571,11 +521,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create Certificate, but should not create DNSEndpoint, if `CreateDNSEndpoint` is false", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("disabling the feature to create DNSEndpoint")
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -610,11 +555,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should not create Certificate, if "kubernetes.io/tls-acme" is not "true"`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("disabling the feature to create Certificate")
 		scm, mgr := setupManager()
 
@@ -658,11 +598,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create Certificate, if `DefaultIssuerName` is empty but 'issuer-name' annotation is not empty", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("setup reconciler with empty DefaultIssuerName")
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -692,11 +627,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should not create Certificate, if `DefaultIssuerName` and 'issuer-name' annotation are empty", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		By("setup reconciler with empty DefaultIssuerName")
 		scm, mgr := setupManager()
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -720,11 +650,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should not create DNSEndpoint and Certificate if the class name is not the target`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -772,11 +697,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should create Certificate if the class name equals to the target`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -805,11 +725,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should create Certificate with revisionHistoryLimit set if specified`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -850,11 +765,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should create Certificate with revisionHistoryLimit set if cert-manager.io/revision-history-limit is specified`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -896,11 +806,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It(`should prioritize revisionHistoryLimit set by cert-manager.io/revision-history-limit is specified`, func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -943,11 +848,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create a Certificate with the specified key algorithm and default size", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -983,11 +883,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create a Certificate with the specified key algorithm and size", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -1024,11 +919,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create a Certificate with the specified key algorithm and fallback to default size", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -1065,11 +955,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should propagate annotations to the generated resources", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -1130,11 +1015,6 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should progatate labels to the generated resources", func() {
-		ns := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
@@ -1197,14 +1077,18 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create a DNSEndpoint in the specified namespace", func() {
-		ns := testNamespacePrefix + randomString(10)
-		deNs := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: deNs},
-		})).ShouldNot(HaveOccurred())
+		deNsObj := &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+		}
+		Expect(k8sClient.Create(context.Background(), deNsObj)).ShouldNot(HaveOccurred())
+		deNs := deNsObj.Name
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, deNsObj)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: deNs}, &corev1.Namespace{})
+				return client.IgnoreNotFound(err) == nil
+			}, 10*time.Second).Should(BeTrue())
+		})
 
 		scm, mgr := setupManager()
 
@@ -1246,14 +1130,18 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create DNSEndpoint and delegation DNSEndpoint in the specified namespace", func() {
-		ns := testNamespacePrefix + randomString(10)
-		deNs := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: deNs},
-		})).ShouldNot(HaveOccurred())
+		deNsObj := &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+		}
+		Expect(k8sClient.Create(context.Background(), deNsObj)).ShouldNot(HaveOccurred())
+		deNs := deNsObj.Name
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, deNsObj)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: deNs}, &corev1.Namespace{})
+				return client.IgnoreNotFound(err) == nil
+			}, 10*time.Second).Should(BeTrue())
+		})
 
 		scm, mgr := setupManager()
 
@@ -1309,14 +1197,18 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should create Certificate and TLSCertificateDelegation in the specified namespace", func() {
-		ns := testNamespacePrefix + randomString(10)
-		certNs := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: certNs},
-		})).ShouldNot(HaveOccurred())
+		certNsObj := &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+		}
+		Expect(k8sClient.Create(context.Background(), certNsObj)).ShouldNot(HaveOccurred())
+		certNs := certNsObj.Name
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, certNsObj)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: certNs}, &corev1.Namespace{})
+				return client.IgnoreNotFound(err) == nil
+			}, 10*time.Second).Should(BeTrue())
+		})
 
 		scm, mgr := setupManager()
 
@@ -1385,14 +1277,18 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should not create DNSEndpoint if the namespace is not allowed", func() {
-		ns := testNamespacePrefix + randomString(10)
-		deNs := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: deNs},
-		})).ShouldNot(HaveOccurred())
+		deNsObj := &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+		}
+		Expect(k8sClient.Create(context.Background(), deNsObj)).ShouldNot(HaveOccurred())
+		deNs := deNsObj.Name
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, deNsObj)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: deNs}, &corev1.Namespace{})
+				return client.IgnoreNotFound(err) == nil
+			}, 10*time.Second).Should(BeTrue())
+		})
 
 		scm, mgr := setupManager()
 
@@ -1419,15 +1315,18 @@ func testHTTPProxyReconcile() {
 	})
 
 	It("should not create Certificate if the issuer namespace is not allowed", func() {
-		ns := testNamespacePrefix + randomString(10)
-		certNs := testNamespacePrefix + randomString(10)
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: ns},
-		})).ShouldNot(HaveOccurred())
-		Expect(k8sClient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{Name: certNs},
-		})).ShouldNot(HaveOccurred())
-
+		certNsObj := &corev1.Namespace{
+			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+		}
+		Expect(k8sClient.Create(context.Background(), certNsObj)).ShouldNot(HaveOccurred())
+		certNs := certNsObj.Name
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, certNsObj)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: certNs}, &corev1.Namespace{})
+				return client.IgnoreNotFound(err) == nil
+			}, 10*time.Second).Should(BeTrue())
+		})
 		scm, mgr := setupManager()
 
 		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{

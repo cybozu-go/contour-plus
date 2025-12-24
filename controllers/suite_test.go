@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"math/rand"
 	"path/filepath"
 	"testing"
 	"time"
@@ -32,6 +31,8 @@ var (
 	testEnv   *envtest.Environment
 
 	testServiceKey = client.ObjectKey{Namespace: "test-ns", Name: "test-svc"}
+	ns             string
+	ctx            context.Context
 )
 
 const (
@@ -103,6 +104,31 @@ var _ = AfterSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 })
 
+var _ = BeforeEach(func() {
+	ctx = context.Background()
+
+	// Let apiserver generate a unique name to avoid collisions.
+	n := &corev1.Namespace{
+		ObjectMeta: ctrl.ObjectMeta{
+			GenerateName: testNamespacePrefix,
+		},
+	}
+	Expect(k8sClient.Create(ctx, n)).To(Succeed())
+	ns = n.Name
+})
+
+var _ = AfterEach(func() {
+	// Delete the namespace; it will garbage-collect all namespaced objects.
+	n := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: ns}}
+	_ = k8sClient.Delete(ctx, n)
+
+	// Wait until it's actually gone.
+	Eventually(func() bool {
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: ns}, &corev1.Namespace{})
+		return client.IgnoreNotFound(err) == nil
+	}, 10*time.Second).Should(BeTrue())
+})
+
 var _ = Describe("Test contour-plus", func() {
 	Context("httpproxy", testHTTPProxyReconcile)
 })
@@ -136,14 +162,4 @@ func setupManager() (*runtime.Scheme, manager.Manager) {
 	})
 	Expect(err).ShouldNot(HaveOccurred())
 	return scm, mgr
-}
-
-func randomString(n int) string {
-	var letter = []rune("abcdefghijklmnopqrstuvwxyz")
-
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letter[rand.Intn(len(letter))]
-	}
-	return string(b)
 }
