@@ -153,6 +153,9 @@ func (w *CertificateApplyWorker) RequiresQueue(ctx context.Context, key types.Na
 		return false, err
 	}
 	// MUST COMPARE specs of desired and current to see if there will be re-issuance of the Certificate
+	// can safely Ignore spec.secretTemplate changes as they are only secret metadata change and does not trigger re-issuance
+	obj.Spec.SecretTemplate = nil
+	current.Spec.SecretTemplate = nil
 	if equality.Semantic.DeepEqual(obj.Spec, current.Spec) {
 		// no-reissuance, safe to patch without rate limit
 		return false, nil

@@ -55,7 +55,6 @@ func testCertificateApplyWorkerApply() {
 		applyWorker := &WrappedCertificateApplyWorker{
 			wrapped: NewCertificateApplyWorker(mgr.GetClient(), opts),
 		}
-		Expect(mgr.Add(applyWorker)).ShouldNot(HaveOccurred())
 
 		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
 		Expect(err).ShouldNot(HaveOccurred())
@@ -105,12 +104,12 @@ func testCertificateApplyWorkerApply() {
 			DefaultIssuerKind:     IssuerKind,
 			CreateDNSEndpoint:     true,
 			CreateCertificate:     true,
+			PropagatedAnnotations: []string{"foo"}, // must propagate an annotation to update cert metadata
 			CertificateApplyLimit: 1,
 		}
 		applyWorker := &WrappedCertificateApplyWorker{
 			wrapped: NewCertificateApplyWorker(mgr.GetClient(), opts),
 		}
-		Expect(mgr.Add(applyWorker)).ShouldNot(HaveOccurred())
 
 		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
 		Expect(err).ShouldNot(HaveOccurred())
@@ -147,9 +146,13 @@ func testCertificateApplyWorkerApply() {
 
 		By("getting Certificate with prefixed name again")
 		crt = certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed())
+		Eventually(func() bool {
+			if err := k8sClient.Get(context.Background(), objKey, crt); err != nil {
+				return false
+			}
+			_, ok := crt.GetAnnotations()["foo"]
+			return ok
+		}).WithTimeout(10 * time.Second).Should(BeTrue())
 		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(1))) // should go through queue once (create)
 	})
 
@@ -164,12 +167,12 @@ func testCertificateApplyWorkerApply() {
 			DefaultIssuerKind:     IssuerKind,
 			CreateDNSEndpoint:     true,
 			CreateCertificate:     true,
+			PropagatedAnnotations: []string{"foo"}, // must propagate an annotation to update cert metadata
 			CertificateApplyLimit: 1,
 		}
 		applyWorker := &WrappedCertificateApplyWorker{
 			wrapped: NewCertificateApplyWorker(mgr.GetClient(), opts),
 		}
-		Expect(mgr.Add(applyWorker)).ShouldNot(HaveOccurred())
 
 		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
 		Expect(err).ShouldNot(HaveOccurred())
