@@ -4,10 +4,10 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -106,7 +106,6 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = context.Background()
-
 	// Let apiserver generate a unique name to avoid collisions.
 	n := &corev1.Namespace{
 		ObjectMeta: ctrl.ObjectMeta{
@@ -118,15 +117,21 @@ var _ = BeforeEach(func() {
 })
 
 var _ = AfterEach(func() {
-	// Delete the namespace; it will garbage-collect all namespaced objects.
-	n := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: ns}}
-	_ = k8sClient.Delete(ctx, n)
+	// delete any resource created by the previous spec
+	Expect(k8sClient.DeleteAllOf(ctx, &projectcontourv1.HTTPProxy{}, client.InNamespace(ns))).To(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, certificate(), client.InNamespace(ns))).To(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, dnsEndpoint(), client.InNamespace(ns))).To(Succeed())
+	Expect(k8sClient.DeleteAllOf(ctx, tlsCertificateDelegation(), client.InNamespace(ns))).To(Succeed())
 
-	// Wait until it's actually gone.
-	Eventually(func() bool {
-		err := k8sClient.Get(ctx, client.ObjectKey{Name: ns}, &corev1.Namespace{})
-		return client.IgnoreNotFound(err) == nil
-	}, 10*time.Second).Should(BeTrue())
+	// optionally wait for lists to be empty
+	Eventually(func() int {
+		l := &projectcontourv1.HTTPProxyList{}
+		_ = k8sClient.List(ctx, l, client.InNamespace(ns))
+		return len(l.Items)
+	}).Should(BeZero())
+
+	n := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: ns}}
+	_ = k8sClient.Delete(ctx, n) // this actually does not remove the namespace, it just puts it into terminating state
 })
 
 var _ = Describe("Test contour-plus", func() {
@@ -134,21 +139,28 @@ var _ = Describe("Test contour-plus", func() {
 })
 
 func startTestManager(mgr manager.Manager) (stop func()) {
-	waitCh := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
-	stop = func() {
-		cancel()
-		<-waitCh
-	}
+
+	done := make(chan struct{})
 	go func() {
-		err := mgr.Start(ctx)
-		if err != nil {
+		defer close(done)
+		if err := mgr.Start(ctx); err != nil {
 			panic(err)
 		}
-		close(waitCh)
 	}()
-	time.Sleep(100 * time.Millisecond)
-	return
+
+	// Wait for caches to sync
+	synced := mgr.GetCache().WaitForCacheSync(ctx)
+	if !synced {
+		cancel()
+		<-done
+		Fail("manager cache did not sync")
+	}
+
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
 func setupManager() (*runtime.Scheme, manager.Manager) {
