@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -31,8 +30,6 @@ var (
 	testEnv   *envtest.Environment
 
 	testServiceKey = client.ObjectKey{Namespace: "test-ns", Name: "test-svc"}
-	ns             string
-	ctx            context.Context
 )
 
 const (
@@ -102,36 +99,6 @@ var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
-})
-
-var _ = BeforeEach(func() {
-	ctx = context.Background()
-	// Let apiserver generate a unique name to avoid collisions.
-	n := &corev1.Namespace{
-		ObjectMeta: ctrl.ObjectMeta{
-			GenerateName: testNamespacePrefix,
-		},
-	}
-	Expect(k8sClient.Create(ctx, n)).To(Succeed())
-	ns = n.Name
-})
-
-var _ = AfterEach(func() {
-	// delete any resource created by the previous spec
-	Expect(k8sClient.DeleteAllOf(ctx, &projectcontourv1.HTTPProxy{}, client.InNamespace(ns))).To(Succeed())
-	Expect(k8sClient.DeleteAllOf(ctx, certificate(), client.InNamespace(ns))).To(Succeed())
-	Expect(k8sClient.DeleteAllOf(ctx, dnsEndpoint(), client.InNamespace(ns))).To(Succeed())
-	Expect(k8sClient.DeleteAllOf(ctx, tlsCertificateDelegation(), client.InNamespace(ns))).To(Succeed())
-
-	// optionally wait for lists to be empty
-	Eventually(func() int {
-		l := &projectcontourv1.HTTPProxyList{}
-		_ = k8sClient.List(ctx, l, client.InNamespace(ns))
-		return len(l.Items)
-	}).Should(BeZero())
-
-	n := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: ns}}
-	_ = k8sClient.Delete(ctx, n) // this actually does not remove the namespace, it just puts it into terminating state
 })
 
 var _ = Describe("Test contour-plus", func() {
