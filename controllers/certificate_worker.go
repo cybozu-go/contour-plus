@@ -23,11 +23,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
+type viaQueueValue string
+
 const (
-	certificateApplierName = "certificate-apply"
-	labelViaQueue          = "via_queue"
-	viaQueueYes            = "true"
-	viaQueueNo             = "false"
+	certificateApplierName               = "certificate-apply"
+	labelViaQueue                        = "via_queue"
+	viaQueueYes            viaQueueValue = "true"
+	viaQueueNo             viaQueueValue = "false"
 )
 
 type Applier[T client.Object] interface {
@@ -146,14 +148,16 @@ func (w *CertificateApplyWorker) Apply(ctx context.Context, obj *cmv1.Certificat
 		return err
 	}
 	if requiresQueue {
-		log.Info("cert queued for apply", "key", objKey.String())
-		w.certificatesAppliedTotal.WithLabelValues(certificateApplierName, viaQueueYes).Inc()
 		w.enqueueCertificate(objKey, obj)
+		log.Info("cert queued for apply", "key", objKey.String())
 		return nil
 	}
+	if err := applyCertificate(ctx, w.client, obj); err != nil {
+		return err
+	}
 	log.Info("cert applied without queueing", "key", objKey.String())
-	w.certificatesAppliedTotal.WithLabelValues(certificateApplierName, viaQueueNo).Inc()
-	return applyCertificate(ctx, w.client, obj)
+	w.recordApply(viaQueueNo)
+	return nil
 }
 
 func (w *CertificateApplyWorker) Start(ctx context.Context) error {
@@ -197,6 +201,7 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 			}
 
 			log.Info("cert applied from queue", "key", objKey.String())
+			w.recordApply(viaQueueYes)
 		}()
 	}
 }
@@ -268,6 +273,13 @@ func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1
 	w.retryCh <- event.TypedGenericEvent[*projectcontourv1.HTTPProxy]{
 		Object: &h,
 	}
+}
+
+func (w *CertificateApplyWorker) recordApply(viaQueue viaQueueValue) {
+	if w.certificatesAppliedTotal == nil {
+		return
+	}
+	w.certificatesAppliedTotal.WithLabelValues(certificateApplierName, string(viaQueue)).Inc()
 }
 
 // applyCertificate applies provided certificate object with provided context and apiserver client
