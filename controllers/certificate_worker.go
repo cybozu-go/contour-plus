@@ -115,25 +115,29 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 		}
 
 		func() {
+			// there is no need to call .Forget since we are only using BucketRateLimiter
 			defer w.workqueue.Done(objKey)
 
 			w.mu.Lock()
-			defer w.mu.Unlock()
 			obj, ok := w.manifests[objKey]
+			delete(w.manifests, objKey)
+			w.mu.Unlock()
 			if !ok {
 				log.Error(fmt.Errorf("cannot find certificate manifest for %s", objKey.String()), "cert apply failed", "key", objKey.String())
 				return
 			}
 
+			if ctx.Err() != nil {
+				log.Info("context cancelled, skipping cert apply", "key", objKey.String())
+				return
+			}
+
 			if err := applyCertificate(ctx, w.client, obj); err != nil {
 				log.Error(err, "cert apply failed", "key", objKey.String())
-				w.workqueue.AddRateLimited(objKey)
 				return
 			}
 
 			log.Info("cert applied from queue", "key", objKey.String())
-			w.workqueue.Forget(objKey)
-			delete(w.manifests, objKey)
 		}()
 	}
 }
@@ -154,9 +158,10 @@ func (w *CertificateApplyWorker) RequiresQueue(ctx context.Context, key types.Na
 	}
 	// MUST COMPARE specs of desired and current to see if there will be re-issuance of the Certificate
 	// can safely Ignore spec.secretTemplate changes as they are only secret metadata change and does not trigger re-issuance
-	obj.Spec.SecretTemplate = nil
+	objCopy := obj.DeepCopy()
+	objCopy.Spec.SecretTemplate = nil
 	current.Spec.SecretTemplate = nil
-	if equality.Semantic.DeepEqual(obj.Spec, current.Spec) {
+	if equality.Semantic.DeepEqual(objCopy.Spec, current.Spec) {
 		// no-reissuance, safe to patch without rate limit
 		return false, nil
 	}

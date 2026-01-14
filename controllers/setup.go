@@ -44,9 +44,10 @@ func SetupScheme(scm *runtime.Scheme) {
 // SetupReconciler initializes reconcilers
 func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts ReconcilerOptions) error {
 	var certWorker Applier[*cmapiv1.Certificate]
-	certWorker = NewCertificateApplier(mgr.GetClient())
 	if opts.CertificateApplyLimit > 0 {
 		certWorker = NewCertificateApplyWorker(mgr.GetClient(), opts)
+	} else {
+		certWorker = NewCertificateApplier(mgr.GetClient())
 	}
 	_, err := SetupAndGetReconciler(mgr, scheme, opts, certWorker)
 
