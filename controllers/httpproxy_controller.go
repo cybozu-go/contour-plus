@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"net"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,10 +17,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -330,13 +334,18 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		}
 		certificateSpec["revisionHistoryLimit"] = limit
 	}
+	secretTemplate := make(map[string]interface{})
 	annotations := r.generateObjectAnnotations(hp)
-	labels := r.generateObjectLabels(hp)
-	secretTemplate := map[string]interface{}{
-		"annotations": annotations,
-		"labels":      labels,
+	if annotations != nil {
+		secretTemplate["annotations"] = annotations
 	}
-	certificateSpec["secretTemplate"] = secretTemplate
+	labels := r.generateObjectLabels(hp)
+	if labels != nil {
+		secretTemplate["labels"] = labels
+	}
+	if len(secretTemplate) > 0 {
+		certificateSpec["secretTemplate"] = secretTemplate
+	}
 
 	if algorithm, ok := hp.Annotations[privateKeyAlgorithmAnnotation]; ok {
 		privateKeySpec := map[string]interface{}{
@@ -384,6 +393,9 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	return nil
 }
 
+// generateObjectAnnotations creates a map that contains annotations that should be propagated to child resources from HTTPProxy.
+// The map can be used to set annotations on unstructured.Unstructured.
+// Returns uninitizalied map (nil) when the map is empty to avoid SSA patching with empty map.
 func (r *HTTPProxyReconciler) generateObjectAnnotations(hp *projectcontourv1.HTTPProxy) map[string]string {
 	annotations := map[string]string{}
 	for _, key := range r.PropagatedAnnotations {
@@ -391,15 +403,24 @@ func (r *HTTPProxyReconciler) generateObjectAnnotations(hp *projectcontourv1.HTT
 			annotations[key] = annotation
 		}
 	}
+	if len(annotations) == 0 {
+		return nil
+	}
 	return annotations
 }
 
+// generateObjectLabels creates a map that contains labels that should be propagated to child resources from HTTPProxy.
+// The map can be used to set labels on unstructured.Unstructured.
+// Returns uninitizalied map (nil) when the map is empty to avoid SSA patching with empty map.
 func (r *HTTPProxyReconciler) generateObjectLabels(hp *projectcontourv1.HTTPProxy) map[string]string {
 	labels := map[string]string{}
 	for _, key := range r.PropagatedLabels {
 		if label, ok := hp.Labels[key]; ok {
 			labels[key] = label
 		}
+	}
+	if len(labels) == 0 {
+		return nil
 	}
 	return labels
 }
@@ -647,21 +668,70 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return requests
 	}
 
+	// Spec OR metadata changed => reconcile.
+	// Status-only (or no-op) update => ignore.
+	specOrMetadataChanged := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldObj := e.ObjectOld
+			newObj := e.ObjectNew
+
+			// Check for spec changes
+			if oldObj.GetGeneration() != newObj.GetGeneration() {
+				return true
+			}
+
+			// Must check for Labels and Annotations changes
+			if !reflect.DeepEqual(oldObj.GetLabels(), newObj.GetLabels()) {
+				return true
+			}
+			if !reflect.DeepEqual(oldObj.GetAnnotations(), newObj.GetAnnotations()) {
+				return true
+			}
+
+			// Must be status-only or no-op update
+			return false
+		},
+	}
+
+	// should only be used in .Owns
+	ignoreChildCreateEvent := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+	}
+
+	ignoreInitialCreateEvent := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return !e.IsInInitialList
+		},
+	}
+
+	// specOrMetadataChanged predicate is added so that only spec and metadata changes result in a workqueue event.
+	// ignoreInitialCreateEvent is added to guarantee that only one workqueue event is queued for each HTTPProxy at controller startup.
+	// This may not be necessary most of the time since the events will be coalesced in the workqueue while waiting for the controller to start.
+	// That being said, this is added to avoid any race condition between Service watch and HTTPProxy watch causing event coalescence to fail in the workqueue.
 	b := ctrl.NewControllerManagedBy(mgr).
-		For(&projectcontourv1.HTTPProxy{}).
-		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(listHPs))
+		For(&projectcontourv1.HTTPProxy{}, builder.WithPredicates(specOrMetadataChanged)).
+		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(listHPs), builder.WithPredicates(ignoreInitialCreateEvent))
+
+	// DNSEndpoint, Certificate, & TLSCertificateDelegation resource should emit HTTPProxy workqueue event only when their specs have changed.
+	// predicate.GenerationChangedPredicate ignores any status or metadata updates made by other controllers and
+	// ignoreChildCreateEvent ignores events emitted when contour-plus creates these resources.
+	// This leaves only spec update and object delete events capable of emitting HTTPProxy workqueue event.
+	// WARNING: spec change mady by contour-plus will still emit HTTPPRoxy event.
+	// If the new release of contour-plus is expected to update the spec of child component, bear in mind that it will trigger another reconciliation for each resource with spec update.
 	if r.CreateDNSEndpoint {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
-		b = b.Owns(obj)
+		b = b.Owns(obj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
 	}
 	if r.CreateCertificate {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-		b = b.Owns(obj)
+		b = b.Owns(obj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
 		tcdObj := &unstructured.Unstructured{}
 		tcdObj.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationKind))
-		b = b.Owns(tcdObj)
+		b = b.Owns(tcdObj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
 	}
 	return b.Complete(r)
 }
