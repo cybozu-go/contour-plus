@@ -2,10 +2,8 @@ package controllers
 
 import (
 	"context"
-	"math/rand"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -108,21 +106,28 @@ var _ = Describe("Test contour-plus", func() {
 })
 
 func startTestManager(mgr manager.Manager) (stop func()) {
-	waitCh := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
-	stop = func() {
-		cancel()
-		<-waitCh
-	}
+
+	done := make(chan struct{})
 	go func() {
-		err := mgr.Start(ctx)
-		if err != nil {
+		defer close(done)
+		if err := mgr.Start(ctx); err != nil {
 			panic(err)
 		}
-		close(waitCh)
 	}()
-	time.Sleep(100 * time.Millisecond)
-	return
+
+	// Wait for caches to sync
+	synced := mgr.GetCache().WaitForCacheSync(ctx)
+	if !synced {
+		cancel()
+		<-done
+		Fail("manager cache did not sync")
+	}
+
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
 func setupManager() (*runtime.Scheme, manager.Manager) {
@@ -136,14 +141,4 @@ func setupManager() (*runtime.Scheme, manager.Manager) {
 	})
 	Expect(err).ShouldNot(HaveOccurred())
 	return scm, mgr
-}
-
-func randomString(n int) string {
-	var letter = []rune("abcdefghijklmnopqrstuvwxyz")
-
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letter[rand.Intn(len(letter))]
-	}
-	return string(b)
 }
