@@ -27,6 +27,7 @@ import (
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -42,7 +43,7 @@ const (
 	delegatedDomainAnnotation         = "contour-plus.cybozu.com/delegated-domain"
 	dnsNamespaceAnnotation            = "contour-plus.cybozu.com/dns-namespace"
 	issuerNamespaceAnnotation         = "contour-plus.cybozu.com/issuer-namespace"
-	crossNamespaceOwnerAnnotation     = "contour-plus.cybozu.com/owned-by"
+	ownerAnnotation                   = "contour-plus.cybozu.com/owned-by"
 	finalizerName                     = "contour-plus.cybozu.com/finalizer"
 )
 
@@ -206,7 +207,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
 		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
-	err = r.trackResourceForCleanup(hp, obj)
+	err = r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -261,7 +262,7 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain),
 	}
 
-	if err := r.trackResourceForCleanup(hp, obj); err != nil {
+	if err := r.trackResourceOwnership(hp, obj); err != nil {
 		return err
 	}
 
@@ -381,7 +382,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	obj.SetAnnotations(annotations)
 	obj.SetLabels(labels)
 
-	err := r.trackResourceForCleanup(hp, obj)
+	err := r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -436,7 +437,7 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	err := r.Get(ctx, certKey, cert)
 	if k8serrors.IsNotFound(err) {
 		log.Info("Certificate not found for TLSCertificateDelegation", "namespace", namespace, "name", certificateName)
-		return err
+		/* return err */
 	}
 
 	delegationSpec := map[string]interface{}{
@@ -457,7 +458,7 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = delegationSpec
-	err = r.trackResourceForCleanup(hp, obj)
+	err = r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -493,17 +494,17 @@ func (r *HTTPProxyReconciler) reconcileSecretName(ctx context.Context, hp *proje
 	return nil
 }
 
-func (r *HTTPProxyReconciler) trackResourceForCleanup(hp *projectcontourv1.HTTPProxy, obj client.Object) error {
-	if obj.GetNamespace() == hp.Namespace {
-		return ctrl.SetControllerReference(hp, obj, r.Scheme)
-	}
-
+func (r *HTTPProxyReconciler) trackResourceOwnership(hp *projectcontourv1.HTTPProxy, obj client.Object) error {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	annotations[crossNamespaceOwnerAnnotation] = hp.Namespace + "/" + hp.Name
+	annotations[ownerAnnotation] = hp.Namespace + "/" + hp.Name
 	obj.SetAnnotations(annotations)
+
+	if obj.GetNamespace() == hp.Namespace {
+		return ctrl.SetControllerReference(hp, obj, r.Scheme)
+	}
 
 	if !controllerutil.ContainsFinalizer(hp, finalizerName) {
 		controllerutil.AddFinalizer(hp, finalizerName)
@@ -553,7 +554,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceDNSEndpoints(ctx context.Cont
 
 	for _, de := range del.Items {
 		annotations := de.GetAnnotations()
-		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		owner, ok := annotations[ownerAnnotation]
 		if !ok || owner != hp.Namespace+"/"+hp.Name {
 			continue
 		}
@@ -587,7 +588,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceCertificates(ctx context.Cont
 
 	for _, cert := range certList.Items {
 		annotations := cert.GetAnnotations()
-		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		owner, ok := annotations[ownerAnnotation]
 		if !ok || owner != hp.Namespace+"/"+hp.Name {
 			continue
 		}
@@ -621,7 +622,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceTLSCertificateDelegations(ctx
 
 	for _, tcd := range tcdList.Items {
 		annotations := tcd.GetAnnotations()
-		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		owner, ok := annotations[ownerAnnotation]
 		if !ok || owner != hp.Namespace+"/"+hp.Name {
 			continue
 		}
@@ -711,9 +712,16 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// ignoreInitialCreateEvent is added to guarantee that only one workqueue event is queued for each HTTPProxy at controller startup.
 	// This may not be necessary most of the time since the events will be coalesced in the workqueue while waiting for the controller to start.
 	// That being said, this is added to avoid any race condition between Service watch and HTTPProxy watch causing event coalescence to fail in the workqueue.
+	// retryCh is used by CertApplier to requeue HTTPProxy when the apply for Certificate fails
 	b := ctrl.NewControllerManagedBy(mgr).
 		For(&projectcontourv1.HTTPProxy{}, builder.WithPredicates(specOrMetadataChanged)).
 		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(listHPs), builder.WithPredicates(ignoreInitialCreateEvent))
+
+	// add retry logic for cert worker.
+	// this allows requeing HTTPProxy back into the main workqueue when applying Certificate resouce from cert worker fails
+	if certWorker, ok := r.CertApplier.(ApplyWorker[*cmv1.Certificate]); ok {
+		b = b.WatchesRawSource(source.Channel(certWorker.GetRetryChannel(), &handler.TypedEnqueueRequestForObject[*projectcontourv1.HTTPProxy]{}))
+	}
 
 	// DNSEndpoint, Certificate, & TLSCertificateDelegation resource should emit HTTPProxy workqueue event only when their specs have changed.
 	// predicate.GenerationChangedPredicate ignores any status or metadata updates made by other controllers and
@@ -807,4 +815,16 @@ func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) 
 		return r.Prefix + hp.Name
 	}
 	return r.Prefix + hp.Namespace + "-" + hp.Name
+}
+
+func extractOwner(nn string) (namespace, name string, ok bool) {
+	parts := strings.Split(nn, "/")
+	if len(parts) != 2 {
+		return "", "", false
+	}
+	ns, name := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	if ns == "" || name == "" {
+		return "", "", false
+	}
+	return ns, name, true
 }

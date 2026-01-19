@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -46,6 +48,10 @@ type ApplyWorker[T client.Object] interface {
 	Applier[T]
 	// manager.Runnable defines signature for Start
 	manager.Runnable
+	// GetRetryChannel should return a receive only channel that can be used by the main reconciliation loop.
+	// For e.g. by WatchesRawSource and source.Channel in SetupWithManager to add a retry path.
+	// NOTE: could use second generics type instead of HTTPProxy if we want to use this somewhere else.
+	GetRetryChannel() <-chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy]
 }
 
 var _ ApplyWorker[*cmv1.Certificate] = &CertificateApplyWorker{}
@@ -61,6 +67,8 @@ type CertificateApplyWorker struct {
 	manifests map[types.NamespacedName]*cmv1.Certificate
 	// limiter is the underlying rate limiter used by the workqueue
 	limiter *rate.Limiter
+	// channel for queueing HTTPProxy back into main reconcile loop for a retry
+	retryCh chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy]
 }
 
 func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *CertificateApplyWorker {
@@ -72,12 +80,14 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 			Name: "certificate-apply",
 		},
 	)
+	retryCh := make(chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy])
 	return &CertificateApplyWorker{
 		ReconcilerOptions: opt,
 		client:            client,
 		workqueue:         workqueue,
 		manifests:         make(map[types.NamespacedName]*cmv1.Certificate),
 		limiter:           limiter,
+		retryCh:           retryCh,
 	}
 }
 
@@ -113,6 +123,7 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 		if shutdown {
 			return nil
 		}
+		log.Info("processing cert queue item", "key", objKey.String())
 
 		func() {
 			// there is no need to call .Forget since we are only using BucketRateLimiter
@@ -122,6 +133,7 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 			obj, ok := w.manifests[objKey]
 			delete(w.manifests, objKey)
 			w.mu.Unlock()
+
 			if !ok {
 				log.Error(fmt.Errorf("cannot find certificate manifest for %s", objKey.String()), "cert apply failed", "key", objKey.String())
 				return
@@ -134,12 +146,17 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 
 			if err := applyCertificate(ctx, w.client, obj); err != nil {
 				log.Error(err, "cert apply failed", "key", objKey.String())
+				w.enqueueHTTPProxy(ctx, obj)
 				return
 			}
 
 			log.Info("cert applied from queue", "key", objKey.String())
 		}()
 	}
+}
+
+func (w *CertificateApplyWorker) GetRetryChannel() <-chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy] {
+	return w.retryCh
 }
 
 // RequiresQueue indicates whether the object should be queued or not.
@@ -173,6 +190,37 @@ func (w *CertificateApplyWorker) enqueueCertificate(objKey types.NamespacedName,
 	defer w.mu.Unlock()
 	w.manifests[objKey] = obj
 	w.workqueue.AddRateLimited(objKey)
+}
+
+// enqueueHTTPProxy enqueues HTTPProxy in to the workqueue used by the main Reconcile function.
+// It requires the Controller to be setup with .WatchesRawSource using the same channel as w.retryCh
+func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1.Certificate) {
+	log := crlog.FromContext(ctx)
+	if w.retryCh == nil {
+		return
+	}
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		log.Error(fmt.Errorf("annotation does not exist"), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+		return
+	}
+	owner, ok := annotations[ownerAnnotation]
+	if !ok {
+		log.Error(fmt.Errorf("annotation not found for %s", ownerAnnotation), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+		return
+	}
+	ns, name, ok := extractOwner(owner)
+	if !ok {
+		log.Error(fmt.Errorf("invalid annotation value for %s", ownerAnnotation), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+		return
+	}
+	h := projectcontourv1.HTTPProxy{}
+	h.SetNamespace(ns)
+	h.SetName(name)
+	log.Info("re-queueing HTTPProxy", "namespace", ns, "name", name)
+	w.retryCh <- event.TypedGenericEvent[*projectcontourv1.HTTPProxy]{
+		Object: &h,
+	}
 }
 
 // applyCertificate applies provided certificate object with provided context and apiserver client
