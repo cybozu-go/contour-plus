@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -80,7 +81,7 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 			Name: "certificate-apply",
 		},
 	)
-	retryCh := make(chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy])
+	retryCh := make(chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy], 10)
 	return &CertificateApplyWorker{
 		ReconcilerOptions: opt,
 		client:            client,
@@ -209,9 +210,10 @@ func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1
 		log.Error(fmt.Errorf("annotation not found for %s", ownerAnnotation), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
 		return
 	}
-	ns, name, ok := extractOwner(owner)
-	if !ok {
-		log.Error(fmt.Errorf("invalid annotation value for %s", ownerAnnotation), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+
+	ns, name, err := cache.SplitMetaNamespaceKey(owner)
+	if err != nil {
+		log.Error(err, "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
 		return
 	}
 	h := projectcontourv1.HTTPProxy{}
@@ -225,11 +227,8 @@ func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1
 
 // applyCertificate applies provided certificate object with provided context and apiserver client
 func applyCertificate(ctx context.Context, k8sClient client.Client, obj *cmv1.Certificate) error {
-	if err := k8sClient.Patch(ctx, obj, client.Apply, &client.PatchOptions{
+	return k8sClient.Patch(ctx, obj, client.Apply, &client.PatchOptions{
 		Force:        ptr.To(true),
 		FieldManager: "contour-plus",
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }

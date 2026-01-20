@@ -816,15 +816,3 @@ func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) 
 	}
 	return r.Prefix + hp.Namespace + "-" + hp.Name
 }
-
-func extractOwner(nn string) (namespace, name string, ok bool) {
-	parts := strings.Split(nn, "/")
-	if len(parts) != 2 {
-		return "", "", false
-	}
-	ns, name := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-	if ns == "" || name == "" {
-		return "", "", false
-	}
-	return ns, name, true
-}
