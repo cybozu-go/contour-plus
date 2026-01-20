@@ -77,7 +77,7 @@ func run() error {
 	opts.AllowedDelegatedDomains = viper.GetStringSlice("allowed-delegated-domains")
 
 	opts.AllowedDNSNamespaces = viper.GetStringSlice("allowed-dns-namespaces")
-	opts.AllowedIssuerNamespaces = viper.GetStringSlice("allowed-certificate-namespaces")
+	opts.AllowedIssuerNamespaces = viper.GetStringSlice("allowed-issuer-namespaces")
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
