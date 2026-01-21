@@ -283,7 +283,9 @@ func testCertificateApplyWorker() {
 
 			// Apply should enqueue the certificate (RequiresQueue => true for new object)
 			Expect(worker.Apply(ctx, cert)).To(Succeed())
-			Expect(worker.workqueue.Len()).To(Equal(1), "item should be queued after Apply")
+			// We will not check the length of the workqueue here since it can be dequeued before we check,
+			// causing the test to fail depending on the timing.
+			// Expect(worker.workqueue.Len()).To(Equal(1), "item should be queued after Apply")
 
 			// Wait until the worker has dequeued and applied the certificate.
 			// Using Eventually + Succeed() matcher for func() error.
