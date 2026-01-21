@@ -73,7 +73,17 @@ type CertificateApplyWorker struct {
 }
 
 func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *CertificateApplyWorker {
-	limiter := rate.NewLimiter(rate.Limit(opt.CertificateApplyLimit), max(int(math.Ceil(opt.CertificateApplyLimit)), 1))
+	limit := opt.CertificateApplyLimit
+
+	var limiter *rate.Limiter
+	if limit <= 0 {
+		// Unlimited: allow everything, burst doesn’t really matter in this case
+		limiter = rate.NewLimiter(rate.Inf, 1)
+	} else {
+		burst := max(int(math.Ceil(limit)), 1)
+		limiter = rate.NewLimiter(rate.Limit(limit), burst)
+	}
+
 	global := &workqueue.TypedBucketRateLimiter[types.NamespacedName]{Limiter: limiter}
 	workqueue := workqueue.NewTypedRateLimitingQueueWithConfig(
 		global,
