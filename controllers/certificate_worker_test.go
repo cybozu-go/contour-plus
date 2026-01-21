@@ -1,419 +1,331 @@
 package controllers
 
+// unit test for CertificateApplyWorker
+// It should test the following
+// 1. Apply metheod with different conditions such as
+//   - entirely new object
+//   - metadata update
+//   - spec update
+//   and inspect the queue content to see if the apply was queued or direct.
+// 2. applying objects from Start method's loop. test both happy and unhappy path.
+//
+// Other integration tests should be in httpproxy_controller_test.go
+
 import (
 	"context"
-	"sync"
+	"fmt"
 	"time"
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
-	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-var _ ApplyWorker[*cmv1.Certificate] = &WrappedCertificateApplyWorker{}
-
-type WrappedCertificateApplyWorker struct {
-	wrapped *CertificateApplyWorker
-
-	mu sync.Mutex
-	// tracked globally since the rate limit is global
-	queuedCounter uint64
-
-	// how many times Apply was called for this Certificate
-	// tracked per key for the ease of use
-	applyCounts map[types.NamespacedName]uint64
-
-	// how many initial attempts should fail before
-	// we pass through to the wrapped worker.
-	// tracked per key for the ease of use
-	failFirst map[types.NamespacedName]uint64
+// client wrapper for avoiding SSA Patch since fake client does not support SSA.
+// this should be okay since we are not using it to test SSA specific behavior.
+type applyAsUpdateClient struct {
+	client.Client
 }
 
-func (w *WrappedCertificateApplyWorker) Apply(ctx context.Context, obj *cmv1.Certificate) error {
-	objKey := types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}
-	requiresQueue, err := w.wrapped.RequiresQueue(ctx, objKey, obj)
-	if err != nil {
-		return err
+func (c *applyAsUpdateClient) Patch(
+	ctx context.Context,
+	obj client.Object,
+	patch client.Patch,
+	opts ...client.PatchOption,
+) error {
+	// Emulate "apply" as upsert for tests:
+	// - if the object exists, Update
+	// - if not, Create
+	existing := obj.DeepCopyObject().(client.Object)
+	err := c.Client.Get(ctx, client.ObjectKeyFromObject(obj), existing)
+	if err == nil {
+		return c.Client.Update(ctx, obj)
 	}
-
-	newObj := func() *cmv1.Certificate {
-		w.mu.Lock()
-		defer w.mu.Unlock()
-		if requiresQueue {
-			w.queuedCounter += 1
-		}
-
-		if _, ok := w.applyCounts[objKey]; !ok {
-			w.applyCounts[objKey] = 0
-		}
-		w.applyCounts[objKey] += 1
-
-		if _, ok := w.failFirst[objKey]; !ok {
-			return obj
-		}
-
-		if w.applyCounts[objKey] <= w.failFirst[objKey] {
-			// fail by manipulating obj's spec
-			newObj := obj.DeepCopy()
-			// set invalid algorithm that should be rejected by the apiserver
-			// see https://github.com/cert-manager/cert-manager/blob/master/pkg/apis/certmanager/v1/types_certificate.go#L371-L377
-			newObj.Spec.PrivateKey = &cmv1.CertificatePrivateKey{
-				Algorithm: cmv1.PrivateKeyAlgorithm("SUPERSECURE"),
-			}
-			return newObj
-		}
-		return obj
-	}()
-	return w.wrapped.Apply(ctx, newObj)
-}
-
-func (w *WrappedCertificateApplyWorker) Start(ctx context.Context) error {
-	return w.wrapped.Start(ctx)
-}
-
-func (w *WrappedCertificateApplyWorker) GetRetryChannel() <-chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy] {
-	return w.wrapped.GetRetryChannel()
-}
-
-func (w *WrappedCertificateApplyWorker) GetQueuedCounter() uint64 {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.queuedCounter
-}
-
-func (w *WrappedCertificateApplyWorker) GetApplyCounts(objKey types.NamespacedName) uint64 {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.applyCounts[objKey]
-}
-
-func (w *WrappedCertificateApplyWorker) SetFailFirstNForKey(objKey types.NamespacedName, n uint64) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.failFirst[objKey] = n
-}
-
-func NewWrappedCertificateApplyWorker(wrapped *CertificateApplyWorker) *WrappedCertificateApplyWorker {
-	return &WrappedCertificateApplyWorker{
-		wrapped:     wrapped,
-		applyCounts: make(map[types.NamespacedName]uint64),
-		failFirst:   make(map[types.NamespacedName]uint64),
+	if k8serrors.IsNotFound(err) {
+		return c.Client.Create(ctx, obj)
 	}
+	return err
 }
 
-func testCertificateApplyWorkerApply() {
-	var ns string
-	var ctx context.Context
+// client wrapper that always fails Patch to simulate apply failure
+type failingPatchClient struct {
+	client.Client
+}
+
+func (f *failingPatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	return fmt.Errorf("simulated patch failure")
+}
+
+func testCertificateApplyWorker() {
+	var (
+		scheme *runtime.Scheme
+		ctx    context.Context
+	)
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		// Let apiserver generate a unique name to avoid collisions.
-		n := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{
-				GenerateName: testNamespacePrefix,
-			},
-		}
-		Expect(k8sClient.Create(ctx, n)).To(Succeed())
-		ns = n.Name
+
+		scheme = runtime.NewScheme()
+		Expect(cmv1.AddToScheme(scheme)).To(Succeed())
+		Expect(projectcontourv1.AddToScheme(scheme)).To(Succeed())
 	})
 
-	AfterEach(func() {
-		// delete any resource created by the previous spec
-		Expect(k8sClient.DeleteAllOf(ctx, &projectcontourv1.HTTPProxy{}, client.InNamespace(ns))).To(Succeed())
-		Expect(k8sClient.DeleteAllOf(ctx, certificate(), client.InNamespace(ns))).To(Succeed())
-		Expect(k8sClient.DeleteAllOf(ctx, dnsEndpoint(), client.InNamespace(ns))).To(Succeed())
-		Expect(k8sClient.DeleteAllOf(ctx, tlsCertificateDelegation(), client.InNamespace(ns))).To(Succeed())
+	newFakeClient := func(objs ...client.Object) client.Client {
+		return crfake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(objs...).
+			Build()
+	}
 
-		n := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: ns}}
-		_ = k8sClient.Delete(ctx, n) // this actually does not remove the namespace, it just puts it into terminating state
-	})
+	Describe("Apply + RequiresQueue integration", func() {
+		// This test will not call Start so that items put into the queue does not get dequeued.
+		// This allows the inspection of the queue content withouot adding a wrapper.
+		var key types.NamespacedName
 
-	It("should create Certificate via workqueue", func() {
-		scm, mgr := setupManager()
-
-		prefix := "test-"
-		opts := ReconcilerOptions{
-			ServiceKey:            testServiceKey,
-			Prefix:                prefix,
-			DefaultIssuerName:     "test-issuer",
-			DefaultIssuerKind:     IssuerKind,
-			CreateDNSEndpoint:     true,
-			CreateCertificate:     true,
-			CertificateApplyLimit: 1,
-		}
-
-		applyWorker := NewWrappedCertificateApplyWorker(NewCertificateApplyWorker(mgr.GetClient(), opts))
-
-		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
-
-		By("creating HTTPProxy")
-		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
-
-		objKey := client.ObjectKey{
-			Name:      prefix + hpKey.Name,
-			Namespace: hpKey.Namespace,
-		}
-		By("getting Certificate with prefixed name")
-		crt := certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed())
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(1)))
-
-		By("creating second HTTPProxy")
-		hpKey = client.ObjectKey{Name: "bar", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
-
-		objKey = client.ObjectKey{
-			Name:      prefix + hpKey.Name,
-			Namespace: hpKey.Namespace,
-		}
-		By("getting second Certificate with prefixed name")
-		crt = certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed()) // use longer timeout so that it can wait for the rate limit
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(2))) // should go through queue each create
-	})
-
-	It("should update Certificate without workqueue", func() {
-		scm, mgr := setupManager()
-
-		prefix := "test-"
-		opts := ReconcilerOptions{
-			ServiceKey:            testServiceKey,
-			Prefix:                prefix,
-			DefaultIssuerName:     "test-issuer",
-			DefaultIssuerKind:     IssuerKind,
-			CreateDNSEndpoint:     true,
-			CreateCertificate:     true,
-			PropagatedAnnotations: []string{"foo"}, // must propagate an annotation to update cert metadata
-			CertificateApplyLimit: 1,
-		}
-
-		applyWorker := NewWrappedCertificateApplyWorker(NewCertificateApplyWorker(mgr.GetClient(), opts))
-
-		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
-
-		By("creating HTTPProxy")
-		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
-
-		objKey := client.ObjectKey{
-			Name:      prefix + hpKey.Name,
-			Namespace: hpKey.Namespace,
-		}
-		By("getting Certificate with prefixed name")
-		crt := certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed())
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(1)))
-
-		By("updating HTTPProxy")
-
-		latest := &projectcontourv1.HTTPProxy{}
-		Expect(k8sClient.Get(context.Background(), hpKey, latest)).To(Succeed())
-		base := latest.DeepCopy()
-		if latest.Annotations == nil {
-			latest.Annotations = map[string]string{}
-		}
-		latest.Annotations["foo"] = "bar"
-
-		Expect(k8sClient.Patch(context.Background(), latest, client.MergeFrom(base))).To(Succeed())
-
-		By("getting Certificate with prefixed name again")
-		crt = certificate()
-		Eventually(func() bool {
-			if err := k8sClient.Get(context.Background(), objKey, crt); err != nil {
-				return false
+		BeforeEach(func() {
+			key = types.NamespacedName{
+				Namespace: "default",
+				Name:      "test-cert",
 			}
-			_, ok := crt.GetAnnotations()["foo"]
-			return ok
-		}).WithTimeout(10 * time.Second).Should(BeTrue())
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(1))) // should go through queue once (create)
-	})
-
-	It("should update Certificate via workqueue when spec is updated", func() {
-		scm, mgr := setupManager()
-
-		prefix := "test-"
-		opts := ReconcilerOptions{
-			ServiceKey:            testServiceKey,
-			Prefix:                prefix,
-			DefaultIssuerName:     "test-issuer",
-			DefaultIssuerKind:     IssuerKind,
-			CreateDNSEndpoint:     true,
-			CreateCertificate:     true,
-			PropagatedAnnotations: []string{"foo"}, // must propagate an annotation to update cert metadata
-			CertificateApplyLimit: 1,
-		}
-
-		applyWorker := NewWrappedCertificateApplyWorker(NewCertificateApplyWorker(mgr.GetClient(), opts))
-
-		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
-
-		By("creating HTTPProxy")
-		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
-
-		objKey := client.ObjectKey{
-			Name:      prefix + hpKey.Name,
-			Namespace: hpKey.Namespace,
-		}
-		By("getting Certificate with prefixed name")
-		crt := certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed())
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(1)))
-
-		By("updating HTTPProxy")
-		latest := &projectcontourv1.HTTPProxy{}
-		Expect(k8sClient.Get(context.Background(), hpKey, latest)).To(Succeed())
-		base := latest.DeepCopy()
-		if latest.Annotations == nil {
-			latest.Annotations = map[string]string{}
-		}
-		latest.Annotations[privateKeyAlgorithmAnnotation] = "ECDSA" // changing privateKeyAlgorithm should trigger reissuance of the Certificate
-
-		Expect(k8sClient.Patch(context.Background(), latest, client.MergeFrom(base))).To(Succeed())
-
-		time.Sleep(5 * time.Second) // wait for the certificate changes to be applied via rate limited queue
-		By("getting Certificate with prefixed name again")
-		crt = certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed())
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(2))) // should go through queue twice (create & update)
-	})
-
-	It("should create Certificate via workqueue after a retry", func() {
-		scm, mgr := setupManager()
-
-		prefix := "test-"
-		opts := ReconcilerOptions{
-			ServiceKey:            testServiceKey,
-			Prefix:                prefix,
-			DefaultIssuerName:     "test-issuer",
-			DefaultIssuerKind:     IssuerKind,
-			CreateDNSEndpoint:     true,
-			CreateCertificate:     true,
-			CertificateApplyLimit: 1,
-		}
-
-		applyWorker := NewWrappedCertificateApplyWorker(NewCertificateApplyWorker(mgr.GetClient(), opts))
-
-		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
-
-		By("creating HTTPProxy")
-		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		certObjKey := client.ObjectKey{
-			Name:      prefix + hpKey.Name,
-			Namespace: hpKey.Namespace,
-		}
-		r.CertApplier.(*WrappedCertificateApplyWorker).SetFailFirstNForKey(certObjKey, 1) // CertApply should fail once
-		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
-
-		By("getting Certificate with prefixed name")
-		crt := certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), certObjKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed())
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(2)))
-		Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetApplyCounts(certObjKey)).Should(Equal(uint64(2)))
-	})
-
-	It("should create Certificate in the specified namespace via a workqueue after a retry", func() {
-		certNsObj := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
-		}
-		Expect(k8sClient.Create(context.Background(), certNsObj)).ShouldNot(HaveOccurred())
-		certNs := certNsObj.Name
-		DeferCleanup(func() {
-			_ = k8sClient.Delete(ctx, certNsObj)
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: certNs}, &corev1.Namespace{})
-				return client.IgnoreNotFound(err) == nil
-			}, 10*time.Second).Should(BeTrue())
 		})
 
-		scm, mgr := setupManager()
+		It("queues a completely new object (NotFound path)", func() {
+			baseClient := newFakeClient() // no existing Certificate
+			cl := &applyAsUpdateClient{Client: baseClient}
+			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
+				CertificateApplyLimit: 10, // avoid rate.Limit(0) semantics
+			})
 
-		opts := ReconcilerOptions{
-			ServiceKey:              testServiceKey,
-			CreateCertificate:       true,
-			DefaultIssuerKind:       IssuerKind,
-			DefaultIssuerName:       "test-issuer",
-			AllowedIssuerNamespaces: []string{certNs},
-			CertificateApplyLimit:   1,
-		}
+			desired := &cmv1.Certificate{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: key.Namespace,
+					Name:      key.Name,
+				},
+				Spec: cmv1.CertificateSpec{
+					SecretName: "test-secret",
+					DNSNames:   []string{"example.com"},
+				},
+			}
 
-		applyWorker := NewWrappedCertificateApplyWorker(NewCertificateApplyWorker(mgr.GetClient(), opts))
+			// Call Apply, which internally calls RequiresQueue and should enqueue
+			Expect(worker.Apply(ctx, desired)).To(Succeed())
 
-		r, err := SetupAndGetReconciler(mgr, scm, opts, applyWorker)
-		Expect(err).ShouldNot(HaveOccurred())
+			// New object -> should NOT be created in the API yet (only queued)
+			got := &cmv1.Certificate{}
+			err := cl.Get(ctx, key, got)
+			Expect(err).To(HaveOccurred())
+			Expect(k8serrors.IsNotFound(err)).To(BeTrue(), "new object should not be applied immediately, but queued")
 
-		stopMgr := startTestManager(mgr)
-		defer stopMgr()
+			// And the worker should have the key in its internal queue
+			Expect(worker.workqueue.Len()).To(Equal(1))
 
-		By("creating HTTPProxy with Certificate namespace annotation")
-		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		hp := newDummyHTTPProxy(hpKey)
-		hp.Spec.VirtualHost.TLS = nil
-		hp.Annotations[issuerNamespaceAnnotation] = certNs
+			queuedKey, shutdown := worker.workqueue.Get()
+			Expect(shutdown).To(BeFalse())
+			Expect(queuedKey).To(Equal(key))
+			worker.workqueue.Done(queuedKey)
+		})
 
-		certName := hpKey.Namespace + "-" + hpKey.Name
-		certObjKey := client.ObjectKey{
-			Name:      certName,
-			Namespace: certNs,
-		}
-		r.CertApplier.(*WrappedCertificateApplyWorker).SetFailFirstNForKey(certObjKey, 1) // CertApply should fail once
+		It("applies directly when only metadata (annotations) change", func() {
+			// current object in cluster
+			current := &cmv1.Certificate{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: key.Namespace,
+					Name:      key.Name,
+					Annotations: map[string]string{
+						"foo": "bar",
+					},
+				},
+				Spec: cmv1.CertificateSpec{
+					SecretName: "test-secret",
+					DNSNames:   []string{"example.com"},
+				},
+			}
 
-		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
+			baseClient := newFakeClient(current) // init with a certificate
+			cl := &applyAsUpdateClient{Client: baseClient}
+			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
+				CertificateApplyLimit: 10,
+			})
 
-		By("getting Certificate in the specified namespace")
-		crt := certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), certObjKey, crt)
-		}, 5*time.Second).Should(Succeed())
-		// NOTE: We are not checking the number of times the item went through the queue here
-		// since creating child resources in another namespace involves updating HTTPProxy, causing additional reconciliation.
-		// The timing of this reconciliation can vary and cause flakiness in this test case.
-		// should apply 2~3 times:
-		// 1. first apply
-		// 2. triggered by patch of HTTPProxy in `reconcileSecretName`
-		// 3. triggered by requeue
-		/* Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetQueuedCounter()).Should(Equal(uint64(3))) */
-		/* Expect(r.CertApplier.(*WrappedCertificateApplyWorker).GetApplyCounts(certObjKey)).Should(Equal(uint64(3))) */
+			// desired has same Spec but different annotation
+			desired := current.DeepCopy()
+			if desired.Annotations == nil {
+				desired.Annotations = map[string]string{}
+			}
+			desired.Annotations["foo"] = "baz" // metadata-only change
 
-		By("ensuring HTTPProxy deletion deletes the Certificate")
-		Expect(k8sClient.Delete(context.Background(), hp)).ShouldNot(HaveOccurred())
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), certObjKey, crt)
-		}, 5*time.Second).ShouldNot(Succeed())
+			// This should go down the "no queue" path and call applyCertificate (Patch)
+			Expect(worker.Apply(ctx, desired)).To(Succeed())
+
+			// Should NOT be queued
+			Expect(worker.workqueue.Len()).To(Equal(0))
+
+			// And the object in the fake client should be updated
+			got := &cmv1.Certificate{}
+			Expect(cl.Get(ctx, key, got)).To(Succeed())
+			Expect(got.Annotations).To(HaveKeyWithValue("foo", "baz"))
+			// Spec should still match
+			Expect(got.Spec.SecretName).To(Equal("test-secret"))
+			Expect(got.Spec.DNSNames).To(ConsistOf("example.com"))
+		})
+
+		It("queues when Spec changes (re-issuance required)", func() {
+			current := &cmv1.Certificate{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: key.Namespace,
+					Name:      key.Name,
+				},
+				Spec: cmv1.CertificateSpec{
+					SecretName: "test-secret",
+					DNSNames:   []string{"example.com"},
+				},
+			}
+
+			baseClient := newFakeClient(current) // init with a certificate
+			cl := &applyAsUpdateClient{Client: baseClient}
+			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
+				CertificateApplyLimit: 10,
+			})
+
+			// desired has different Spec (extra DNS name)
+			desired := current.DeepCopy()
+			desired.Spec.DNSNames = append(desired.Spec.DNSNames, "extra.example.com")
+
+			// Apply should decide this needs queueing
+			Expect(worker.Apply(ctx, desired)).To(Succeed())
+
+			// Should be queued, not applied directly
+			Expect(worker.workqueue.Len()).To(Equal(1))
+
+			// The object in the fake client should still be the old spec (no extra DNS yet),
+			// because the queued apply hasn’t run Start() / processed the queue.
+			got := &cmv1.Certificate{}
+			Expect(cl.Get(ctx, key, got)).To(Succeed())
+			Expect(got.Spec.DNSNames).To(ConsistOf("example.com"))
+
+			queuedKey, shutdown := worker.workqueue.Get()
+			Expect(shutdown).To(BeFalse())
+			Expect(queuedKey).To(Equal(key))
+			worker.workqueue.Done(queuedKey)
+		})
+	})
+
+	Describe("Start & retry channel", func() {
+		It("dequeues and applies a certificate from the queue", func() {
+			baseClient := newFakeClient() // no existing certificate
+			cl := &applyAsUpdateClient{Client: baseClient}
+			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
+				CertificateApplyLimit: 10, // avoid rate.Limit(0) oddness
+			})
+
+			key := types.NamespacedName{
+				Namespace: "default",
+				Name:      "cert-from-queue",
+			}
+
+			cert := &cmv1.Certificate{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: key.Namespace,
+					Name:      key.Name,
+				},
+				Spec: cmv1.CertificateSpec{
+					SecretName: "test-secret",
+					DNSNames:   []string{"example.com"},
+				},
+			}
+
+			// Run Start in the background
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- worker.Start(ctx)
+			}()
+
+			// Apply should enqueue the certificate (RequiresQueue => true for new object)
+			Expect(worker.Apply(ctx, cert)).To(Succeed())
+			Expect(worker.workqueue.Len()).To(Equal(1), "item should be queued after Apply")
+
+			// Wait until the worker has dequeued and applied the certificate.
+			// Using Eventually + Succeed() matcher for func() error.
+			Eventually(func() error {
+				got := &cmv1.Certificate{}
+				return cl.Get(ctx, key, got)
+			}, 2*time.Second, 100*time.Millisecond).Should(Succeed(), "certificate should eventually be applied from queue")
+
+			// Double-check the applied spec
+			got := &cmv1.Certificate{}
+			Expect(cl.Get(ctx, key, got)).To(Succeed())
+			Expect(got.Spec.SecretName).To(Equal("test-secret"))
+			Expect(got.Spec.DNSNames).To(ConsistOf("example.com"))
+
+			// Queue should be drained
+			Expect(worker.workqueue.Len()).To(Equal(0))
+
+			// Shut down the worker loop cleanly
+			cancel()
+			Eventually(errCh, time.Second).Should(Receive(BeNil()))
+		})
+
+		It("sends an HTTPProxy event on retry channel when certificate apply fails", func() {
+			baseClient := newFakeClient()
+			cl := &failingPatchClient{Client: baseClient}
+
+			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
+				CertificateApplyLimit: 10,
+			})
+
+			// Certificate annotated with ownerAnnotation so enqueueHTTPProxy can find the HTTPProxy key
+			cert := &cmv1.Certificate{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "cert-with-owner",
+					Annotations: map[string]string{
+						ownerAnnotation: "default/test-httpproxy",
+					},
+				},
+				Spec: cmv1.CertificateSpec{
+					SecretName: "test-secret",
+				},
+			}
+
+			// Run Start in the background
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			errCh := make(chan error, 1)
+			go func() {
+				errCh <- worker.Start(ctx)
+			}()
+
+			// Apply should enqueue the certificate (RequiresQueue returns true for new object)
+			Expect(worker.Apply(ctx, cert)).To(Succeed())
+
+			// We expect a retry event on the channel because Patch always fails
+			retryCh := worker.GetRetryChannel()
+
+			var evt event.TypedGenericEvent[*projectcontourv1.HTTPProxy]
+			Eventually(retryCh, 2*time.Second, 100*time.Millisecond).Should(
+				Receive(&evt),
+				"expected an HTTPProxy event to be sent on retry channel after apply failure",
+			)
+
+			Expect(evt.Object).NotTo(BeNil())
+			Expect(evt.Object.Namespace).To(Equal("default"))
+			Expect(evt.Object.Name).To(Equal("test-httpproxy"))
+
+			// shut down the worker loop
+			cancel()
+			Eventually(errCh, time.Second).Should(Receive(BeNil()))
+		})
 	})
 }

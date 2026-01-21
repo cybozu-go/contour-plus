@@ -1384,6 +1384,80 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.List(context.Background(), tcdList, client.InNamespace(certNs))).ShouldNot(HaveOccurred())
 		Expect(tcdList.Items).Should(BeEmpty())
 	})
+
+	It("should reconcile Certificate with CertificateApplyWorker", func() {
+		scm, mgr := setupManager()
+
+		prefix := "test-"
+		opts := ReconcilerOptions{
+			ServiceKey:            testServiceKey,
+			Prefix:                prefix,
+			DefaultIssuerName:     "test-issuer",
+			DefaultIssuerKind:     IssuerKind,
+			CreateDNSEndpoint:     true,
+			CreateCertificate:     true,
+			PropagatedAnnotations: []string{"foo"}, // must propagate an annotation to update cert metadata
+			CertificateApplyLimit: 1,
+		}
+
+		err := SetupReconciler(mgr, scm, opts)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
+
+		objKey := client.ObjectKey{
+			Name:      prefix + hpKey.Name,
+			Namespace: hpKey.Namespace,
+		}
+		By("getting Certificate with prefixed name")
+		crt := certificate()
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).WithTimeout(5 * time.Second).Should(Succeed())
+
+		By("updating HTTPProxy with metadata change of child certificate")
+		latest := &projectcontourv1.HTTPProxy{}
+		Expect(k8sClient.Get(context.Background(), hpKey, latest)).To(Succeed())
+		base := latest.DeepCopy()
+		if latest.Annotations == nil {
+			latest.Annotations = map[string]string{}
+		}
+		latest.Annotations["foo"] = "bar"
+
+		Expect(k8sClient.Patch(context.Background(), latest, client.MergeFrom(base))).To(Succeed())
+
+		By("getting Certificate with prefixed name again")
+		crt = certificate()
+		Eventually(func() bool {
+			if err := k8sClient.Get(context.Background(), objKey, crt); err != nil {
+				return false
+			}
+			_, ok := crt.GetAnnotations()["foo"]
+			return ok
+		}).WithTimeout(5 * time.Second).Should(BeTrue())
+
+		By("updating HTTPProxy with spec change of child certificate")
+		latest = &projectcontourv1.HTTPProxy{}
+		Expect(k8sClient.Get(context.Background(), hpKey, latest)).To(Succeed())
+		base = latest.DeepCopy()
+		if latest.Annotations == nil {
+			latest.Annotations = map[string]string{}
+		}
+		latest.Annotations[privateKeyAlgorithmAnnotation] = "ECDSA" // changing privateKeyAlgorithm should trigger reissuance of the Certificate
+
+		Expect(k8sClient.Patch(context.Background(), latest, client.MergeFrom(base))).To(Succeed())
+
+		By("getting Certificate with prefixed name for the third time")
+		crt = certificate()
+		Eventually(func() error {
+			return k8sClient.Get(context.Background(), objKey, crt)
+		}).WithTimeout(5 * time.Second).Should(Succeed())
+	})
 }
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
