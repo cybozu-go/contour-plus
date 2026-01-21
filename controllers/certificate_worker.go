@@ -24,12 +24,16 @@ import (
 )
 
 type viaQueueValue string
+type applyResultValue string
 
 const (
-	certificateApplierName               = "certificate-apply"
-	labelViaQueue                        = "via_queue"
-	viaQueueYes            viaQueueValue = "true"
-	viaQueueNo             viaQueueValue = "false"
+	certificateApplierName                  = "certificate-apply"
+	labelViaQueue                           = "via_queue"
+	viaQueueYes            viaQueueValue    = "true"
+	viaQueueNo             viaQueueValue    = "false"
+	labelApplyResult                        = "result"
+	applyResultSuccess     applyResultValue = "success"
+	applyResultError       applyResultValue = "error"
 )
 
 type Applier[T client.Object] interface {
@@ -123,7 +127,7 @@ func (w *CertificateApplyWorker) RegisterMetrics(mgr manager.Manager) error {
 			Name: "contour_plus_certificates_applied_total",
 			Help: "Total number of Certificate resources applied.",
 		},
-		[]string{"controller", labelViaQueue},
+		[]string{"controller", labelViaQueue, labelApplyResult},
 	)
 
 	// cannot use MustRegister because controller-runtime uses global prometheus registry which cannot be reset during testing
@@ -153,10 +157,12 @@ func (w *CertificateApplyWorker) Apply(ctx context.Context, obj *cmv1.Certificat
 		return nil
 	}
 	if err := applyCertificate(ctx, w.client, obj); err != nil {
+		log.Error(err, "cert apply from queue failed", "key", objKey.String())
+		w.recordApply(viaQueueNo, applyResultError)
 		return err
 	}
 	log.Info("cert applied without queueing", "key", objKey.String())
-	w.recordApply(viaQueueNo)
+	w.recordApply(viaQueueNo, applyResultSuccess)
 	return nil
 }
 
@@ -195,13 +201,14 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 			}
 
 			if err := applyCertificate(ctx, w.client, obj); err != nil {
-				log.Error(err, "cert apply failed", "key", objKey.String())
+				log.Error(err, "cert apply from queue failed", "key", objKey.String())
+				w.recordApply(viaQueueYes, applyResultError)
 				w.enqueueHTTPProxy(ctx, obj)
 				return
 			}
 
 			log.Info("cert applied from queue", "key", objKey.String())
-			w.recordApply(viaQueueYes)
+			w.recordApply(viaQueueYes, applyResultSuccess)
 		}()
 	}
 }
@@ -275,11 +282,11 @@ func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1
 	}
 }
 
-func (w *CertificateApplyWorker) recordApply(viaQueue viaQueueValue) {
+func (w *CertificateApplyWorker) recordApply(viaQueue viaQueueValue, applyResult applyResultValue) {
 	if w.certificatesAppliedTotal == nil {
 		return
 	}
-	w.certificatesAppliedTotal.WithLabelValues(certificateApplierName, string(viaQueue)).Inc()
+	w.certificatesAppliedTotal.WithLabelValues(certificateApplierName, string(viaQueue), string(applyResult)).Inc()
 }
 
 // applyCertificate applies provided certificate object with provided context and apiserver client
