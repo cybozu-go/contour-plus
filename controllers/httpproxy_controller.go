@@ -633,7 +633,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return err
 		}
 		if err := certWorker.RegisterMetrics(metrics.Registry); err != nil {
-			r.Log.Error(err, "skipping metrics registration")
+			return err
 		}
 	}
 	listHPs := func(ctx context.Context, a client.Object) []reconcile.Request {

@@ -157,7 +157,7 @@ func (w *CertificateApplyWorker) Apply(ctx context.Context, obj *cmv1.Certificat
 		return nil
 	}
 	if err := applyCertificate(ctx, w.client, obj); err != nil {
-		log.Error(err, "cert apply from queue failed", "key", objKey.String())
+		log.Error(err, "cert apply failed", "key", objKey.String())
 		w.recordApply(viaQueueNo, applyResultError)
 		return err
 	}
