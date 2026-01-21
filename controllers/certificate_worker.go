@@ -69,7 +69,7 @@ type ApplyWorker[T client.Object] interface {
 	// NOTE: could use second generics type instead of HTTPProxy if we want to use this somewhere else.
 	GetRetryChannel() <-chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy]
 	// RegisterMetrics should register metrics that ApplyWorker records
-	RegisterMetrics(manager.Manager) error
+	RegisterMetrics(metrics.RegistererGatherer) error
 }
 
 var _ ApplyWorker[*cmv1.Certificate] = &CertificateApplyWorker{}
@@ -121,7 +121,7 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 	}
 }
 
-func (w *CertificateApplyWorker) RegisterMetrics(mgr manager.Manager) error {
+func (w *CertificateApplyWorker) RegisterMetrics(registry metrics.RegistererGatherer) error {
 	certificatesAppliedTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "contour_plus_certificates_applied_total",
@@ -132,7 +132,7 @@ func (w *CertificateApplyWorker) RegisterMetrics(mgr manager.Manager) error {
 
 	// cannot use MustRegister because controller-runtime uses global prometheus registry which cannot be reset during testing
 	// we need to explicitly check for duplicate metrics error
-	if err := metrics.Registry.Register(certificatesAppliedTotal); err != nil {
+	if err := registry.Register(certificatesAppliedTotal); err != nil {
 		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
 			return err
 		}

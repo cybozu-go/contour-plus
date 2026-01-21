@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -631,7 +632,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if err := mgr.Add(certWorker); err != nil {
 			return err
 		}
-		if err := certWorker.RegisterMetrics(mgr); err != nil {
+		if err := certWorker.RegisterMetrics(metrics.Registry); err != nil {
 			r.Log.Error(err, "skipping metrics registration")
 		}
 	}
