@@ -65,18 +65,12 @@ func (f *failingPatchClient) Patch(ctx context.Context, obj client.Object, patch
 }
 
 func testCertificateApplyWorker() {
-	var (
-		scheme *runtime.Scheme
-		ctx    context.Context
-	)
 
-	BeforeEach(func() {
-		ctx = context.Background()
+	ctx := context.Background()
 
-		scheme = runtime.NewScheme()
-		Expect(cmv1.AddToScheme(scheme)).To(Succeed())
-		Expect(projectcontourv1.AddToScheme(scheme)).To(Succeed())
-	})
+	scheme := runtime.NewScheme()
+	Expect(cmv1.AddToScheme(scheme)).To(Succeed())
+	Expect(projectcontourv1.AddToScheme(scheme)).To(Succeed())
 
 	newFakeClient := func(objs ...client.Object) client.Client {
 		return crfake.NewClientBuilder().
@@ -88,14 +82,10 @@ func testCertificateApplyWorker() {
 	Describe("Apply + RequiresQueue integration", func() {
 		// This test will not call Start so that items put into the queue does not get dequeued.
 		// This allows the inspection of the queue content withouot adding a wrapper.
-		var key types.NamespacedName
-
-		BeforeEach(func() {
-			key = types.NamespacedName{
-				Namespace: "default",
-				Name:      "test-cert",
-			}
-		})
+		key := types.NamespacedName{
+			Namespace: "default",
+			Name:      "test-cert",
+		}
 
 		It("queues a completely new object (NotFound path)", func() {
 			baseClient := newFakeClient() // no existing Certificate

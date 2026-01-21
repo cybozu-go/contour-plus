@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
@@ -1415,7 +1416,7 @@ func testHTTPProxyReconcile() {
 			Namespace: hpKey.Namespace,
 		}
 		By("getting Certificate with prefixed name")
-		crt := certificate()
+		crt := &cmv1.Certificate{}
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).WithTimeout(5 * time.Second).Should(Succeed())
@@ -1432,7 +1433,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Patch(context.Background(), latest, client.MergeFrom(base))).To(Succeed())
 
 		By("getting Certificate with prefixed name again")
-		crt = certificate()
+		crt = &cmv1.Certificate{}
 		Eventually(func() bool {
 			if err := k8sClient.Get(context.Background(), objKey, crt); err != nil {
 				return false
@@ -1453,10 +1454,13 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.Patch(context.Background(), latest, client.MergeFrom(base))).To(Succeed())
 
 		By("getting Certificate with prefixed name for the third time")
-		crt = certificate()
-		Eventually(func() error {
-			return k8sClient.Get(context.Background(), objKey, crt)
-		}).WithTimeout(5 * time.Second).Should(Succeed())
+		crt = &cmv1.Certificate{}
+		Eventually(func() bool {
+			if err := k8sClient.Get(context.Background(), objKey, crt); err != nil {
+				return false
+			}
+			return crt.Spec.PrivateKey != nil && crt.Spec.PrivateKey.Algorithm == cmv1.ECDSAKeyAlgorithm
+		}).WithTimeout(5 * time.Second).Should(BeTrue())
 	})
 }
 

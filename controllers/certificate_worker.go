@@ -44,7 +44,7 @@ func NewCertificateApplier(client client.Client) *CertificateApplier {
 }
 
 // ApplyWorker is Applier with Start method so that it can be used directly by manager.Manager.Add
-// Imlement ApplyWorker if the Applier requires a worker that runs in a background and start it via controller manager.
+// Implement ApplyWorker if the Applier requires a worker that runs in a background and start it via controller manager.
 type ApplyWorker[T client.Object] interface {
 	Applier[T]
 	// manager.Runnable defines signature for Start
