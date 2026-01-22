@@ -427,19 +427,6 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 		return nil
 	}
 	certificateName := getCertificateName(r, hp)
-
-	cert := &unstructured.Unstructured{}
-	cert.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-	certKey := client.ObjectKey{
-		Namespace: namespace,
-		Name:      certificateName,
-	}
-	err := r.Get(ctx, certKey, cert)
-	if k8serrors.IsNotFound(err) {
-		log.Info("Certificate not found for TLSCertificateDelegation", "namespace", namespace, "name", certificateName)
-		/* return err */
-	}
-
 	delegationSpec := map[string]interface{}{
 		"delegations": []map[string]interface{}{
 			{
@@ -458,7 +445,7 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = delegationSpec
-	err = r.trackResourceOwnership(hp, obj)
+	err := r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}

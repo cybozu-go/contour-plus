@@ -56,7 +56,6 @@ func SetupReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts Reconcile
 }
 
 // SetupAndGetReconciler initializes reconcilers and return the reconciler struct
-// c
 func SetupAndGetReconciler(mgr manager.Manager, scheme *runtime.Scheme, opts ReconcilerOptions, certWorker Applier[*cmapiv1.Certificate]) (*HTTPProxyReconciler, error) {
 	httpProxyReconciler := &HTTPProxyReconciler{
 		Client:            mgr.GetClient(),
