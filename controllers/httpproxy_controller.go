@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	"github.com/go-logr/logr"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,8 +25,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -40,7 +44,7 @@ const (
 	delegatedDomainAnnotation         = "contour-plus.cybozu.com/delegated-domain"
 	dnsNamespaceAnnotation            = "contour-plus.cybozu.com/dns-namespace"
 	issuerNamespaceAnnotation         = "contour-plus.cybozu.com/issuer-namespace"
-	crossNamespaceOwnerAnnotation     = "contour-plus.cybozu.com/owned-by"
+	ownerAnnotation                   = "contour-plus.cybozu.com/owned-by"
 	finalizerName                     = "contour-plus.cybozu.com/finalizer"
 )
 
@@ -50,6 +54,8 @@ type HTTPProxyReconciler struct {
 	ReconcilerOptions
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	CertApplier Applier[*cmv1.Certificate]
 }
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch;update;patch
@@ -202,7 +208,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	obj.UnstructuredContent()["spec"] = map[string]interface{}{
 		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
-	err = r.trackResourceForCleanup(hp, obj)
+	err = r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -257,7 +263,7 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain),
 	}
 
-	if err := r.trackResourceForCleanup(hp, obj); err != nil {
+	if err := r.trackResourceOwnership(hp, obj); err != nil {
 		return err
 	}
 
@@ -308,23 +314,23 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		return nil
 	}
 
-	certificateSpec := map[string]interface{}{
-		"dnsNames":   []string{vh.Fqdn},
-		"secretName": secretName,
-		"commonName": vh.Fqdn,
-		"issuerRef": map[string]interface{}{
-			"kind": issuerKind,
-			"name": issuerName,
+	certificateSpec := cmv1.CertificateSpec{
+		DNSNames:   []string{vh.Fqdn},
+		SecretName: secretName,
+		CommonName: vh.Fqdn,
+		IssuerRef: cmmeta.IssuerReference{
+			Kind: issuerKind,
+			Name: issuerName,
 		},
-		"usages": []string{
-			usageDigitalSignature,
-			usageKeyEncipherment,
-			usageServerAuth,
+		Usages: []cmv1.KeyUsage{
+			cmv1.UsageDigitalSignature,
+			cmv1.UsageKeyEncipherment,
+			cmv1.UsageServerAuth,
 		},
 	}
 
 	if r.CSRRevisionLimit > 0 {
-		certificateSpec["revisionHistoryLimit"] = r.CSRRevisionLimit
+		certificateSpec.RevisionHistoryLimit = ptr.To(int32(r.CSRRevisionLimit))
 	}
 	if value, ok := hp.Annotations[revisionHistoryLimitAnnotation]; ok {
 		limit, err := strconv.ParseUint(value, 10, 32)
@@ -332,34 +338,34 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 			log.Error(err, "invalid revisionHistoryLimit", "value", value)
 			return nil
 		}
-		certificateSpec["revisionHistoryLimit"] = limit
+		certificateSpec.RevisionHistoryLimit = ptr.To(int32(limit))
 	}
-	secretTemplate := make(map[string]interface{})
+	secretTemplate := &cmv1.CertificateSecretTemplate{}
 	annotations := r.generateObjectAnnotations(hp)
 	if annotations != nil {
-		secretTemplate["annotations"] = annotations
+		secretTemplate.Annotations = annotations
 	}
 	labels := r.generateObjectLabels(hp)
 	if labels != nil {
-		secretTemplate["labels"] = labels
+		secretTemplate.Labels = labels
 	}
-	if len(secretTemplate) > 0 {
-		certificateSpec["secretTemplate"] = secretTemplate
+	if secretTemplate.Annotations != nil || secretTemplate.Labels != nil {
+		certificateSpec.SecretTemplate = secretTemplate
 	}
 
 	if algorithm, ok := hp.Annotations[privateKeyAlgorithmAnnotation]; ok {
-		privateKeySpec := map[string]interface{}{
-			"algorithm": algorithm,
+		privateKeySpec := &cmv1.CertificatePrivateKey{
+			Algorithm: cmv1.PrivateKeyAlgorithm(algorithm),
 		}
 		if value, ok := hp.Annotations[privateKeySizeAnnotation]; ok {
 			size, err := strconv.ParseUint(value, 10, 32)
 			if err == nil {
-				privateKeySpec["size"] = size
+				privateKeySpec.Size = int(size)
 			} else {
 				log.Error(err, "invalid privateKey size", "value", value)
 			}
 		}
-		certificateSpec["privateKey"] = privateKeySpec
+		certificateSpec.PrivateKey = privateKeySpec
 	}
 
 	certificateName := getCertificateName(r, hp)
@@ -368,29 +374,20 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 		targetNamespace = ns
 	}
 
-	obj := &unstructured.Unstructured{}
+	obj := &cmv1.Certificate{}
 	obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
 	obj.SetName(certificateName)
 	obj.SetNamespace(targetNamespace)
-	obj.UnstructuredContent()["spec"] = certificateSpec
+	obj.Spec = certificateSpec
 
 	obj.SetAnnotations(annotations)
 	obj.SetLabels(labels)
 
-	err := r.trackResourceForCleanup(hp, obj)
+	err := r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
-	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        ptr.To(true),
-		FieldManager: "contour-plus",
-	})
-	if err != nil {
-		return err
-	}
-
-	log.Info("Certificate successfully reconciled")
-	return nil
+	return r.CertApplier.Apply(ctx, obj)
 }
 
 // generateObjectAnnotations creates a map that contains annotations that should be propagated to child resources from HTTPProxy.
@@ -431,19 +428,6 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 		return nil
 	}
 	certificateName := getCertificateName(r, hp)
-
-	cert := &unstructured.Unstructured{}
-	cert.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-	certKey := client.ObjectKey{
-		Namespace: namespace,
-		Name:      certificateName,
-	}
-	err := r.Get(ctx, certKey, cert)
-	if k8serrors.IsNotFound(err) {
-		log.Info("Certificate not found for TLSCertificateDelegation", "namespace", namespace, "name", certificateName)
-		return err
-	}
-
 	delegationSpec := map[string]interface{}{
 		"delegations": []map[string]interface{}{
 			{
@@ -462,7 +446,7 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = delegationSpec
-	err = r.trackResourceForCleanup(hp, obj)
+	err := r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -498,17 +482,17 @@ func (r *HTTPProxyReconciler) reconcileSecretName(ctx context.Context, hp *proje
 	return nil
 }
 
-func (r *HTTPProxyReconciler) trackResourceForCleanup(hp *projectcontourv1.HTTPProxy, obj *unstructured.Unstructured) error {
-	if obj.GetNamespace() == hp.Namespace {
-		return ctrl.SetControllerReference(hp, obj, r.Scheme)
-	}
-
+func (r *HTTPProxyReconciler) trackResourceOwnership(hp *projectcontourv1.HTTPProxy, obj client.Object) error {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	annotations[crossNamespaceOwnerAnnotation] = hp.Namespace + "/" + hp.Name
+	annotations[ownerAnnotation] = hp.Namespace + "/" + hp.Name
 	obj.SetAnnotations(annotations)
+
+	if obj.GetNamespace() == hp.Namespace {
+		return ctrl.SetControllerReference(hp, obj, r.Scheme)
+	}
 
 	if !controllerutil.ContainsFinalizer(hp, finalizerName) {
 		controllerutil.AddFinalizer(hp, finalizerName)
@@ -558,7 +542,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceDNSEndpoints(ctx context.Cont
 
 	for _, de := range del.Items {
 		annotations := de.GetAnnotations()
-		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		owner, ok := annotations[ownerAnnotation]
 		if !ok || owner != hp.Namespace+"/"+hp.Name {
 			continue
 		}
@@ -592,7 +576,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceCertificates(ctx context.Cont
 
 	for _, cert := range certList.Items {
 		annotations := cert.GetAnnotations()
-		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		owner, ok := annotations[ownerAnnotation]
 		if !ok || owner != hp.Namespace+"/"+hp.Name {
 			continue
 		}
@@ -626,7 +610,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceTLSCertificateDelegations(ctx
 
 	for _, tcd := range tcdList.Items {
 		annotations := tcd.GetAnnotations()
-		owner, ok := annotations[crossNamespaceOwnerAnnotation]
+		owner, ok := annotations[ownerAnnotation]
 		if !ok || owner != hp.Namespace+"/"+hp.Name {
 			continue
 		}
@@ -643,6 +627,15 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceTLSCertificateDelegations(ctx
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// start worker if CertApplier requires one
+	if certWorker, ok := r.CertApplier.(ApplyWorker[*cmv1.Certificate]); ok {
+		if err := mgr.Add(certWorker); err != nil {
+			return err
+		}
+		if err := certWorker.RegisterMetrics(metrics.Registry); err != nil {
+			return err
+		}
+	}
 	listHPs := func(ctx context.Context, a client.Object) []reconcile.Request {
 		if a.GetNamespace() != r.ServiceKey.Namespace {
 			return nil
@@ -710,9 +703,16 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// ignoreInitialCreateEvent is added to guarantee that only one workqueue event is queued for each HTTPProxy at controller startup.
 	// This may not be necessary most of the time since the events will be coalesced in the workqueue while waiting for the controller to start.
 	// That being said, this is added to avoid any race condition between Service watch and HTTPProxy watch causing event coalescence to fail in the workqueue.
+	// retryCh is used by CertApplier to requeue HTTPProxy when the apply for Certificate fails
 	b := ctrl.NewControllerManagedBy(mgr).
 		For(&projectcontourv1.HTTPProxy{}, builder.WithPredicates(specOrMetadataChanged)).
 		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(listHPs), builder.WithPredicates(ignoreInitialCreateEvent))
+
+	// add retry logic for cert worker.
+	// this allows requeing HTTPProxy back into the main workqueue when applying Certificate resouce from cert worker fails
+	if certWorker, ok := r.CertApplier.(ApplyWorker[*cmv1.Certificate]); ok {
+		b = b.WatchesRawSource(source.Channel(certWorker.GetRetryChannel(), &handler.TypedEnqueueRequestForObject[*projectcontourv1.HTTPProxy]{}))
+	}
 
 	// DNSEndpoint, Certificate, & TLSCertificateDelegation resource should emit HTTPProxy workqueue event only when their specs have changed.
 	// predicate.GenerationChangedPredicate ignores any status or metadata updates made by other controllers and
@@ -726,9 +726,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		b = b.Owns(obj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
 	}
 	if r.CreateCertificate {
-		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-		b = b.Owns(obj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
+		b = b.Owns(&cmv1.Certificate{}, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))
 		tcdObj := &unstructured.Unstructured{}
 		tcdObj.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationKind))
 		b = b.Owns(tcdObj, builder.WithPredicates(ignoreChildCreateEvent, predicate.GenerationChangedPredicate{}))

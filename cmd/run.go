@@ -78,6 +78,10 @@ func run() error {
 
 	opts.AllowedDNSNamespaces = viper.GetStringSlice("allowed-dns-namespaces")
 	opts.AllowedIssuerNamespaces = viper.GetStringSlice("allowed-issuer-namespaces")
+	opts.CertificateApplyLimit = viper.GetFloat64("certificate-apply-limit")
+	if opts.CertificateApplyLimit < 0 {
+		return errors.New("certificate-apply-limit must be greater than or equal to 0")
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,

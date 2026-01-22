@@ -105,6 +105,10 @@ var _ = Describe("Test contour-plus", func() {
 	Context("httpproxy", testHTTPProxyReconcile)
 })
 
+var _ = Describe("Test Certificate apply worker", func() {
+	Context("certificate-apply-worker", testCertificateApplyWorker)
+})
+
 func startTestManager(mgr manager.Manager) (stop func()) {
 	ctx, cancel := context.WithCancel(context.Background())
 
