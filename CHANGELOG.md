@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-01-22
+- cleanup namespace after each spec (#131)
+- fix: check for empty map when patching resources (#129)
+- add predicates to reconcile only when needed (#129)
+- Fix incorrect flag name for AllowedIssuerNamespaces (#133)
+- implement rate limited queue to control Certificate creation rate (#130)
+
 ## [0.15.0] - 2025-12-08
 ### Changed
 - Add support for cert-manager key algorithm related annotations (#118)
@@ -317,8 +324,9 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.15.0...HEAD
-[0.14.3]: https://github.com/cybozu-go/contour-plus/compare/v0.14.3...v0.15.0
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/cybozu-go/contour-plus/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/cybozu-go/contour-plus/compare/v0.14.3...v0.15.0
 [0.14.3]: https://github.com/cybozu-go/contour-plus/compare/v0.14.2...v0.14.3
 [0.14.2]: https://github.com/cybozu-go/contour-plus/compare/v0.14.1...v0.14.2
 [0.14.1]: https://github.com/cybozu-go/contour-plus/compare/v0.14.0...v0.14.1
