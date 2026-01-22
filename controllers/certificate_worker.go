@@ -8,6 +8,7 @@ import (
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +20,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
+)
+
+type viaQueueValue string
+type applyResultValue string
+
+const (
+	certificateApplierName                  = "certificate-apply"
+	labelViaQueue                           = "via_queue"
+	viaQueueYes            viaQueueValue    = "true"
+	viaQueueNo             viaQueueValue    = "false"
+	labelApplyResult                        = "result"
+	applyResultSuccess     applyResultValue = "success"
+	applyResultError       applyResultValue = "error"
 )
 
 type Applier[T client.Object] interface {
@@ -53,6 +68,8 @@ type ApplyWorker[T client.Object] interface {
 	// For e.g. by WatchesRawSource and source.Channel in SetupWithManager to add a retry path.
 	// NOTE: could use second generics type instead of HTTPProxy if we want to use this somewhere else.
 	GetRetryChannel() <-chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy]
+	// RegisterMetrics should register metrics that ApplyWorker records
+	RegisterMetrics(metrics.RegistererGatherer) error
 }
 
 var _ ApplyWorker[*cmv1.Certificate] = &CertificateApplyWorker{}
@@ -70,6 +87,8 @@ type CertificateApplyWorker struct {
 	limiter *rate.Limiter
 	// channel for queueing HTTPProxy back into main reconcile loop for a retry
 	retryCh chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy]
+	// certificatesAppliedTotal keeps track of the number of certificates applied either via queue or directly.
+	certificatesAppliedTotal *prometheus.CounterVec
 }
 
 func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *CertificateApplyWorker {
@@ -88,7 +107,7 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 	workqueue := workqueue.NewTypedRateLimitingQueueWithConfig(
 		global,
 		workqueue.TypedRateLimitingQueueConfig[types.NamespacedName]{
-			Name: "certificate-apply",
+			Name: certificateApplierName,
 		},
 	)
 	retryCh := make(chan event.TypedGenericEvent[*projectcontourv1.HTTPProxy], 10)
@@ -102,6 +121,26 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 	}
 }
 
+func (w *CertificateApplyWorker) RegisterMetrics(registry metrics.RegistererGatherer) error {
+	certificatesAppliedTotal := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "contour_plus_certificates_applied_total",
+			Help: "Total number of Certificate resources applied.",
+		},
+		[]string{"controller", labelViaQueue, labelApplyResult},
+	)
+
+	// cannot use MustRegister because controller-runtime uses global prometheus registry which cannot be reset during testing
+	// we need to explicitly check for duplicate metrics error
+	if err := registry.Register(certificatesAppliedTotal); err != nil {
+		if _, ok := err.(prometheus.AlreadyRegisteredError); !ok {
+			return err
+		}
+	}
+	w.certificatesAppliedTotal = certificatesAppliedTotal
+	return nil
+}
+
 func (w *CertificateApplyWorker) Apply(ctx context.Context, obj *cmv1.Certificate) error {
 	log := crlog.FromContext(ctx)
 	objKey := types.NamespacedName{
@@ -113,12 +152,18 @@ func (w *CertificateApplyWorker) Apply(ctx context.Context, obj *cmv1.Certificat
 		return err
 	}
 	if requiresQueue {
-		log.Info("cert queued for apply", "key", objKey.String())
 		w.enqueueCertificate(objKey, obj)
+		log.Info("cert queued for apply", "key", objKey.String())
 		return nil
 	}
+	if err := applyCertificate(ctx, w.client, obj); err != nil {
+		log.Error(err, "cert apply failed", "key", objKey.String())
+		w.recordApply(viaQueueNo, applyResultError)
+		return err
+	}
 	log.Info("cert applied without queueing", "key", objKey.String())
-	return applyCertificate(ctx, w.client, obj)
+	w.recordApply(viaQueueNo, applyResultSuccess)
+	return nil
 }
 
 func (w *CertificateApplyWorker) Start(ctx context.Context) error {
@@ -156,12 +201,14 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 			}
 
 			if err := applyCertificate(ctx, w.client, obj); err != nil {
-				log.Error(err, "cert apply failed", "key", objKey.String())
+				log.Error(err, "cert apply from queue failed", "key", objKey.String())
+				w.recordApply(viaQueueYes, applyResultError)
 				w.enqueueHTTPProxy(ctx, obj)
 				return
 			}
 
 			log.Info("cert applied from queue", "key", objKey.String())
+			w.recordApply(viaQueueYes, applyResultSuccess)
 		}()
 	}
 }
@@ -233,6 +280,13 @@ func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1
 	w.retryCh <- event.TypedGenericEvent[*projectcontourv1.HTTPProxy]{
 		Object: &h,
 	}
+}
+
+func (w *CertificateApplyWorker) recordApply(viaQueue viaQueueValue, applyResult applyResultValue) {
+	if w.certificatesAppliedTotal == nil {
+		return
+	}
+	w.certificatesAppliedTotal.WithLabelValues(certificateApplierName, string(viaQueue), string(applyResult)).Inc()
 }
 
 // applyCertificate applies provided certificate object with provided context and apiserver client

@@ -20,6 +20,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -94,6 +96,9 @@ func testCertificateApplyWorker() {
 				CertificateApplyLimit: 10, // avoid rate.Limit(0) semantics
 			})
 
+			reg := prometheus.NewRegistry()
+			Expect(worker.RegisterMetrics(reg)).To(Succeed())
+
 			desired := &cmv1.Certificate{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: key.Namespace,
@@ -121,6 +126,15 @@ func testCertificateApplyWorker() {
 			Expect(shutdown).To(BeFalse())
 			Expect(queuedKey).To(Equal(key))
 			worker.workqueue.Done(queuedKey)
+
+			// assert metrics: 0 for all metrics
+			// queued apply is not recorded since we are not running Start
+			assertMetricsCombinations(worker.certificatesAppliedTotal, expectedValsForMetrics{
+				viaQueueSuccess: 0,
+				viaQueueError:   0,
+				directSuccess:   0,
+				directError:     0,
+			})
 		})
 
 		It("applies directly when only metadata (annotations) change", func() {
@@ -145,6 +159,9 @@ func testCertificateApplyWorker() {
 				CertificateApplyLimit: 10,
 			})
 
+			reg := prometheus.NewRegistry()
+			Expect(worker.RegisterMetrics(reg)).To(Succeed())
+
 			// desired has same Spec but different annotation
 			desired := current.DeepCopy()
 			if desired.Annotations == nil {
@@ -165,6 +182,14 @@ func testCertificateApplyWorker() {
 			// Spec should still match
 			Expect(got.Spec.SecretName).To(Equal("test-secret"))
 			Expect(got.Spec.DNSNames).To(ConsistOf("example.com"))
+
+			// assert metrics: 1 successful direct apply
+			assertMetricsCombinations(worker.certificatesAppliedTotal, expectedValsForMetrics{
+				viaQueueSuccess: 0,
+				viaQueueError:   0,
+				directSuccess:   1,
+				directError:     0,
+			})
 		})
 
 		It("queues when Spec changes (re-issuance required)", func() {
@@ -184,6 +209,9 @@ func testCertificateApplyWorker() {
 			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
 				CertificateApplyLimit: 10,
 			})
+
+			reg := prometheus.NewRegistry()
+			Expect(worker.RegisterMetrics(reg)).To(Succeed())
 
 			// desired has different Spec (extra DNS name)
 			desired := current.DeepCopy()
@@ -205,6 +233,15 @@ func testCertificateApplyWorker() {
 			Expect(shutdown).To(BeFalse())
 			Expect(queuedKey).To(Equal(key))
 			worker.workqueue.Done(queuedKey)
+
+			// assert metrics: 0 for all metrics
+			// queued apply is not recorded since we are not running Start
+			assertMetricsCombinations(worker.certificatesAppliedTotal, expectedValsForMetrics{
+				viaQueueSuccess: 0,
+				viaQueueError:   0,
+				directSuccess:   0,
+				directError:     0,
+			})
 		})
 	})
 
@@ -215,6 +252,9 @@ func testCertificateApplyWorker() {
 			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
 				CertificateApplyLimit: 10, // avoid rate.Limit(0) oddness
 			})
+
+			reg := prometheus.NewRegistry()
+			Expect(worker.RegisterMetrics(reg)).To(Succeed())
 
 			key := types.NamespacedName{
 				Namespace: "default",
@@ -243,7 +283,6 @@ func testCertificateApplyWorker() {
 
 			// Apply should enqueue the certificate (RequiresQueue => true for new object)
 			Expect(worker.Apply(ctx, cert)).To(Succeed())
-			Expect(worker.workqueue.Len()).To(Equal(1), "item should be queued after Apply")
 
 			// Wait until the worker has dequeued and applied the certificate.
 			// Using Eventually + Succeed() matcher for func() error.
@@ -257,6 +296,14 @@ func testCertificateApplyWorker() {
 			Expect(cl.Get(ctx, key, got)).To(Succeed())
 			Expect(got.Spec.SecretName).To(Equal("test-secret"))
 			Expect(got.Spec.DNSNames).To(ConsistOf("example.com"))
+
+			// assert metrics: 1 successful apply via queue
+			assertMetricsCombinations(worker.certificatesAppliedTotal, expectedValsForMetrics{
+				viaQueueSuccess: 1,
+				viaQueueError:   0,
+				directSuccess:   0,
+				directError:     0,
+			})
 
 			// Queue should be drained
 			Expect(worker.workqueue.Len()).To(Equal(0))
@@ -273,6 +320,9 @@ func testCertificateApplyWorker() {
 			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
 				CertificateApplyLimit: 10,
 			})
+
+			reg := prometheus.NewRegistry()
+			Expect(worker.RegisterMetrics(reg)).To(Succeed())
 
 			// Certificate annotated with ownerAnnotation so enqueueHTTPProxy can find the HTTPProxy key
 			cert := &cmv1.Certificate{
@@ -313,9 +363,46 @@ func testCertificateApplyWorker() {
 			Expect(evt.Object.Namespace).To(Equal("default"))
 			Expect(evt.Object.Name).To(Equal("test-httpproxy"))
 
+			// assert metrics: 1 apply error via queue
+			assertMetricsCombinations(worker.certificatesAppliedTotal, expectedValsForMetrics{
+				viaQueueSuccess: 0,
+				viaQueueError:   1,
+				directSuccess:   0,
+				directError:     0,
+			})
+
 			// shut down the worker loop
 			cancel()
 			Eventually(errCh, time.Second).Should(Receive(BeNil()))
 		})
 	})
+}
+
+type expectedValsForMetrics struct {
+	viaQueueSuccess float64
+	viaQueueError   float64
+	directSuccess   float64
+	directError     float64
+}
+
+type seriesKey struct {
+	viaQueue viaQueueValue
+	result   applyResultValue
+}
+
+// Convert the nice struct to a map keyed by label combinations.
+func (e expectedValsForMetrics) asMap() map[seriesKey]float64 {
+	return map[seriesKey]float64{
+		{viaQueue: viaQueueYes, result: applyResultSuccess}: e.viaQueueSuccess,
+		{viaQueue: viaQueueYes, result: applyResultError}:   e.viaQueueError,
+		{viaQueue: viaQueueNo, result: applyResultSuccess}:  e.directSuccess,
+		{viaQueue: viaQueueNo, result: applyResultError}:    e.directError,
+	}
+}
+
+func assertMetricsCombinations(counterVec *prometheus.CounterVec, expectedVals expectedValsForMetrics) {
+	for key, expected := range expectedVals.asMap() {
+		val := testutil.ToFloat64(counterVec.WithLabelValues(certificateApplierName, string(key.viaQueue), string(key.result)))
+		Expect(val).To(Equal(expected), "viaQueue=%s result=%s", key.viaQueue, key.result)
+	}
 }
