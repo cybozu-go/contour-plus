@@ -125,7 +125,6 @@ func runTest() {
 		By("checking TLS readiness of second httpproxy")
 		testTLS(g, second)
 
-		time.Sleep(10 * time.Second)
 		By("checking if there is an infinite loop")
 		checkForInfiniteLoop(g, first)
 		checkForInfiniteLoop(g, second)
@@ -166,7 +165,12 @@ func applyContourPlus(g Gomega, image string) {
 	`, image)
 	yout := yqSafe(g, kout, "eval", yqExpr, "-")
 	kubectlSafe(g, yout, "apply", "-f", "-")
-	kubectlSafe(g, nil, "rollout", "status", "-n", "projectcontour", "deploy/contour-plus", "--timeout=5m")
+	stdout, stderr, err := kubectl(nil, "rollout", "status", "-n", "projectcontour", "deploy/contour-plus", "--timeout=5m")
+	if err != nil {
+		kubectlSafe(g, nil, "logs", "-n", "projectcontour", "deploy/contour-plus")
+		kubectlSafe(g, nil, "describe", "-n", "projectcontour", "pod", "-l", "app=contour-plus")
+		g.Expect(err).NotTo(HaveOccurred(), "stdout: %s, stderr: %s", stdout, stderr)
+	}
 }
 
 func restartContourPlus(g Gomega) {
