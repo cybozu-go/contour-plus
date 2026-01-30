@@ -35,6 +35,8 @@ update-coredns-manifests:
 	sed -i 's#/usr/local/bin/etcd#/usr/local/etcd/bin/etcd#' testdata/coredns/upstream/etcd.yaml
 	# replace etcd servcie namespace in coredns config
 	sed -i 's#http://etcd.default.svc.cluster.local:2379#http://etcd.external-dns.svc.cluster.local:2379#' testdata/coredns/upstream/values-coredns.yaml
+	$(HELM) repo add coredns https://coredns.github.io/helm
+	$(HELM) repo update
 	$(HELM) template -n external-dns -f testdata/coredns/upstream/values-coredns.yaml coredns coredns/coredns > testdata/coredns/upstream/coredns.yaml
 	$(call get-latest-gh-package-tag,etcd)
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/etcd\")).newTag = \"$(latest_tag)\"" testdata/coredns/kustomization.yaml
