@@ -12,6 +12,7 @@ install-crds:
 
 .PHONY: update-cert-manager-manifests
 update-cert-manager-manifests:
+	mkdir -p testdata/cert-manager/upstream
 	$(call get-latest-gh-package-tag,cert-manager)
 	curl -sSLf https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(latest_tag))/cert-manager.yaml |\
 		$(YQ) eval 'select(.$(KIND) != "CustomResourceDefinition")' > testdata/cert-manager/upstream/cert-manager.yaml
@@ -25,6 +26,7 @@ install-cert-manager:
 
 .PHONY: update-coredns-manifests
 update-coredns-manifests:
+	mkdir -p testdata/coredns/upstream
 	curl -sSLf -o testdata/coredns/upstream/etcd.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/v$(EXTERNAL_DNS_VERSION)/docs/snippets/tutorials/coredns/etcd.yaml
 	curl -sSLf -o testdata/coredns/upstream/values-coredns.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/v$(EXTERNAL_DNS_VERSION)/docs/snippets/tutorials/coredns/values-coredns.yaml
 	# replace etcd resource namespace
@@ -47,8 +49,8 @@ install-coredns:
 
 .PHONY: update-external-dns-manifests
 update-external-dns-manifests:
-	$(call get-latest-gh-package-tag,external-dns)
 	mkdir -p testdata/external-dns/upstream 
+	$(call get-latest-gh-package-tag,external-dns)
 	d=$$(mktemp -d); \
 	cd $$d; git clone --depth 1 -b $(call upstream-tag,$(latest_tag)) https://github.com/kubernetes-sigs/external-dns.git; \
 	cp -r $$d/external-dns/kustomize/. $(THIS_MK_DIR)/testdata/external-dns/upstream
@@ -61,8 +63,8 @@ install-external-dns:
 
 .PHONY: update-contour-manifests
 update-contour-manifests:
-	$(call get-latest-gh-package-tag,contour)
 	mkdir -p testdata/contour/upstream 
+	$(call get-latest-gh-package-tag,contour)
 	d=$$(mktemp -d); \
 	cd $$d; git clone --depth 1 -b $(call upstream-tag,$(latest_tag)) https://github.com/projectcontour/contour.git; \
 	cp -r $$d/contour/examples/contour/. $(THIS_MK_DIR)/testdata/contour/upstream
