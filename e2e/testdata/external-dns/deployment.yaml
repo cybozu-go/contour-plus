@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  labels:
+    app.kubernetes.io/name: external-dns
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-dns
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: external-dns
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: external-dns
+        image: ghcr.io/cybozu/external-dns
+        args:
+        - --source=crd
+        - --source=service
+        - --provider=coredns
+        - --registry=txt
+        - --events
+        env:
+        - name: EXTERNAL_DNS_DOMAIN_FILTER
+          value: example.org
+        - name: EXTERNAL_DNS_TXT_OWNER_ID
+          value: contour-plus
+        - name: ETCD_URLS
+          value: http://etcd.external-dns.svc.cluster.local:2379

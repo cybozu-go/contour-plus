@@ -13,8 +13,11 @@ SETUP_ENVTEST := $(BIN_DIR)/setup-envtest
 STATICCHECK := $(BIN_DIR)/staticcheck
 CUSTOMCHECKER := $(BIN_DIR)/custom-checker
 GOIMPORTS := $(BIN_DIR)/goimports
+KIND := $(BIN_DIR)/kind
 GH := $(BIN_DIR)/gh
 YQ := $(BIN_DIR)/yq
+KUBECTL := $(BIN_DIR)/kubectl
+HELM := $(BIN_DIR)/helm
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/cybozu-go/contour-plus:latest
@@ -35,13 +38,14 @@ help: ## Display this help
 setup: download-tools download-crds ## Setup
 
 .PHONY: download-tools
-download-tools: $(GH) $(YQ)
+download-tools: $(GH) $(YQ) $(KUBECTL) $(HELM)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@v$(KUSTOMIZE_VERSION)
 	GOBIN=$(BIN_DIR) go install github.com/cybozu-go/golang-custom-analyzer/cmd/custom-checker@latest
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
 	GOBIN=$(BIN_DIR) go install golang.org/x/tools/cmd/goimports@latest
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kind@latest
 
 .PHONY: download-crds
 download-crds:
@@ -58,6 +62,19 @@ $(YQ):
 	mkdir -p $(BIN_DIR)
 	wget -qO $@ https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_linux_amd64
 	chmod +x $@
+
+$(KUBECTL):
+	mkdir -p $(BIN_DIR)
+	wget -qO $@ https://dl.k8s.io/release/v$(ENVTEST_K8S_VERSION)/bin/linux/amd64/kubectl
+	chmod +x $@
+
+$(HELM):
+	mkdir -p $(BIN_DIR)
+	wget -qO helm.tar.gz https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz
+	tar -xzf helm.tar.gz
+	mv linux-amd64/helm $@
+	chmod +x $@
+	rm -rf linux-amd64 helm.tar.gz
 
 .PHONY: clean
 clean: ## Clean files
@@ -123,6 +140,19 @@ version: login-gh ## Update dependent versions
 	NEW_VERSION=$$($(SETUP_ENVTEST) list | tr -s ' ' | cut -d' ' -f2 | fgrep $${K8S_MINOR_VERSION} | sort -V | tail -n 1 | cut -c2-); \
 	sed -i -e "s/ENVTEST_K8S_VERSION := .*/ENVTEST_K8S_VERSION := $${NEW_VERSION}/g" Makefile.versions
 
+	# update kindest node version
+	K8S_MINOR_VERSION="1."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
+	NEW_VERSION=$$( \
+	  curl -fsSL "https://hub.docker.com/v2/repositories/kindest/node/tags?page_size=50&name=v$${K8S_MINOR_VERSION}." \
+	  | jq -r '.results[].name' \
+	  | grep -E "^v$${K8S_MINOR_VERSION}\.[0-9]+$$" \
+	  | sort -V \
+	  | tail -n 1 \
+	); \
+	echo "Updating kindest/node to $$NEW_KINDEST_TAG"; \
+	sed -i -e "s/KINDEST_NODE_VERSION := .*/KINDEST_NODE_VERSION := $${NEW_VERSION}/g" Makefile.versions
+
+
 .PHONY: update-actions
 update-actions:
 	$(call update-trusted-action,actions/checkout,$(ACTIONS_CHECKOUT_VERSION))
@@ -160,11 +190,17 @@ lint: ## Run lint tools
 .PHONY: test
 test: ## Run unit tests
 	source <($(SETUP_ENVTEST) use -p env $(ENVTEST_K8S_VERSION)) && \
-		go test -race -v -count 1 ./...
+		go test -race -v -count 1 ./controllers/...
 
 # usage get-latest-gh OWNER/REPO
 define get-latest-gh
 	$(eval latest_gh := $(shell $(GH) release list --repo $1 | grep Latest | cut -f3))
+endef
+
+# usage: get-latest-gh-release OWNER/REPO VARNAMESUFFIXopt
+# get the latest release from github.com/OWNER/REPO
+define get-latest-gh-release
+$(eval latest_gh$2 := $(shell curl -sSf https://api.github.com/repos/$1/releases/latest | jq -r '.tag_name'))
 endef
 
 # usage: get-latest-gh-package-tag NAME

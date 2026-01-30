@@ -1,0 +1,19 @@
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  annotations:
+    kubernetes.io/tls-acme: "true"
+  name: hello
+spec:
+  ingressClassName: test
+  routes:
+  - loadBalancerPolicy:
+      strategy: Random
+    services:
+    - name: httpd
+      port: 8080
+  virtualhost:
+    fqdn: hello.default.example.org
+    tls:
+      secretName: hello-tls

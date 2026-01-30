@@ -8,4 +8,4 @@ roleRef:
   name: contour-plus
 subjects:
 - kind: ServiceAccount
-  name: contour
+  name: contour-plus

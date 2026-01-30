@@ -18,4 +18,9 @@
    ```console
    $ make maintenance
    ```
-8. Follow [RELEASE.md](/RELEASE.md) to update software version.
+8. Update e2e dependencies.
+   ```console
+   $ cd e2e
+   $ make update-dependencies
+   ```
+9. Follow [RELEASE.md](/RELEASE.md) to update software version.
