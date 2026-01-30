@@ -4,8 +4,6 @@ PARENT_DIR := $(abspath $(THIS_MK_DIR)/..)
 include $(PARENT_DIR)/Makefile
 CRD_DIR := $(PARENT_DIR)/config/crd/third
 
-STABLE ?= $(shell git tag --list | sort -rV | head -n1 | sed 's/^v//')
-
 .PHONY: install-crds
 install-crds:
 	$(KUBECTL) apply -f $(CRD_DIR)
@@ -111,8 +109,9 @@ reload:
 
 .PHONY: e2e
 e2e: reload
-	echo "Running e2e test with ${STABLE} as the base version."
-	STABLE=${STABLE} go test -count=1 -v ./...
+	$(call get-latest-gh-release,cybozu-go/contour-plus)
+	@echo "Running e2e test with $(latest_gh) as the base version."
+	STABLE=$(patsubst v%,%,$(latest_gh)) go test -count=1 -v ./...
 
 .PHONY: update-kind
 update-kind:

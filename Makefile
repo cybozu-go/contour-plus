@@ -197,6 +197,12 @@ define get-latest-gh
 	$(eval latest_gh := $(shell $(GH) release list --repo $1 | grep Latest | cut -f3))
 endef
 
+# usage: get-latest-gh-release OWNER/REPO VARNAMESUFFIXopt
+# get the latest release from github.com/OWNER/REPO
+define get-latest-gh-release
+$(eval latest_gh$2 := $(shell curl -sSf https://api.github.com/repos/$1/releases/latest | jq -r '.tag_name'))
+endef
+
 # usage: get-latest-gh-package-tag NAME
 define get-latest-gh-package-tag
 $(eval latest_tag := $(shell curl -sSf -H "Authorization: Bearer $(shell curl -sSf "https://ghcr.io/token?scope=repository%3Acybozu%2F$1%3Apull&service=ghcr.io" | jq -r .token)" https://ghcr.io/v2/cybozu/$1/tags/list | jq -r '.tags[]' | sort -Vr | head -n 1))
