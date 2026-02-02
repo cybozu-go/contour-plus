@@ -18,7 +18,7 @@
    ```console
    $ make maintenance
    ```
-8. Update e2e dependencies.
+8. Update e2e test dependencies.
    ```console
    $ cd e2e
    $ make update-dependencies

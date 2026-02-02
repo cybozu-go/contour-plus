@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./upstream/external-dns-clusterrolebinding.yaml
+  - ./upstream/external-dns-serviceaccount.yaml
+  - ./upstream/external-dns-deployment.yaml
+  - ./rbac.yaml
+namespace: external-dns
+images:
+  - name: ghcr.io/cybozu/external-dns
+    newTag: 0.20.0.1
+patchesStrategicMerge:
+  - deployment.yaml

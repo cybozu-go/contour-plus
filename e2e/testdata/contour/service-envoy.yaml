@@ -12,5 +12,7 @@ spec:
       nodePort: 30080
     - name: https
       port: 443
-      targetPort: 8433
+      targetPort: 8443
       nodePort: 30443
+  selector:
+    app: envoy

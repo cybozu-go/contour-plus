@@ -59,7 +59,9 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - projectcontour.io.resources=tlscertificatedelegations
+  - projectcontour.io
+  resources:
+  - tlscertificatedelegations
   verbs:
   - create
   - delete
