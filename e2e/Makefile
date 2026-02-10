@@ -31,7 +31,7 @@ update-coredns-manifests:
 	$(YQ) -i 'select(.metadata.namespace) | .metadata.namespace = "external-dns"' testdata/coredns/upstream/etcd.yaml	
 	# replace binary path with that of cybozu build
 	sed -i 's#/usr/local/bin/etcd#/usr/local/etcd/bin/etcd#' testdata/coredns/upstream/etcd.yaml
-	# replace etcd servcie namespace in coredns config
+	# replace etcd service namespace in coredns config
 	sed -i 's#http://etcd.default.svc.cluster.local:2379#http://etcd.external-dns.svc.cluster.local:2379#' testdata/coredns/upstream/values-coredns.yaml
 	$(HELM) repo add coredns https://coredns.github.io/helm
 	$(HELM) repo update

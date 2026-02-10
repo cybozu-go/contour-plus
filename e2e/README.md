@@ -19,7 +19,7 @@ The cluster includes the following components:
 
 For local testability, external-dns is configured to write DNS records into CoreDNS.
 
-The relationship between the components are depicted below.
+The relationship between the components is depicted below.
 
 ![Architecture of the e2e environment](./assets/contour-plus-e2e.png)
 

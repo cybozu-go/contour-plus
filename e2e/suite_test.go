@@ -17,16 +17,16 @@ const (
 	stableEnvKey = "STABLE"
 )
 
-type HTTPProxyBuidler struct {
+type HTTPProxyBuilder struct {
 	httpProxies map[string]struct{}
 }
 
-func NewHTTPProxyBuilder() *HTTPProxyBuidler {
-	return &HTTPProxyBuidler{httpProxies: make(map[string]struct{})}
+func NewHTTPProxyBuilder() *HTTPProxyBuilder {
+	return &HTTPProxyBuilder{httpProxies: make(map[string]struct{})}
 }
 
 // NewHTTPProxy creates HTTPProxy and returns its name
-func (h *HTTPProxyBuidler) NewHTTPProxy(g Gomega) string {
+func (h *HTTPProxyBuilder) NewHTTPProxy(g Gomega) string {
 	name := fmt.Sprintf("helloworld-%v", len(h.httpProxies))
 	stdout, stderr, err := runCommand("sed", nil, fmt.Sprintf("s/NAME/%s/g", name), "testdata/httpproxy.yaml")
 	g.Expect(err).NotTo(HaveOccurred(), "stdout: %s, stderr: %s", stdout, stderr)
@@ -39,7 +39,7 @@ func (h *HTTPProxyBuidler) NewHTTPProxy(g Gomega) string {
 }
 
 // CleanUp deletes all HTTPProxies created
-func (h *HTTPProxyBuidler) CleanUp(g Gomega) {
+func (h *HTTPProxyBuilder) CleanUp(g Gomega) {
 	for name := range h.httpProxies {
 		kubectlSafe(g, nil, "delete", "httpproxies", name)
 	}
