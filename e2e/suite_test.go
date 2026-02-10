@@ -91,8 +91,8 @@ func runTest() {
 		testTLS(g, second)
 
 		By("checking if there is an infinite loop")
-		checkForInfiniteLoop(g, first)
-		checkForInfiniteLoop(g, second)
+		ensureCertificateIsStable(g, first)
+		ensureCertificateIsStable(g, second)
 	})
 
 	It("should upgrade contour-plus and enable TLS from outside of the cluster", func() {
@@ -126,8 +126,8 @@ func runTest() {
 		testTLS(g, second)
 
 		By("checking if there is an infinite loop")
-		checkForInfiniteLoop(g, first)
-		checkForInfiniteLoop(g, second)
+		ensureCertificateIsStable(g, first)
+		ensureCertificateIsStable(g, second)
 	})
 }
 
@@ -289,7 +289,7 @@ func getLatestStableReleaseTag() string {
 	return val
 }
 
-func checkForInfiniteLoop(g Gomega, certName string) {
+func ensureCertificateIsStable(g Gomega, certName string) {
 	By("waiting for Certificate to become ready")
 	Eventually(func() bool {
 		out, _, err := kubectl(nil, "get", "certificate", certName, "-o", "yaml")
