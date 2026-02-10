@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager-cainjector
+  namespace: cert-manager
+spec:
+  template:
+    spec:
+      containers:
+        - name: cert-manager-cainjector
+          image: ghcr.io/cybozu/cert-manager
+          command:
+          - cainjector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+  annotations:
+    prometheus.io/path: "/metrics"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9402"
+spec:
+  template:
+    metadata:
+      annotations:
+        egress.coil.cybozu.com/internet-egress: nat
+    spec:
+      containers:
+        - name: cert-manager-controller
+          image: ghcr.io/cybozu/cert-manager
+          command:
+          - controller
+          args:
+          - --v=5
+          - --cluster-resource-namespace=$(POD_NAMESPACE)
+          - --leader-election-namespace=kube-system
+          - --enable-certificate-owner-ref
+          # We set this flag as invalid value.
+          # If we use acme HTTP01 challenge, we have to set the path to valid container image.
+          - --acme-http01-solver-image=quay.io/unused
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-manager-webhook
+  namespace: cert-manager
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  template:
+    spec:
+      containers:
+        - name: cert-manager-webhook
+          image: ghcr.io/cybozu/cert-manager
+          command:
+          - webhook
+          volumeMounts:
+          - name: tmp
+            mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}

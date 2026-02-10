@@ -7,6 +7,8 @@ ENVTEST_K8S_VERSION := 1.34.1
 EXTERNAL_DNS_VERSION := 0.20.0
 GH_VERSION := 2.68.1
 YQ_VERSION := 4.45.1
+HELM_VERSION := 3.20.0
+KINDEST_NODE_VERSION := 1.34.3
 
 # Follow the kustomize version installed in the Argo CD container
 # https://github.com/cybozu/neco-containers/blob/main/argocd/Dockerfile#L10

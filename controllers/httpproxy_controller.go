@@ -60,7 +60,7 @@ type HTTPProxyReconciler struct {
 
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=projectcontour.io,resources=httpproxies/status,verbs=get
-// +kubebuilder:rbac:groups=projectcontour.io.resources=tlscertificatedelegations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=projectcontour.io,resources=tlscertificatedelegations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=externaldns.k8s.io,resources=dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch

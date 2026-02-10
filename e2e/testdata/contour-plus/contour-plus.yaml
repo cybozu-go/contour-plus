@@ -1,0 +1,28 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: contour-plus
+  name: contour-plus
+  namespace: projectcontour
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: contour-plus
+  template:
+    metadata:
+      labels:
+        app: contour-plus
+    spec:
+      containers:
+      - args:
+        - --ingress-class-name=test
+        - --service-name=projectcontour/envoy
+        - --default-issuer-name=coredns
+        - --zap-stacktrace-level=panic
+        name: contour-plus
+        image: ghcr.io/cybozu-go/contour-plus
+        imagePullPolicy: IfNotPresent
+      serviceAccountName: contour-plus

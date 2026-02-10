@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coredns-nodeport
+  namespace: external-dns
+  labels:
+    app.kubernetes.io/name: coredns
+    app.kubernetes.io/instance: coredns
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/instance: "coredns"
+    app.kubernetes.io/name: "coredns"
+  ports:
+    - name: dns-tcp
+      protocol: TCP
+      port: 53
+      targetPort: 53
+      nodePort: 30530
+    - name: dns-udp
+      protocol: UDP
+      port: 53
+      targetPort: 53
+      nodePort: 30530
