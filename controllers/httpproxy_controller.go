@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -43,7 +44,6 @@ const (
 	contourIngressClassNameAnnotation = "projectcontour.io/ingress.class"
 	delegatedDomainAnnotation         = "contour-plus.cybozu.com/delegated-domain"
 	dnsNamespaceAnnotation            = "contour-plus.cybozu.com/dns-namespace"
-	issuerNamespaceAnnotation         = "contour-plus.cybozu.com/issuer-namespace"
 	ownerAnnotation                   = "contour-plus.cybozu.com/owned-by"
 	finalizerName                     = "contour-plus.cybozu.com/finalizer"
 )
@@ -123,10 +123,6 @@ func (r *HTTPProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	if err := r.reconcileSecretName(ctx, hp, log); err != nil {
-		log.Error(err, "unable to reconcile HTTPProxy SecretName")
-		return ctrl.Result{}, err
-	}
 	return ctrl.Result{}, nil
 }
 
@@ -293,7 +289,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	case vh.Fqdn == "":
 		return nil
 	}
-	secretName := getCertificateSecretName(r, hp)
+	secretName := getCertificateSecretName(hp)
 	if secretName == "" {
 		return nil
 	}
@@ -370,8 +366,10 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 
 	certificateName := getCertificateName(r, hp)
 	targetNamespace := hp.Namespace
-	if ns, ok := hp.Annotations[issuerNamespaceAnnotation]; ok && slices.Contains(r.AllowedIssuerNamespaces, ns) {
-		targetNamespace = ns
+	if hp.Spec.VirtualHost != nil && hp.Spec.VirtualHost.TLS != nil {
+		if ns, _, err := cache.SplitMetaNamespaceKey(hp.Spec.VirtualHost.TLS.SecretName); err == nil && ns != "" && slices.Contains(r.AllowedIssuerNamespaces, ns) {
+			targetNamespace = ns
+		}
 	}
 
 	obj := &cmv1.Certificate{}
@@ -423,15 +421,18 @@ func (r *HTTPProxyReconciler) generateObjectLabels(hp *projectcontourv1.HTTPProx
 }
 
 func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
-	namespace, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, namespace) {
+	if hp.Spec.VirtualHost == nil || hp.Spec.VirtualHost.TLS == nil {
+		return nil
+	}
+	namespace, secretName, err := cache.SplitMetaNamespaceKey(hp.Spec.VirtualHost.TLS.SecretName)
+	if err != nil || namespace == "" || !slices.Contains(r.AllowedIssuerNamespaces, namespace) {
 		return nil
 	}
 	certificateName := getCertificateName(r, hp)
 	delegationSpec := map[string]interface{}{
 		"delegations": []map[string]interface{}{
 			{
-				"secretName": certificateName,
+				"secretName": secretName,
 				"targetNamespaces": []string{
 					hp.Namespace,
 				},
@@ -446,7 +447,7 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = delegationSpec
-	err := r.trackResourceOwnership(hp, obj)
+	err = r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
@@ -459,26 +460,6 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	}
 
 	log.Info("TLSCertificateDelegation successfully reconciled")
-	return nil
-}
-
-func (r *HTTPProxyReconciler) reconcileSecretName(ctx context.Context, hp *projectcontourv1.HTTPProxy, log logr.Logger) error {
-	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, certNamespace) {
-		return nil
-	}
-	certificateName := getCertificateName(r, hp)
-	if hp.Spec.VirtualHost.TLS == nil {
-		hp.Spec.VirtualHost.TLS = &projectcontourv1.TLS{}
-	}
-	hp.Spec.VirtualHost.TLS.SecretName = certNamespace + "/" + certificateName
-
-	err := r.Patch(ctx, hp, client.Merge)
-	if err != nil {
-		return err
-	}
-
-	log.Info("HTTPProxy SecretName successfully reconciled")
 	return nil
 }
 
@@ -562,15 +543,17 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceCertificates(ctx context.Cont
 		return nil
 	}
 
-	issuerNs, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, issuerNs) {
+	if hp.Spec.VirtualHost == nil || hp.Spec.VirtualHost.TLS == nil {
+		return nil
+	}
+	issuerNs, _, err := cache.SplitMetaNamespaceKey(hp.Spec.VirtualHost.TLS.SecretName)
+	if err != nil || issuerNs == "" || !slices.Contains(r.AllowedIssuerNamespaces, issuerNs) {
 		return nil
 	}
 
 	certList := &unstructured.UnstructuredList{}
 	certList.SetGroupVersionKind(certManagerGroupVersion.WithKind(CertificateKind))
-	err := r.List(ctx, certList, &client.ListOptions{Namespace: issuerNs})
-	if err != nil {
+	if err := r.List(ctx, certList, &client.ListOptions{Namespace: issuerNs}); err != nil {
 		return err
 	}
 
@@ -581,8 +564,7 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceCertificates(ctx context.Cont
 			continue
 		}
 
-		err := r.Delete(ctx, &cert)
-		if err != nil && !k8serrors.IsNotFound(err) {
+		if err := r.Delete(ctx, &cert); err != nil && !k8serrors.IsNotFound(err) {
 			log.Error(err, "failed to delete cross-namespace Certificate", "name", cert.GetName(), "namespace", cert.GetNamespace())
 			return err
 		}
@@ -596,14 +578,17 @@ func (r *HTTPProxyReconciler) cleanupCrossNamespaceTLSCertificateDelegations(ctx
 		return nil
 	}
 
-	issuerNs, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || !slices.Contains(r.AllowedIssuerNamespaces, issuerNs) {
+	if hp.Spec.VirtualHost == nil || hp.Spec.VirtualHost.TLS == nil {
+		return nil
+	}
+	issuerNs, _, err := cache.SplitMetaNamespaceKey(hp.Spec.VirtualHost.TLS.SecretName)
+	if err != nil || issuerNs == "" || !slices.Contains(r.AllowedIssuerNamespaces, issuerNs) {
 		return nil
 	}
 
 	tcdList := &unstructured.UnstructuredList{}
 	tcdList.SetGroupVersionKind(contourGroupVersion.WithKind(TLSCertificateDelegationListKind))
-	err := r.List(ctx, tcdList, &client.ListOptions{Namespace: issuerNs})
+	err = r.List(ctx, tcdList, &client.ListOptions{Namespace: issuerNs})
 	if err != nil {
 		return err
 	}
@@ -782,22 +767,24 @@ func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]inter
 }
 
 func getCertificateName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) string {
-	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || certNamespace == "" || certNamespace == hp.Namespace {
-		return r.Prefix + hp.Name
+	if hp.Spec.VirtualHost != nil && hp.Spec.VirtualHost.TLS != nil {
+		ns, _, err := cache.SplitMetaNamespaceKey(hp.Spec.VirtualHost.TLS.SecretName)
+		if err == nil && ns != "" {
+			return r.Prefix + hp.Namespace + "-" + hp.Name
+		}
 	}
-	return r.Prefix + hp.Namespace + "-" + hp.Name
+	return r.Prefix + hp.Name
 }
 
-func getCertificateSecretName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) string {
-	certNamespace, ok := hp.Annotations[issuerNamespaceAnnotation]
-	if !ok || certNamespace == "" || certNamespace == hp.Namespace {
-		if hp.Spec.VirtualHost.TLS == nil {
-			return ""
-		}
-		return hp.Spec.VirtualHost.TLS.SecretName
+func getCertificateSecretName(hp *projectcontourv1.HTTPProxy) string {
+	if hp.Spec.VirtualHost == nil || hp.Spec.VirtualHost.TLS == nil {
+		return ""
 	}
-	return r.Prefix + hp.Namespace + "-" + hp.Name
+	ns, name, err := cache.SplitMetaNamespaceKey(hp.Spec.VirtualHost.TLS.SecretName)
+	if err == nil && ns != "" {
+		return name
+	}
+	return hp.Spec.VirtualHost.TLS.SecretName
 }
 
 func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) string {

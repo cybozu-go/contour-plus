@@ -1250,14 +1250,12 @@ func testHTTPProxyReconcile() {
 		stopMgr := startTestManager(mgr)
 		defer stopMgr()
 
-		By("creating HTTPProxy with Certificate namespace annotation")
+		By("creating HTTPProxy with cross-namespace secretName")
 		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
-		hp := newDummyHTTPProxy(hpKey)
-		hp.Spec.VirtualHost.TLS = nil
-		hp.Annotations[issuerNamespaceAnnotation] = certNs
-		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
-
 		certName := hpKey.Namespace + "-" + hpKey.Name
+		hp := newDummyHTTPProxy(hpKey)
+		hp.Spec.VirtualHost.TLS.SecretName = certNs + "/" + certName
+		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 		By("getting Certificate in the specified namespace")
 		crt := certificate()
 		objKey := client.ObjectKey{
@@ -1287,11 +1285,6 @@ func testHTTPProxyReconcile() {
 		crtList := certificateList()
 		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
 		Expect(crtList.Items).Should(BeEmpty())
-
-		By("ensuring HTTPProxy references the namespaced Certificate")
-		hpObj := &projectcontourv1.HTTPProxy{}
-		Expect(k8sClient.Get(context.Background(), hpKey, hpObj)).ShouldNot(HaveOccurred())
-		Expect(hpObj.Spec.VirtualHost.TLS.SecretName).Should(Equal(certNs + "/" + certName))
 
 		By("ensuring HTTPProxy deletion deletes the Certificate and TLSCertificateDelegation")
 		Expect(k8sClient.Delete(context.Background(), hp)).ShouldNot(HaveOccurred())
@@ -1370,8 +1363,7 @@ func testHTTPProxyReconcile() {
 		By("creating HTTPProxy with Certificate namespace annotation")
 		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
 		hp := newDummyHTTPProxy(hpKey)
-		hp.Spec.VirtualHost.TLS = nil
-		hp.Annotations[issuerNamespaceAnnotation] = certNs
+		hp.Spec.VirtualHost.TLS.SecretName = certNs + "/" + hpKey.Namespace + "-" + hpKey.Name
 		Expect(k8sClient.Create(context.Background(), hp)).ShouldNot(HaveOccurred())
 
 		By("confirming that Certificate does not exist")
@@ -1742,8 +1734,10 @@ func TestGetCertificateName(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
-					Annotations: map[string]string{
-						issuerNamespaceAnnotation: "custom-issuer",
+				},
+				Spec: projectcontourv1.HTTPProxySpec{
+					VirtualHost: &projectcontourv1.VirtualHost{
+						TLS: &projectcontourv1.TLS{SecretName: "custom-issuer/my-secret"},
 					},
 				},
 			},
@@ -1760,8 +1754,10 @@ func TestGetCertificateName(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
-					Annotations: map[string]string{
-						issuerNamespaceAnnotation: "custom-issuer",
+				},
+				Spec: projectcontourv1.HTTPProxySpec{
+					VirtualHost: &projectcontourv1.VirtualHost{
+						TLS: &projectcontourv1.TLS{SecretName: "custom-issuer/my-secret"},
 					},
 				},
 			},
