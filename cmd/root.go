@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -50,6 +51,8 @@ func init() {
 	fs.StringSlice("allowed-dns-namespaces", []string{}, "List of namespaces where DNSEndpoint resources can be created. If empty, no namespaces are allowed")
 	fs.StringSlice("allowed-issuer-namespaces", []string{}, "List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed")
 	fs.Float64("certificate-apply-limit", 0, "Maximum number of certificate apply operations allowed per second (0 disables rate limiting)")
+	fs.Duration("certificate-apply-retry-base-delay", 5*time.Second, "Base delay for certificate apply exponential backoff retry")
+	fs.Duration("certificate-apply-retry-max-delay", 10*time.Minute, "Maximum delay for certificate apply exponential backoff retry")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}

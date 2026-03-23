@@ -93,7 +93,9 @@ func testCertificateApplyWorker() {
 			baseClient := newFakeClient() // no existing Certificate
 			cl := &applyAsUpdateClient{Client: baseClient}
 			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
-				CertificateApplyLimit: 10, // avoid rate.Limit(0) semantics
+				CertificateApplyLimit:          10, // avoid rate.Limit(0) semantics
+				CertificateApplyRetryBaseDelay: 1 * time.Millisecond,
+				CertificateApplyRetryMaxDelay:  10 * time.Millisecond,
 			})
 
 			reg := prometheus.NewRegistry()
@@ -120,7 +122,7 @@ func testCertificateApplyWorker() {
 			Expect(k8serrors.IsNotFound(err)).To(BeTrue(), "new object should not be applied immediately, but queued")
 
 			// And the worker should have the key in its internal queue
-			Expect(worker.workqueue.Len()).To(Equal(1))
+			Eventually(func() int { return worker.workqueue.Len() }, 500*time.Millisecond, time.Millisecond).Should(Equal(1))
 
 			queuedKey, shutdown := worker.workqueue.Get()
 			Expect(shutdown).To(BeFalse())
@@ -207,7 +209,9 @@ func testCertificateApplyWorker() {
 			baseClient := newFakeClient(current) // init with a certificate
 			cl := &applyAsUpdateClient{Client: baseClient}
 			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
-				CertificateApplyLimit: 10,
+				CertificateApplyLimit:          10,
+				CertificateApplyRetryBaseDelay: 1 * time.Millisecond,
+				CertificateApplyRetryMaxDelay:  10 * time.Millisecond,
 			})
 
 			reg := prometheus.NewRegistry()
@@ -221,7 +225,7 @@ func testCertificateApplyWorker() {
 			Expect(worker.Apply(ctx, desired)).To(Succeed())
 
 			// Should be queued, not applied directly
-			Expect(worker.workqueue.Len()).To(Equal(1))
+			Eventually(func() int { return worker.workqueue.Len() }, 500*time.Millisecond, time.Millisecond).Should(Equal(1))
 
 			// The object in the fake client should still be the old spec (no extra DNS yet),
 			// because the queued apply hasn’t run Start() / processed the queue.
@@ -250,7 +254,9 @@ func testCertificateApplyWorker() {
 			baseClient := newFakeClient() // no existing certificate
 			cl := &applyAsUpdateClient{Client: baseClient}
 			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
-				CertificateApplyLimit: 10, // avoid rate.Limit(0) oddness
+				CertificateApplyLimit:          10, // avoid rate.Limit(0) oddness
+				CertificateApplyRetryBaseDelay: 1 * time.Millisecond,
+				CertificateApplyRetryMaxDelay:  10 * time.Millisecond,
 			})
 
 			reg := prometheus.NewRegistry()
@@ -318,7 +324,9 @@ func testCertificateApplyWorker() {
 			cl := &failingPatchClient{Client: baseClient}
 
 			worker := NewCertificateApplyWorker(cl, ReconcilerOptions{
-				CertificateApplyLimit: 10,
+				CertificateApplyLimit:          10,
+				CertificateApplyRetryBaseDelay: 100 * time.Millisecond,
+				CertificateApplyRetryMaxDelay:  1 * time.Second,
 			})
 
 			reg := prometheus.NewRegistry()
@@ -350,11 +358,12 @@ func testCertificateApplyWorker() {
 			// Apply should enqueue the certificate (RequiresQueue returns true for new object)
 			Expect(worker.Apply(ctx, cert)).To(Succeed())
 
-			// We expect a retry event on the channel because Patch always fails
+			// We expect a retry event on the channel because Patch always fails.
+			// The event is delayed by CertificateApplyRetryBaseDelay (100ms) due to the exponential backoff queue.
 			retryCh := worker.GetRetryChannel()
 
 			var evt event.TypedGenericEvent[*projectcontourv1.HTTPProxy]
-			Eventually(retryCh, 2*time.Second, 100*time.Millisecond).Should(
+			Eventually(retryCh, 5*time.Second, 100*time.Millisecond).Should(
 				Receive(&evt),
 				"expected an HTTPProxy event to be sent on retry channel after apply failure",
 			)

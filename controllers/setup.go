@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"time"
+
 	cmapiv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,22 +16,24 @@ import (
 
 // ReconcilerOptions is a set of options for reconcilers
 type ReconcilerOptions struct {
-	ServiceKey              client.ObjectKey
-	Prefix                  string
-	DefaultIssuerName       string
-	DefaultIssuerKind       string
-	DefaultDelegatedDomain  string
-	AllowedDelegatedDomains []string
-	AllowCustomDelegations  bool
-	CSRRevisionLimit        uint
-	CreateDNSEndpoint       bool
-	CreateCertificate       bool
-	IngressClassName        string
-	PropagatedAnnotations   []string
-	PropagatedLabels        []string
-	AllowedDNSNamespaces    []string
-	AllowedIssuerNamespaces []string
-	CertificateApplyLimit   float64
+	ServiceKey                     client.ObjectKey
+	Prefix                         string
+	DefaultIssuerName              string
+	DefaultIssuerKind              string
+	DefaultDelegatedDomain         string
+	AllowedDelegatedDomains        []string
+	AllowCustomDelegations         bool
+	CSRRevisionLimit               uint
+	CreateDNSEndpoint              bool
+	CreateCertificate              bool
+	IngressClassName               string
+	PropagatedAnnotations          []string
+	PropagatedLabels               []string
+	AllowedDNSNamespaces           []string
+	AllowedIssuerNamespaces        []string
+	CertificateApplyLimit          float64
+	CertificateApplyRetryBaseDelay time.Duration
+	CertificateApplyRetryMaxDelay  time.Duration
 }
 
 // SetupScheme initializes a schema
