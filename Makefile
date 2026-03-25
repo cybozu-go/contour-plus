@@ -153,7 +153,7 @@ version: login-gh ## Update dependent versions
 	  | tail -n 1 \
 	); \
 	echo "Updating kindest/node to $$NEW_KINDEST_TAG"; \
-	sed -i -e "s/KINDEST_NODE_VERSION := .*/KINDEST_NODE_VERSION := $${NEW_VERSION}/g" Makefile.versions
+	sed -i -e "s/KINDEST_NODE_VERSION := .*/KINDEST_NODE_VERSION := $${NEW_VERSION#v}/g" Makefile.versions
 
 
 .PHONY: update-actions
