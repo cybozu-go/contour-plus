@@ -79,7 +79,7 @@ install-contour-plus:
 	$(KUBECTL) rollout status deployment/contour-plus -n projectcontour --timeout=5m
 
 .PHONY: start
-start:
+start: update-dependencies
 	$(KIND) create cluster --config testdata/cluster.yaml
 	$(KUBECTL) apply -f testdata/namespace.yaml
 	$(MAKE) install-crds
