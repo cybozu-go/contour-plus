@@ -1,7 +1,7 @@
 PROJECT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 include $(PROJECT_DIR)/Makefile.versions
 
-CONTROLLER_TOOLS_VERSION = 0.19.0
+CONTROLLER_TOOLS_VERSION = 0.20.1
 
 BIN_DIR := $(PROJECT_DIR)/bin
 CRD_DIR := $(PROJECT_DIR)/config/crd/third
