@@ -109,7 +109,7 @@ e2e: reload
 
 .PHONY: update-kind
 update-kind:
-	$(YQ) -i '.nodes[].image = "kindest/node:v${KINDEST_NODE_VERSION}"' testdata/cluster.yaml
+	$(YQ) -i '.nodes[].image = "kindest/node:${KINDEST_NODE_VERSION}"' testdata/cluster.yaml
 
 .PHONY: update-dependencies
 update-dependencies:
