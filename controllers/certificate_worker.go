@@ -36,8 +36,8 @@ const (
 	applyResultSuccess     applyResultValue = "success"
 	applyResultError       applyResultValue = "error"
 
-	defaultRetryBaseDelay = 5 * time.Second
-	defaultRetryMaxDelay  = 10 * time.Minute
+	DefaultRetryBaseDelay = 5 * time.Second
+	DefaultRetryMaxDelay  = 10 * time.Minute
 )
 
 type Applier[T client.Object] interface {
@@ -107,17 +107,8 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 		limiter = rate.NewLimiter(rate.Limit(limit), burst)
 	}
 
-	retryBaseDelay := opt.CertificateApplyRetryBaseDelay
-	if retryBaseDelay <= 0 {
-		retryBaseDelay = defaultRetryBaseDelay
-	}
-	retryMaxDelay := opt.CertificateApplyRetryMaxDelay
-	if retryMaxDelay <= 0 {
-		retryMaxDelay = defaultRetryMaxDelay
-	}
-
 	global := &workqueue.TypedBucketRateLimiter[types.NamespacedName]{Limiter: limiter}
-	expFailure := workqueue.NewTypedItemExponentialFailureRateLimiter[types.NamespacedName](retryBaseDelay, retryMaxDelay)
+	expFailure := workqueue.NewTypedItemExponentialFailureRateLimiter[types.NamespacedName](opt.CertificateApplyRetryBaseDelay, opt.CertificateApplyRetryMaxDelay)
 	certQueue := workqueue.NewTypedRateLimitingQueueWithConfig(
 		workqueue.NewTypedMaxOfRateLimiter(global, expFailure),
 		workqueue.TypedRateLimitingQueueConfig[types.NamespacedName]{
@@ -271,36 +262,29 @@ func (w *CertificateApplyWorker) enqueueCertificate(objKey types.NamespacedName,
 // MaxOfRateLimiter when the reconcile loop calls AddRateLimited on subsequent failures.
 func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1.Certificate) {
 	log := crlog.FromContext(ctx)
-	httpProxyKey, err := getHTTPProxyKey(obj)
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		log.Error(fmt.Errorf("annotations do not exist on certificate %s/%s", obj.Namespace, obj.Name), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+		return
+	}
+	owner, ok := annotations[ownerAnnotation]
+	if !ok {
+		log.Error(fmt.Errorf("annotation %q not found on certificate %s/%s", ownerAnnotation, obj.Namespace, obj.Name), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+		return
+	}
+	ns, name, err := cache.SplitMetaNamespaceKey(owner)
 	if err != nil {
 		log.Error(err, "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
 		return
 	}
 	h := &projectcontourv1.HTTPProxy{}
-	h.SetNamespace(httpProxyKey.Namespace)
-	h.SetName(httpProxyKey.Name)
-	log.Info("re-queueing HTTPProxy for retry", "namespace", httpProxyKey.Namespace, "name", httpProxyKey.Name)
+	h.SetNamespace(ns)
+	h.SetName(name)
+	log.Info("re-queueing HTTPProxy for retry", "namespace", ns, "name", name)
 	select {
 	case w.retryCh <- event.TypedGenericEvent[*projectcontourv1.HTTPProxy]{Object: h}:
 	case <-ctx.Done():
 	}
-}
-
-// getHTTPProxyKey extracts the owning HTTPProxy NamespacedName from the certificate's owner annotation.
-func getHTTPProxyKey(obj *cmv1.Certificate) (types.NamespacedName, error) {
-	annotations := obj.GetAnnotations()
-	if annotations == nil {
-		return types.NamespacedName{}, fmt.Errorf("annotations do not exist on certificate %s/%s", obj.Namespace, obj.Name)
-	}
-	owner, ok := annotations[ownerAnnotation]
-	if !ok {
-		return types.NamespacedName{}, fmt.Errorf("annotation %q not found on certificate %s/%s", ownerAnnotation, obj.Namespace, obj.Name)
-	}
-	ns, name, err := cache.SplitMetaNamespaceKey(owner)
-	if err != nil {
-		return types.NamespacedName{}, err
-	}
-	return types.NamespacedName{Namespace: ns, Name: name}, nil
 }
 
 func (w *CertificateApplyWorker) recordApply(viaQueue viaQueueValue, applyResult applyResultValue) {
