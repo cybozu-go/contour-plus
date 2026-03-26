@@ -1,7 +1,7 @@
 PROJECT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 include $(PROJECT_DIR)/Makefile.versions
 
-CONTROLLER_TOOLS_VERSION = 0.19.0
+CONTROLLER_TOOLS_VERSION = 0.20.1
 
 BIN_DIR := $(PROJECT_DIR)/bin
 CRD_DIR := $(PROJECT_DIR)/config/crd/third
@@ -49,9 +49,9 @@ download-tools: $(GH) $(YQ) $(KUBECTL) $(HELM)
 
 .PHONY: download-crds
 download-crds:
-	curl -fsL -o $(CRD_DIR)/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.crds.yaml
-	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/v$(EXTERNAL_DNS_VERSION)/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
-	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/v$(CONTOUR_VERSION)/examples/contour/01-crds.yaml
+	curl -fsL -o $(CRD_DIR)/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.crds.yaml
+	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/$(call upstream-tag,$(EXTERNAL_DNS_VERSION))/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
+	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/$(call upstream-tag,$(CONTOUR_VERSION))/examples/contour/01-crds.yaml
 
 $(GH):
 	mkdir -p $(BIN_DIR)
@@ -131,6 +131,9 @@ version: login-gh ## Update dependent versions
 	$(call update-version-ghcr,cert-manager,CERT_MANAGER_VERSION)
 	$(call update-version-ghcr,contour,CONTOUR_VERSION)
 	$(call update-version-ghcr,external-dns,EXTERNAL_DNS_VERSION)
+	$(call update-version-ghcr,envoy,ENVOY_VERSION)
+	$(call update-version-ghcr,etcd,ETCD_VERSION)
+	$(call update-version-ghcr,coredns,COREDNS_VERSION)
 
 	$(call get-latest-gh-package-tag,argocd)
 	NEW_VERSION=$$(docker run ghcr.io/cybozu/argocd:$(latest_tag) kustomize version | cut -c2-); \
@@ -150,7 +153,7 @@ version: login-gh ## Update dependent versions
 	  | tail -n 1 \
 	); \
 	echo "Updating kindest/node to $$NEW_KINDEST_TAG"; \
-	sed -i -e "s/KINDEST_NODE_VERSION := .*/KINDEST_NODE_VERSION := $${NEW_VERSION}/g" Makefile.versions
+	sed -i -e "s/KINDEST_NODE_VERSION := .*/KINDEST_NODE_VERSION := $${NEW_VERSION#v}/g" Makefile.versions
 
 
 .PHONY: update-actions
@@ -224,8 +227,7 @@ endef
 # usage update-version-ghcr NAME VAR
 define update-version-ghcr
 	$(call get-latest-gh-package-tag,$1)
-	NEW_VERSION=$$(echo $(call upstream-tag,$(latest_tag)) | cut -b 2-); \
-	sed -i -e "s/$2 := .*/$2 := $${NEW_VERSION}/g" Makefile.versions
+	sed -i -e "s/$2 := .*/$2 := $(latest_tag)/g" Makefile.versions
 endef
 
 # usage update-trusted-action OWNER/REPO VERSION

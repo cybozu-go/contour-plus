@@ -291,6 +291,7 @@ func (w *CertificateApplyWorker) recordApply(viaQueue viaQueueValue, applyResult
 
 // applyCertificate applies provided certificate object with provided context and apiserver client
 func applyCertificate(ctx context.Context, k8sClient client.Client, obj *cmv1.Certificate) error {
+	//lint:ignore SA1019 client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	return k8sClient.Patch(ctx, obj, client.Apply, &client.PatchOptions{
 		Force:        ptr.To(true),
 		FieldManager: "contour-plus",
