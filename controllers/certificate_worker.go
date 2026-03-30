@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
@@ -34,6 +35,9 @@ const (
 	labelApplyResult                        = "result"
 	applyResultSuccess     applyResultValue = "success"
 	applyResultError       applyResultValue = "error"
+
+	DefaultRetryBaseDelay = 5 * time.Second
+	DefaultRetryMaxDelay  = 10 * time.Minute
 )
 
 type Applier[T client.Object] interface {
@@ -104,8 +108,9 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 	}
 
 	global := &workqueue.TypedBucketRateLimiter[types.NamespacedName]{Limiter: limiter}
-	workqueue := workqueue.NewTypedRateLimitingQueueWithConfig(
-		global,
+	expFailure := workqueue.NewTypedItemExponentialFailureRateLimiter[types.NamespacedName](opt.CertificateApplyRetryBaseDelay, opt.CertificateApplyRetryMaxDelay)
+	certQueue := workqueue.NewTypedRateLimitingQueueWithConfig(
+		workqueue.NewTypedMaxOfRateLimiter(global, expFailure),
 		workqueue.TypedRateLimitingQueueConfig[types.NamespacedName]{
 			Name: certificateApplierName,
 		},
@@ -114,7 +119,7 @@ func NewCertificateApplyWorker(client client.Client, opt ReconcilerOptions) *Cer
 	return &CertificateApplyWorker{
 		ReconcilerOptions: opt,
 		client:            client,
-		workqueue:         workqueue,
+		workqueue:         certQueue,
 		manifests:         make(map[types.NamespacedName]*cmv1.Certificate),
 		limiter:           limiter,
 		retryCh:           retryCh,
@@ -182,7 +187,6 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 		log.Info("processing cert queue item", "key", objKey.String())
 
 		func() {
-			// there is no need to call .Forget since we are only using BucketRateLimiter
 			defer w.workqueue.Done(objKey)
 
 			w.mu.Lock()
@@ -209,6 +213,9 @@ func (w *CertificateApplyWorker) Start(ctx context.Context) error {
 
 			log.Info("cert applied from queue", "key", objKey.String())
 			w.recordApply(viaQueueYes, applyResultSuccess)
+			// Forget the cert key to reset the exponential backoff counter so that
+			// a future failure starts from the base delay again.
+			w.workqueue.Forget(objKey)
 		}()
 	}
 }
@@ -250,35 +257,33 @@ func (w *CertificateApplyWorker) enqueueCertificate(objKey types.NamespacedName,
 	w.workqueue.AddRateLimited(objKey)
 }
 
-// enqueueHTTPProxy enqueues HTTPProxy in to the workqueue used by the main Reconcile function.
-// It requires the Controller to be setup with .WatchesRawSource using the same channel as w.retryCh
+// enqueueHTTPProxy sends the HTTPProxy that owns obj directly to retryCh so the main
+// reconcile loop picks it up. The exponential backoff is handled by the certQueue's
+// MaxOfRateLimiter when the reconcile loop calls AddRateLimited on subsequent failures.
 func (w *CertificateApplyWorker) enqueueHTTPProxy(ctx context.Context, obj *cmv1.Certificate) {
 	log := crlog.FromContext(ctx)
-	if w.retryCh == nil {
-		return
-	}
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
-		log.Error(fmt.Errorf("annotation does not exist"), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+		log.Error(fmt.Errorf("annotations do not exist on certificate %s/%s", obj.Namespace, obj.Name), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
 		return
 	}
 	owner, ok := annotations[ownerAnnotation]
 	if !ok {
-		log.Error(fmt.Errorf("annotation not found for %s", ownerAnnotation), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
+		log.Error(fmt.Errorf("annotation %q not found on certificate %s/%s", ownerAnnotation, obj.Namespace, obj.Name), "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
 		return
 	}
-
 	ns, name, err := cache.SplitMetaNamespaceKey(owner)
 	if err != nil {
 		log.Error(err, "skipping HTTPProxy enqueue", "certificateName", obj.Name, "certificateNamespace", obj.Namespace)
 		return
 	}
-	h := projectcontourv1.HTTPProxy{}
+	h := &projectcontourv1.HTTPProxy{}
 	h.SetNamespace(ns)
 	h.SetName(name)
-	log.Info("re-queueing HTTPProxy", "namespace", ns, "name", name)
-	w.retryCh <- event.TypedGenericEvent[*projectcontourv1.HTTPProxy]{
-		Object: &h,
+	log.Info("re-queueing HTTPProxy for retry", "namespace", ns, "name", name)
+	select {
+	case w.retryCh <- event.TypedGenericEvent[*projectcontourv1.HTTPProxy]{Object: h}:
+	case <-ctx.Done():
 	}
 }
 

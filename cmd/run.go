@@ -83,6 +83,18 @@ func run() error {
 		return errors.New("certificate-apply-limit must be greater than or equal to 0")
 	}
 
+	opts.CertificateApplyRetryBaseDelay = viper.GetDuration("certificate-apply-retry-base-delay")
+	if opts.CertificateApplyRetryBaseDelay <= 0 {
+		return errors.New("certificate-apply-retry-base-delay must be greater than 0")
+	}
+	opts.CertificateApplyRetryMaxDelay = viper.GetDuration("certificate-apply-retry-max-delay")
+	if opts.CertificateApplyRetryMaxDelay <= 0 {
+		return errors.New("certificate-apply-retry-max-delay must be greater than 0")
+	}
+	if opts.CertificateApplyRetryMaxDelay < opts.CertificateApplyRetryBaseDelay {
+		return errors.New("certificate-apply-retry-max-delay must be greater than or equal to certificate-apply-retry-base-delay")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{

@@ -1391,14 +1391,16 @@ func testHTTPProxyReconcile() {
 
 		prefix := "test-"
 		opts := ReconcilerOptions{
-			ServiceKey:            testServiceKey,
-			Prefix:                prefix,
-			DefaultIssuerName:     "test-issuer",
-			DefaultIssuerKind:     IssuerKind,
-			CreateDNSEndpoint:     true,
-			CreateCertificate:     true,
-			PropagatedAnnotations: []string{"foo"}, // must propagate an annotation to update cert metadata
-			CertificateApplyLimit: 1,
+			ServiceKey:                     testServiceKey,
+			Prefix:                         prefix,
+			DefaultIssuerName:              "test-issuer",
+			DefaultIssuerKind:              IssuerKind,
+			CreateDNSEndpoint:              true,
+			CreateCertificate:              true,
+			PropagatedAnnotations:          []string{"foo"}, // must propagate an annotation to update cert metadata
+			CertificateApplyLimit:          1,
+			CertificateApplyRetryBaseDelay: 1 * time.Millisecond,
+			CertificateApplyRetryMaxDelay:  10 * time.Millisecond,
 		}
 
 		err := SetupReconciler(mgr, scm, opts)

@@ -50,6 +50,8 @@ func init() {
 	fs.StringSlice("allowed-dns-namespaces", []string{}, "List of namespaces where DNSEndpoint resources can be created. If empty, no namespaces are allowed")
 	fs.StringSlice("allowed-issuer-namespaces", []string{}, "List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed")
 	fs.Float64("certificate-apply-limit", 0, "Maximum number of certificate apply operations allowed per second (0 disables rate limiting)")
+	fs.Duration("certificate-apply-retry-base-delay", controllers.DefaultRetryBaseDelay, "Base delay for certificate apply exponential backoff retry")
+	fs.Duration("certificate-apply-retry-max-delay", controllers.DefaultRetryMaxDelay, "Maximum delay for certificate apply exponential backoff retry")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
