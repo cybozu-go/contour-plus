@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-03-30
+### Added
+- Add configurable exponential backoff for certificate apply retries (#137)
+- Implement e2e test (#135)
+
+### Changed
+- Support Kubernetes 1.34 (#136)
+- Regular dependency update 2026-03 (#139)
+
 ## [0.16.0] - 2026-01-22
 - cleanup namespace after each spec (#131)
 - fix: check for empty map when patching resources (#129)
@@ -324,7 +333,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/cybozu-go/contour-plus/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/cybozu-go/contour-plus/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/cybozu-go/contour-plus/compare/v0.14.3...v0.15.0
 [0.14.3]: https://github.com/cybozu-go/contour-plus/compare/v0.14.2...v0.14.3

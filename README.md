@@ -20,7 +20,7 @@ Supported environments
 - ExternalDNS
   - 0.20
 - cert-manager
-  - 1.19
+  - 1.20
 
 Other versions may or may not work.
 
