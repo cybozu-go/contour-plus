@@ -48,7 +48,10 @@ install-coredns:
 update-external-dns-manifests:
 	mkdir -p testdata/external-dns/upstream
 	d=$$(mktemp -d); \
-	cd $$d; git clone --depth 1 -b $(call upstream-tag,$(EXTERNAL_DNS_VERSION)) https://github.com/kubernetes-sigs/external-dns.git; \
+	git init $$d/external-dns; \
+	git -C $$d/external-dns remote add origin https://github.com/kubernetes-sigs/external-dns.git; \
+	git -C $$d/external-dns fetch --depth 1 origin $(EXTERNAL_DNS_COMMIT); \
+	git -C $$d/external-dns checkout FETCH_HEAD; \
 	cp -r $$d/external-dns/kustomize/. $(THIS_MK_DIR)/testdata/external-dns/upstream
 	$(YQ) -i "(.images[] | select(.name==\"ghcr.io/cybozu/external-dns\")).newTag = \"$(EXTERNAL_DNS_VERSION)\"" testdata/external-dns/kustomization.yaml
 
@@ -61,7 +64,10 @@ install-external-dns:
 update-contour-manifests:
 	mkdir -p testdata/contour/upstream
 	d=$$(mktemp -d); \
-	cd $$d; git clone --depth 1 -b $(call upstream-tag,$(CONTOUR_VERSION)) https://github.com/projectcontour/contour.git; \
+	git init $$d/contour; \
+	git -C $$d/contour remote add origin https://github.com/projectcontour/contour.git; \
+	git -C $$d/contour fetch --depth 1 origin $(CONTOUR_COMMIT); \
+	git -C $$d/contour checkout FETCH_HEAD; \
 	cp -r $$d/contour/examples/contour/. $(THIS_MK_DIR)/testdata/contour/upstream
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/contour\")).newTag = \"$(CONTOUR_VERSION)\"" testdata/contour/kustomization.yaml
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/envoy\")).newTag = \"$(ENVOY_VERSION)\"" testdata/contour/kustomization.yaml

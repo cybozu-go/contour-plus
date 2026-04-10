@@ -12,6 +12,17 @@ HELM_VERSION := 3.20.0
 # https://github.com/cybozu/neco-containers/blob/main/argocd/Dockerfile#L10
 KUSTOMIZE_VERSION := 5.6.0
 
+# Versions for go install
+SETUP_ENVTEST_VERSION := 0.0.0-20260405152528-6210f847b2c1
+CUSTOM_CHECKER_VERSION := 0.1.5
+STATICCHECK_VERSION := 0.7.0
+GOIMPORTS_VERSION := 0.44.0
+KIND_CLI_VERSION := 0.31.0
+
+# Commit SHAs for git-cloned external repositories (must be updated together with the version)
+EXTERNAL_DNS_COMMIT := 5c2787321948e391ac188584855a7339eb8dd5e1
+CONTOUR_COMMIT := 33278ce35c125f8f2338910c983587ac667f95e8
+
 # Versions used only in e2e testing
 KINDEST_NODE_VERSION := 1.35.1
 ENVOY_VERSION := 1.35.9.1

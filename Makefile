@@ -40,12 +40,12 @@ setup: download-tools download-crds ## Setup
 .PHONY: download-tools
 download-tools: $(GH) $(YQ) $(KUBECTL) $(HELM)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v$(SETUP_ENVTEST_VERSION)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@v$(KUSTOMIZE_VERSION)
-	GOBIN=$(BIN_DIR) go install github.com/cybozu-go/golang-custom-analyzer/cmd/custom-checker@latest
-	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
-	GOBIN=$(BIN_DIR) go install golang.org/x/tools/cmd/goimports@latest
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kind@latest
+	GOBIN=$(BIN_DIR) go install github.com/cybozu-go/golang-custom-analyzer/cmd/custom-checker@v$(CUSTOM_CHECKER_VERSION)
+	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@v$(STATICCHECK_VERSION)
+	GOBIN=$(BIN_DIR) go install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION)
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kind@v$(KIND_CLI_VERSION)
 
 .PHONY: download-crds
 download-crds:
