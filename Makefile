@@ -50,31 +50,40 @@ download-tools: $(GH) $(YQ) $(KUBECTL) $(HELM)
 .PHONY: download-crds
 download-crds:
 	curl -fsL -o $(CRD_DIR)/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.crds.yaml
+	echo "$(CERTMANAGER_CRD_SHA256)  $(CRD_DIR)/certmanager.yml" | sha256sum --check
 	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/$(call upstream-tag,$(EXTERNAL_DNS_VERSION))/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
+	echo "$(EXTERNALDNS_CRD_SHA256)  $(CRD_DIR)/dnsendpoint.yml" | sha256sum --check
 	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/$(call upstream-tag,$(CONTOUR_VERSION))/examples/contour/01-crds.yaml
+	echo "$(CONTOUR_CRD_SHA256)  $(CRD_DIR)/httpproxy.yml" | sha256sum --check
 
 $(GH):
 	mkdir -p $(BIN_DIR)
-	wget -qO - https://github.com/cli/cli/releases/download/v$(GH_VERSION)/gh_$(GH_VERSION)_linux_amd64.tar.gz | tar -zx -O gh_$(GH_VERSION)_linux_amd64/bin/gh > $@
+	wget -qO $(BIN_DIR)/gh.tar.gz https://github.com/cli/cli/releases/download/v$(GH_VERSION)/gh_$(GH_VERSION)_linux_amd64.tar.gz
+	echo "$(GH_SHA256)  $(BIN_DIR)/gh.tar.gz" | sha256sum --check
+	tar -zx -O -f $(BIN_DIR)/gh.tar.gz gh_$(GH_VERSION)_linux_amd64/bin/gh > $@
 	chmod +x $@
+	rm $(BIN_DIR)/gh.tar.gz
 
 $(YQ):
 	mkdir -p $(BIN_DIR)
 	wget -qO $@ https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_linux_amd64
+	echo "$(YQ_SHA256)  $@" | sha256sum --check
 	chmod +x $@
 
 $(KUBECTL):
 	mkdir -p $(BIN_DIR)
 	wget -qO $@ https://dl.k8s.io/release/v$(ENVTEST_K8S_VERSION)/bin/linux/amd64/kubectl
+	echo "$(KUBECTL_SHA256)  $@" | sha256sum --check
 	chmod +x $@
 
 $(HELM):
 	mkdir -p $(BIN_DIR)
-	wget -qO helm.tar.gz https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz
-	tar -xzf helm.tar.gz
-	mv linux-amd64/helm $@
+	wget -qO $(BIN_DIR)/helm.tar.gz https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz
+	echo "$(HELM_SHA256)  $(BIN_DIR)/helm.tar.gz" | sha256sum --check
+	tar -xzf $(BIN_DIR)/helm.tar.gz -C $(BIN_DIR) linux-amd64/helm
+	mv $(BIN_DIR)/linux-amd64/helm $@
 	chmod +x $@
-	rm -rf linux-amd64 helm.tar.gz
+	rm -rf $(BIN_DIR)/linux-amd64 $(BIN_DIR)/helm.tar.gz
 
 .PHONY: clean
 clean: ## Clean files
