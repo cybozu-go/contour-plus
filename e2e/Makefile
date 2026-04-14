@@ -11,8 +11,10 @@ install-crds:
 .PHONY: update-cert-manager-manifests
 update-cert-manager-manifests:
 	mkdir -p testdata/cert-manager/upstream
-	curl -sSLf https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.yaml |\
-		$(YQ) eval 'select(.$(KIND) != "CustomResourceDefinition")' > testdata/cert-manager/upstream/cert-manager.yaml
+	curl -sSLf -o /tmp/cert-manager-upstream.yaml https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.yaml
+	echo "$(CERTMANAGER_MANIFEST_SHA256)  /tmp/cert-manager-upstream.yaml" | sha256sum --check
+	$(YQ) eval 'select(.$(KIND) != "CustomResourceDefinition")' /tmp/cert-manager-upstream.yaml > testdata/cert-manager/upstream/cert-manager.yaml
+	rm /tmp/cert-manager-upstream.yaml
 	$(YQ) -i "(.images[] | select(.name==\"ghcr.io/cybozu/cert-manager\")).newTag = \"$(CERT_MANAGER_VERSION)\"" testdata/cert-manager/kustomization.yaml
 
 .PHONY: install-cert-manager
@@ -25,7 +27,9 @@ install-cert-manager:
 update-coredns-manifests:
 	mkdir -p testdata/coredns/upstream
 	curl -sSLf -o testdata/coredns/upstream/etcd.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/$(call upstream-tag,$(EXTERNAL_DNS_VERSION))/docs/snippets/tutorials/coredns/etcd.yaml
+	echo "$(ETCD_YAML_SHA256)  testdata/coredns/upstream/etcd.yaml" | sha256sum --check
 	curl -sSLf -o testdata/coredns/upstream/values-coredns.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/$(call upstream-tag,$(EXTERNAL_DNS_VERSION))/docs/snippets/tutorials/coredns/values-coredns.yaml
+	echo "$(COREDNS_VALUES_SHA256)  testdata/coredns/upstream/values-coredns.yaml" | sha256sum --check
 	# replace etcd resource namespace
 	$(YQ) -i 'select(.metadata.namespace) | .metadata.namespace = "external-dns"' testdata/coredns/upstream/etcd.yaml
 	# replace binary path with that of cybozu build
@@ -48,7 +52,10 @@ install-coredns:
 update-external-dns-manifests:
 	mkdir -p testdata/external-dns/upstream
 	d=$$(mktemp -d); \
-	cd $$d; git clone --depth 1 -b $(call upstream-tag,$(EXTERNAL_DNS_VERSION)) https://github.com/kubernetes-sigs/external-dns.git; \
+	git init $$d/external-dns; \
+	git -C $$d/external-dns remote add origin https://github.com/kubernetes-sigs/external-dns.git; \
+	git -C $$d/external-dns fetch --depth 1 origin $(EXTERNAL_DNS_COMMIT); \
+	git -C $$d/external-dns checkout FETCH_HEAD; \
 	cp -r $$d/external-dns/kustomize/. $(THIS_MK_DIR)/testdata/external-dns/upstream
 	$(YQ) -i "(.images[] | select(.name==\"ghcr.io/cybozu/external-dns\")).newTag = \"$(EXTERNAL_DNS_VERSION)\"" testdata/external-dns/kustomization.yaml
 
@@ -61,7 +68,10 @@ install-external-dns:
 update-contour-manifests:
 	mkdir -p testdata/contour/upstream
 	d=$$(mktemp -d); \
-	cd $$d; git clone --depth 1 -b $(call upstream-tag,$(CONTOUR_VERSION)) https://github.com/projectcontour/contour.git; \
+	git init $$d/contour; \
+	git -C $$d/contour remote add origin https://github.com/projectcontour/contour.git; \
+	git -C $$d/contour fetch --depth 1 origin $(CONTOUR_COMMIT); \
+	git -C $$d/contour checkout FETCH_HEAD; \
 	cp -r $$d/contour/examples/contour/. $(THIS_MK_DIR)/testdata/contour/upstream
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/contour\")).newTag = \"$(CONTOUR_VERSION)\"" testdata/contour/kustomization.yaml
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/envoy\")).newTag = \"$(ENVOY_VERSION)\"" testdata/contour/kustomization.yaml
