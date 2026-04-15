@@ -774,6 +774,7 @@ func ipsToTargets(ips []net.IP) ([]string, []string) {
 
 func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]interface{} {
 	fqdn := strings.Trim(hostname, ".")
+	fqdn = strings.TrimPrefix(fqdn, "*.")
 	return []map[string]interface{}{
 		{
 			"dnsName":    "_acme-challenge." + fqdn,

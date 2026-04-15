@@ -1682,6 +1682,20 @@ func TestMakeDelegationEndpoint(t *testing.T) {
 			expectDNSName:   "_acme-challenge.example.com",
 			expectTarget:    "_acme-challenge.example.com.delegated.com",
 		},
+		{
+			name:            "Wildcard hostname",
+			hostname:        "*.example.com",
+			delegatedDomain: "delegated.com",
+			expectDNSName:   "_acme-challenge.example.com",
+			expectTarget:    "_acme-challenge.example.com.delegated.com",
+		},
+		{
+			name:            "Wildcard fully-qualified domain name",
+			hostname:        "*.example.com.",
+			delegatedDomain: "delegated.com",
+			expectDNSName:   "_acme-challenge.example.com",
+			expectTarget:    "_acme-challenge.example.com.delegated.com",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
