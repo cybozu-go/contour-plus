@@ -14,7 +14,7 @@ Supported environments
 ----------------------
 
 - Kubernetes
-  - 1.34
+  - 1.35
 - Contour
   - 1.33
 - ExternalDNS

@@ -1,6 +1,6 @@
 module github.com/cybozu-go/contour-plus
 
-go 1.26.1
+go 1.26.2
 
 require (
 	github.com/cert-manager/cert-manager v1.20.0
