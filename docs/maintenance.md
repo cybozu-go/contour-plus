@@ -8,7 +8,13 @@
    ```
 2. Update `go.mod` for the other dependencies.
 3. Update Go & Ubuntu versions if needed.
-4. Update `CONTROLLER_TOOLS_VERSION` in `Makefile`.  
+4. Update tool versions managed by [aqua](https://aquaproj.github.io/) (`gh`, `yq`, `kubectl`, `kustomize`, `helm`, `kind`, `controller-gen`, `setup-envtest`, `staticcheck`, `goimports`).
+   Edit the `packages[].name` entries in `aqua.yaml`, and bump the registry `ref` if a newer [aqua-registry release](https://github.com/aquaproj/aqua-registry/releases) is available.
+   Then regenerate `aqua-checksums.json`, pruning entries for versions that are no longer referenced.
+   ```console
+   $ aqua update-checksum --prune
+   ```
+   Run `make check-generate lint test` to confirm the new tool versions still work.
 5. Check for new software versions using `make version`. You may be prompted to login to github.com.
    ```console
    $ make version
