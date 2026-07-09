@@ -1,0 +1,20 @@
+---
+# aqua - Declarative CLI Version Manager
+# https://aquaproj.github.io/
+checksum:
+  enabled: true
+  require_checksum: true
+registries:
+- type: standard
+  ref: v4.533.1
+packages:
+- name: cli/cli@v2.68.1
+- name: helm/helm@v3.20.0
+- name: kubernetes/kubectl@v1.35.0
+- name: kubernetes-sigs/kind@v0.31.0
+- name: kubernetes-sigs/kustomize@kustomize/v5.6.0
+- name: mikefarah/yq@v4.45.1
+- name: kubernetes-sigs/controller-tools/controller-gen@v0.20.1
+- name: kubernetes-sigs/controller-runtime/setup-envtest@v0.24.1
+- name: dominikh/go-tools/staticcheck@2026.1
+- name: golang/tools/goimports@v0.44.0

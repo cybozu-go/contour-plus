@@ -1,23 +1,21 @@
 PROJECT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 include $(PROJECT_DIR)/Makefile.versions
 
-CONTROLLER_TOOLS_VERSION = 0.20.1
-
 BIN_DIR := $(PROJECT_DIR)/bin
 CRD_DIR := $(PROJECT_DIR)/config/crd/third
 WORKFLOWS_DIR := $(PROJECT_DIR)/.github/workflows
 
-KUSTOMIZE := $(BIN_DIR)/kustomize
-CONTROLLER_GEN := $(BIN_DIR)/controller-gen
-SETUP_ENVTEST := $(BIN_DIR)/setup-envtest
-STATICCHECK := $(BIN_DIR)/staticcheck
+KUSTOMIZE := $(shell aqua which kustomize)
+CONTROLLER_GEN := $(shell aqua which controller-gen)
+SETUP_ENVTEST := $(shell aqua which setup-envtest)
+STATICCHECK := $(shell aqua which staticcheck)
 CUSTOMCHECKER := $(BIN_DIR)/custom-checker
-GOIMPORTS := $(BIN_DIR)/goimports
-KIND := $(BIN_DIR)/kind
-GH := $(BIN_DIR)/gh
-YQ := $(BIN_DIR)/yq
-KUBECTL := $(BIN_DIR)/kubectl
-HELM := $(BIN_DIR)/helm
+GOIMPORTS := $(shell aqua which goimports)
+KIND := $(shell aqua which kind)
+GH := $(shell aqua which gh)
+YQ := $(shell aqua which yq)
+KUBECTL := $(shell aqua which kubectl)
+HELM := $(shell aqua which helm)
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/cybozu-go/contour-plus:latest
@@ -38,14 +36,9 @@ help: ## Display this help
 setup: download-tools download-crds ## Setup
 
 .PHONY: download-tools
-download-tools: $(GH) $(YQ) $(KUBECTL) $(HELM)
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@v$(SETUP_ENVTEST_VERSION)
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kustomize/kustomize/v5@v$(KUSTOMIZE_VERSION)
+download-tools:
+	aqua install
 	GOBIN=$(BIN_DIR) go install github.com/cybozu-go/golang-custom-analyzer/cmd/custom-checker@v$(CUSTOM_CHECKER_VERSION)
-	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@v$(STATICCHECK_VERSION)
-	GOBIN=$(BIN_DIR) go install golang.org/x/tools/cmd/goimports@v$(GOIMPORTS_VERSION)
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/kind@v$(KIND_CLI_VERSION)
 
 .PHONY: download-crds
 download-crds:
@@ -55,35 +48,6 @@ download-crds:
 	echo "$(EXTERNALDNS_CRD_SHA256)  $(CRD_DIR)/dnsendpoint.yml" | sha256sum --check
 	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/$(call upstream-tag,$(CONTOUR_VERSION))/examples/contour/01-crds.yaml
 	echo "$(CONTOUR_CRD_SHA256)  $(CRD_DIR)/httpproxy.yml" | sha256sum --check
-
-$(GH):
-	mkdir -p $(BIN_DIR)
-	wget -qO $(BIN_DIR)/gh.tar.gz https://github.com/cli/cli/releases/download/v$(GH_VERSION)/gh_$(GH_VERSION)_linux_amd64.tar.gz
-	echo "$(GH_SHA256)  $(BIN_DIR)/gh.tar.gz" | sha256sum --check
-	tar -zx -O -f $(BIN_DIR)/gh.tar.gz gh_$(GH_VERSION)_linux_amd64/bin/gh > $@
-	chmod +x $@
-	rm $(BIN_DIR)/gh.tar.gz
-
-$(YQ):
-	mkdir -p $(BIN_DIR)
-	wget -qO $@ https://github.com/mikefarah/yq/releases/download/v$(YQ_VERSION)/yq_linux_amd64
-	echo "$(YQ_SHA256)  $@" | sha256sum --check
-	chmod +x $@
-
-$(KUBECTL):
-	mkdir -p $(BIN_DIR)
-	wget -qO $@ https://dl.k8s.io/release/v$(ENVTEST_K8S_VERSION)/bin/linux/amd64/kubectl
-	echo "$(KUBECTL_SHA256)  $@" | sha256sum --check
-	chmod +x $@
-
-$(HELM):
-	mkdir -p $(BIN_DIR)
-	wget -qO $(BIN_DIR)/helm.tar.gz https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz
-	echo "$(HELM_SHA256)  $(BIN_DIR)/helm.tar.gz" | sha256sum --check
-	tar -xzf $(BIN_DIR)/helm.tar.gz -C $(BIN_DIR) linux-amd64/helm
-	mv $(BIN_DIR)/linux-amd64/helm $@
-	chmod +x $@
-	rm -rf $(BIN_DIR)/linux-amd64 $(BIN_DIR)/helm.tar.gz
 
 .PHONY: clean
 clean: ## Clean files
@@ -143,10 +107,6 @@ version: login-gh ## Update dependent versions
 	$(call update-version-ghcr,envoy,ENVOY_VERSION)
 	$(call update-version-ghcr,etcd,ETCD_VERSION)
 	$(call update-version-ghcr,coredns,COREDNS_VERSION)
-
-	$(call get-latest-gh-package-tag,argocd)
-	NEW_VERSION=$$(docker run ghcr.io/cybozu/argocd:$(latest_tag) kustomize version | cut -c2-); \
-	sed -i -e "s/KUSTOMIZE_VERSION := .*/KUSTOMIZE_VERSION := $${NEW_VERSION}/g" Makefile.versions
 
 	K8S_MINOR_VERSION="1."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
 	NEW_VERSION=$$($(SETUP_ENVTEST) list | tr -s ' ' | cut -d' ' -f2 | fgrep $${K8S_MINOR_VERSION} | sort -V | tail -n 1 | cut -c2-); \
