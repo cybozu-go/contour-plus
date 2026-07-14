@@ -111,6 +111,7 @@ version: login-gh ## Update dependent versions
 	$(call update-version,actions/checkout,ACTIONS_CHECKOUT_VERSION,1)
 	$(call update-version,actions/create-release,ACTIONS_CREATE_RELEASE_VERSION,1)
 	$(call update-version,actions/setup-go,ACTIONS_SETUP_GO_VERSION,1)
+	$(call update-version,cybozu-go/golang-custom-analyzer,CUSTOM_CHECKER_VERSION)
 	$(call update-version-ghcr,cert-manager,CERT_MANAGER_VERSION)
 	$(call update-version-ghcr,contour,CONTOUR_VERSION)
 	$(call update-version-ghcr,external-dns,EXTERNAL_DNS_VERSION)
