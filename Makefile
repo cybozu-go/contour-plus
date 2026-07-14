@@ -84,14 +84,18 @@ logout-gh: ## Logout from GitHub
 	$(GH) auth logout
 
 .PHONY: update-contour
-update-contour: ## Update Contour and Kubernetes in go.mod
-	$(call get-latest-gh-package-tag,contour)
-	go get github.com/projectcontour/contour@$(call upstream-tag,$(latest_tag))
+update-contour: ## Update Contour and Kubernetes in go.mod to the pinned CONTOUR_VERSION
+	go get github.com/projectcontour/contour@$(call upstream-tag,$(CONTOUR_VERSION))
 	K8S_MINOR_VERSION="0."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
 	K8S_PACKAGE_VERSION="$$(go list -m -versions k8s.io/api | tr ' ' '\n' | grep $${K8S_MINOR_VERSION} | sort -V | tail -n 1)"; \
 	go get k8s.io/api@$${K8S_PACKAGE_VERSION}; \
 	go get k8s.io/apimachinery@$${K8S_PACKAGE_VERSION}; \
 	go get k8s.io/client-go@$${K8S_PACKAGE_VERSION}; \
+	go mod tidy
+
+.PHONY: update-cert-manager
+update-cert-manager: ## Update cert-manager in go.mod to the pinned CERT_MANAGER_VERSION
+	go get github.com/cert-manager/cert-manager@$(call upstream-tag,$(CERT_MANAGER_VERSION))
 	go mod tidy
 
 .PHONY: version
