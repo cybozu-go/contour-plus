@@ -108,9 +108,28 @@ version: login-gh ## Update dependent versions
 	$(call update-version-ghcr,etcd,ETCD_VERSION)
 	$(call update-version-ghcr,coredns,COREDNS_VERSION)
 
+	$(call get-latest-gh-release,aquaproj/aqua-registry)
+	$(YQ) -i '.registries[0].ref = "$(latest_gh)"' aqua.yaml
+	$(call update-aqua-package,cli/cli)
+	$(call update-aqua-package,helm/helm)
+	$(call update-aqua-package,kubernetes-sigs/kind)
+	$(call update-aqua-package,mikefarah/yq)
+	$(call update-aqua-package,kubernetes-sigs/controller-tools/controller-gen)
+	$(call update-aqua-package,kubernetes-sigs/controller-runtime/setup-envtest)
+	$(call update-aqua-package,dominikh/go-tools/staticcheck)
+	$(call update-aqua-package,golang/tools/goimports)
+
+	# kustomize follows the version bundled in the Argo CD image, since that's
+	# what renders our manifests for deployment
+	# https://github.com/cybozu/neco-containers/blob/main/argocd/Dockerfile
+	$(call get-latest-gh-package-tag,argocd)
+	KUSTOMIZE_VERSION=$$(docker run ghcr.io/cybozu/argocd:$(latest_tag) kustomize version | cut -c2-); \
+	$(YQ) -i '(.packages[] | select(.name | test("^kubernetes-sigs/kustomize@"))).name = "kubernetes-sigs/kustomize@kustomize/v'"$$KUSTOMIZE_VERSION"'"' aqua.yaml
+
 	K8S_MINOR_VERSION="1."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
 	NEW_VERSION=$$($(SETUP_ENVTEST) list | tr -s ' ' | cut -d' ' -f2 | fgrep $${K8S_MINOR_VERSION} | sort -V | tail -n 1 | cut -c2-); \
-	sed -i -e "s/ENVTEST_K8S_VERSION := .*/ENVTEST_K8S_VERSION := $${NEW_VERSION}/g" Makefile.versions
+	sed -i -e "s/ENVTEST_K8S_VERSION := .*/ENVTEST_K8S_VERSION := $${NEW_VERSION}/g" Makefile.versions; \
+	$(YQ) -i '(.packages[] | select(.name | test("^kubernetes/kubectl@"))).name = "kubernetes/kubectl@v'"$$NEW_VERSION"'"' aqua.yaml
 
 	# update kindest node version
 	K8S_MINOR_VERSION="1."$$(go list -m -f '{{.Version}}' k8s.io/api | cut -d'.' -f2); \
@@ -123,6 +142,9 @@ version: login-gh ## Update dependent versions
 	); \
 	echo "Updating kindest/node to $$NEW_KINDEST_TAG"; \
 	sed -i -e "s/KINDEST_NODE_VERSION := .*/KINDEST_NODE_VERSION := $${NEW_VERSION#v}/g" Makefile.versions
+
+	aqua update-checksum --prune
+	aqua install
 
 
 .PHONY: update-actions
@@ -197,6 +219,16 @@ endef
 define update-version-ghcr
 	$(call get-latest-gh-package-tag,$1)
 	sed -i -e "s/$2 := .*/$2 := $(latest_tag)/g" Makefile.versions
+endef
+
+# usage: update-aqua-package NAME (e.g. cli/cli, kubernetes-sigs/controller-tools/controller-gen)
+# bump an aqua.yaml package to its latest release
+# "aqua g" prints nothing when the pinned version is already the latest, so skip the update in that case
+define update-aqua-package
+	NEW_VERSION=$$(aqua g $1 2>/dev/null | tail -n 1 | sed -E 's/.*@//'); \
+	if [ -n "$$NEW_VERSION" ]; then \
+		$(YQ) -i '(.packages[] | select(.name | test("^$1@"))).name = "$1@'"$$NEW_VERSION"'"' aqua.yaml; \
+	fi
 endef
 
 # usage update-trusted-action OWNER/REPO VERSION
