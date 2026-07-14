@@ -26,10 +26,8 @@ install-cert-manager:
 .PHONY: update-coredns-manifests
 update-coredns-manifests:
 	mkdir -p testdata/coredns/upstream
-	curl -sSLf -o testdata/coredns/upstream/etcd.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/$(call upstream-tag,$(EXTERNAL_DNS_VERSION))/docs/snippets/tutorials/coredns/etcd.yaml
-	echo "$(ETCD_YAML_SHA256)  testdata/coredns/upstream/etcd.yaml" | sha256sum --check
-	curl -sSLf -o testdata/coredns/upstream/values-coredns.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/refs/tags/$(call upstream-tag,$(EXTERNAL_DNS_VERSION))/docs/snippets/tutorials/coredns/values-coredns.yaml
-	echo "$(COREDNS_VALUES_SHA256)  testdata/coredns/upstream/values-coredns.yaml" | sha256sum --check
+	curl -sSLf -o testdata/coredns/upstream/etcd.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/$(EXTERNAL_DNS_COMMIT)/docs/snippets/tutorials/coredns/etcd.yaml
+	curl -sSLf -o testdata/coredns/upstream/values-coredns.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/$(EXTERNAL_DNS_COMMIT)/docs/snippets/tutorials/coredns/values-coredns.yaml
 	# replace etcd resource namespace
 	$(YQ) -i 'select(.metadata.namespace) | .metadata.namespace = "external-dns"' testdata/coredns/upstream/etcd.yaml
 	# replace binary path with that of cybozu build

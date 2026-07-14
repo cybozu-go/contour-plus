@@ -44,10 +44,8 @@ download-tools:
 download-crds:
 	curl -fsL -o $(CRD_DIR)/certmanager.yml -sLf https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.crds.yaml
 	echo "$(CERTMANAGER_CRD_SHA256)  $(CRD_DIR)/certmanager.yml" | sha256sum --check
-	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/$(call upstream-tag,$(EXTERNAL_DNS_VERSION))/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
-	echo "$(EXTERNALDNS_CRD_SHA256)  $(CRD_DIR)/dnsendpoint.yml" | sha256sum --check
-	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/$(call upstream-tag,$(CONTOUR_VERSION))/examples/contour/01-crds.yaml
-	echo "$(CONTOUR_CRD_SHA256)  $(CRD_DIR)/httpproxy.yml" | sha256sum --check
+	curl -fsL -o $(CRD_DIR)/dnsendpoint.yml -sLf https://github.com/kubernetes-sigs/external-dns/raw/$(EXTERNAL_DNS_COMMIT)/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
+	curl -fsL -o $(CRD_DIR)/httpproxy.yml -sLf https://github.com/projectcontour/contour/raw/$(CONTOUR_COMMIT)/examples/contour/01-crds.yaml
 
 .PHONY: clean
 clean: ## Clean files
