@@ -15,19 +15,26 @@
 4. Check `Makefile.versions` and `aqua.yaml` and revert some changes that you don't want now.
    If you revert an `aqua.yaml` change, re-run `aqua update-checksum --prune` to keep `aqua-checksums.json` in sync.
    Then run `make check-generate lint test` to confirm the tool versions still work.
-5. Update Contour and cert-manager versions in `go.mod` to the `CONTOUR_VERSION` and `CERT_MANAGER_VERSION` pinned in the previous steps.
+5. Update commit hashes and file checksums for the pinned dependency versions.
+   ```console
+   $ make update-hashes
+   ```
+   This resolves `EXTERNAL_DNS_COMMIT`, `CONTOUR_COMMIT`, and `CERT_MANAGER_COMMIT` to the commit each pinned version's
+   tag points to, and recomputes `CERTMANAGER_CRD_SHA256`/`CERTMANAGER_MANIFEST_SHA256` (cert-manager's manifests are
+   GitHub Release assets, so they still need a checksum rather than a commit hash; see the comment in `Makefile.versions`).
+6. Update Contour and cert-manager versions in `go.mod` to the `CONTOUR_VERSION` and `CERT_MANAGER_VERSION` pinned in the previous steps.
    `update-contour` also bumps `k8s.io/api`, `k8s.io/apimachinery`, and `k8s.io/client-go` to the latest patch of the Kubernetes minor version used by Contour.
    ```console
    $ make update-contour
    $ make update-cert-manager
    ```
-6. Update software versions using `make maintenance`.
+7. Update software versions using `make maintenance`.
    ```console
    $ make maintenance
    ```
-7. Update e2e test dependencies.
+8. Update e2e test dependencies.
    ```console
    $ cd e2e
    $ make update-dependencies
    ```
-8. Follow [RELEASE.md](/RELEASE.md) to update software version.
+9. Follow [RELEASE.md](/RELEASE.md) to update software version.

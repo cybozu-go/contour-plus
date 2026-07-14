@@ -98,6 +98,14 @@ update-cert-manager: ## Update cert-manager in go.mod to the pinned CERT_MANAGER
 	go get github.com/cert-manager/cert-manager@$(call upstream-tag,$(CERT_MANAGER_VERSION))
 	go mod tidy
 
+.PHONY: update-hashes
+update-hashes: ## Update commit hashes and file checksums for the pinned dependency versions
+	$(call update-commit,kubernetes-sigs/external-dns,$(call upstream-tag,$(EXTERNAL_DNS_VERSION)),EXTERNAL_DNS_COMMIT)
+	$(call update-commit,projectcontour/contour,$(call upstream-tag,$(CONTOUR_VERSION)),CONTOUR_COMMIT)
+	$(call update-commit,cert-manager/cert-manager,$(call upstream-tag,$(CERT_MANAGER_VERSION)),CERT_MANAGER_COMMIT)
+	$(call update-sha256,https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.crds.yaml,CERTMANAGER_CRD_SHA256)
+	$(call update-sha256,https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.yaml,CERTMANAGER_MANIFEST_SHA256)
+
 .PHONY: version
 version: login-gh ## Update dependent versions
 	$(call update-version,actions/checkout,ACTIONS_CHECKOUT_VERSION,1)
@@ -221,6 +229,20 @@ endef
 define update-version-ghcr
 	$(call get-latest-gh-package-tag,$1)
 	sed -i -e "s/$2 := .*/$2 := $(latest_tag)/g" Makefile.versions
+endef
+
+# usage: update-commit OWNER/REPO TAG VAR
+# resolve TAG to its commit SHA (the GitHub commits API dereferences annotated tags too) and record it in Makefile.versions
+define update-commit
+	COMMIT_SHA=$$(curl -sSf https://api.github.com/repos/$1/commits/$2 | jq -r '.sha'); \
+	sed -i -e "s/$3 := .*/$3 := $${COMMIT_SHA}/g" Makefile.versions
+endef
+
+# usage: update-sha256 URL VAR
+# compute the sha256 checksum of a downloaded file and record it in Makefile.versions
+define update-sha256
+	NEW_SHA256=$$(curl -sSLf $1 | sha256sum | cut -d' ' -f1); \
+	sed -i -e "s/$2 := .*/$2 := $${NEW_SHA256}/g" Makefile.versions
 endef
 
 # usage: update-aqua-package NAME (e.g. cli/cli, kubernetes-sigs/controller-tools/controller-gen)
