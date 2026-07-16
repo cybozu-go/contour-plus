@@ -12,9 +12,6 @@ CUSTOM_CHECKER_VERSION := 0.1.5
 # Commit SHAs for git-cloned external repositories (must be updated together with the version)
 EXTERNAL_DNS_COMMIT := 5c2787321948e391ac188584855a7339eb8dd5e1
 CONTOUR_COMMIT := 33278ce35c125f8f2338910c983587ac667f95e8
-# cert-manager's manifests are GitHub Release assets with no git-tree equivalent, so they
-# can't be fetched by commit hash like the above; kept for reference alongside CERT_MANAGER_VERSION.
-CERT_MANAGER_COMMIT := 0d2f215fe26ca2674758b5dfd780f04ac1dfde92
 
 # SHA256 checksums for downloaded files (must be updated together with the version)
 CERTMANAGER_CRD_SHA256 := 7326633f0f70514a71dc8eece2414c5f753b8d121e564d4c455f107f32a2defc

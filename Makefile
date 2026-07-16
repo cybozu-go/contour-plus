@@ -102,7 +102,6 @@ update-cert-manager: ## Update cert-manager in go.mod to the pinned CERT_MANAGER
 update-hashes: ## Update commit hashes and file checksums for the pinned dependency versions
 	$(call update-commit,kubernetes-sigs/external-dns,$(call upstream-tag,$(EXTERNAL_DNS_VERSION)),EXTERNAL_DNS_COMMIT)
 	$(call update-commit,projectcontour/contour,$(call upstream-tag,$(CONTOUR_VERSION)),CONTOUR_COMMIT)
-	$(call update-commit,cert-manager/cert-manager,$(call upstream-tag,$(CERT_MANAGER_VERSION)),CERT_MANAGER_COMMIT)
 	$(call update-sha256,https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.crds.yaml,CERTMANAGER_CRD_SHA256)
 	$(call update-sha256,https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.yaml,CERTMANAGER_MANIFEST_SHA256)
 

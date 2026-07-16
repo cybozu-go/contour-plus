@@ -19,9 +19,9 @@
    ```console
    $ make update-hashes
    ```
-   This resolves `EXTERNAL_DNS_COMMIT`, `CONTOUR_COMMIT`, and `CERT_MANAGER_COMMIT` to the commit each pinned version's
-   tag points to, and recomputes `CERTMANAGER_CRD_SHA256`/`CERTMANAGER_MANIFEST_SHA256` (cert-manager's manifests are
-   GitHub Release assets, so they still need a checksum rather than a commit hash; see the comment in `Makefile.versions`).
+   This resolves `EXTERNAL_DNS_COMMIT` and `CONTOUR_COMMIT` to the commit each pinned version's tag points to, and
+   recomputes `CERTMANAGER_CRD_SHA256`/`CERTMANAGER_MANIFEST_SHA256` (cert-manager's manifests are GitHub Release
+   assets with no git-tree equivalent, so they're pinned by checksum instead of commit hash).
 6. Update Contour and cert-manager versions in `go.mod` to the `CONTOUR_VERSION` and `CERT_MANAGER_VERSION` pinned in the previous steps.
    `update-contour` also bumps `k8s.io/api`, `k8s.io/apimachinery`, and `k8s.io/client-go` to the latest patch of the Kubernetes minor version used by Contour.
    ```console
