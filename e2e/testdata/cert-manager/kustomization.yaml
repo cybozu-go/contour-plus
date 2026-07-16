@@ -6,4 +6,4 @@ patchesStrategicMerge:
   - deployment.yaml
 images:
   - name: ghcr.io/cybozu/cert-manager
-    newTag: 1.20.0.1
+    newTag: 1.20.3.1

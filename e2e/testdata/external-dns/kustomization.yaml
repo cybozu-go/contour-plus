@@ -8,6 +8,6 @@ resources:
 namespace: external-dns
 images:
   - name: ghcr.io/cybozu/external-dns
-    newTag: 0.20.0.1
+    newTag: 0.21.0.2
 patchesStrategicMerge:
   - deployment.yaml

@@ -108,7 +108,6 @@ update-hashes: ## Update commit hashes and file checksums for the pinned depende
 .PHONY: version
 version: login-gh ## Update dependent versions
 	$(call update-version,actions/checkout,ACTIONS_CHECKOUT_VERSION,1)
-	$(call update-version,actions/create-release,ACTIONS_CREATE_RELEASE_VERSION,1)
 	$(call update-version,actions/setup-go,ACTIONS_SETUP_GO_VERSION,1)
 	$(call update-version,cybozu-go/golang-custom-analyzer,CUSTOM_CHECKER_VERSION)
 	$(call update-version-ghcr,cert-manager,CERT_MANAGER_VERSION)
@@ -160,7 +159,6 @@ version: login-gh ## Update dependent versions
 .PHONY: update-actions
 update-actions:
 	$(call update-trusted-action,actions/checkout,$(ACTIONS_CHECKOUT_VERSION))
-	$(call update-trusted-action,actions/create-release,$(ACTIONS_CREATE_RELEASE_VERSION))
 	$(call update-trusted-action,actions/setup-go,$(ACTIONS_SETUP_GO_VERSION))
 
 .PHONY: maintenance
