@@ -8,6 +8,8 @@ images:
   - name: quay.io/coreos/etcd
     newName: ghcr.io/cybozu/etcd
     newTag: "3.6.11.1"
+    digest: sha256:c2e3075893ca9264773d022c4789e401c6ff7346ffd4101a4d79f3bdf37f5637
   - name: coredns/coredns
     newName: ghcr.io/cybozu/coredns
     newTag: 1.14.2.1
+    digest: sha256:e29066d55b9455fdba973ceb6f77232677de15263cc1c78f63707935adc01a14

@@ -9,5 +9,6 @@ namespace: external-dns
 images:
   - name: ghcr.io/cybozu/external-dns
     newTag: 0.21.0.2
+    digest: sha256:f535000ea4b2704d4215cd0dcdb59b127a13f58434430629a90dcb6e9767a1a5
 patchesStrategicMerge:
   - deployment.yaml

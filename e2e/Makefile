@@ -119,6 +119,17 @@ e2e: reload
 update-kind:
 	$(YQ) -i '.nodes[].image = "kindest/node:v${KINDEST_NODE_VERSION}"' testdata/cluster.yaml
 
+.PHONY: update-digests
+update-digests:
+	$(call get-dockerhub-image-digest,kindest/node,v$(KINDEST_NODE_VERSION))
+	$(YQ) -i '.nodes[].image = "kindest/node:v$(KINDEST_NODE_VERSION)@$(image_digest)"' testdata/cluster.yaml
+	$(call update-ghcr-image-digest,cert-manager,$(CERT_MANAGER_VERSION),ghcr.io/cybozu/cert-manager,testdata/cert-manager/kustomization.yaml)
+	$(call update-ghcr-image-digest,etcd,$(ETCD_VERSION),ghcr.io/cybozu/etcd,testdata/coredns/kustomization.yaml)
+	$(call update-ghcr-image-digest,coredns,$(COREDNS_VERSION),ghcr.io/cybozu/coredns,testdata/coredns/kustomization.yaml)
+	$(call update-ghcr-image-digest,external-dns,$(EXTERNAL_DNS_VERSION),ghcr.io/cybozu/external-dns,testdata/external-dns/kustomization.yaml)
+	$(call update-ghcr-image-digest,contour,$(CONTOUR_VERSION),ghcr.io/cybozu/contour,testdata/contour/kustomization.yaml)
+	$(call update-ghcr-image-digest,envoy,$(ENVOY_VERSION),ghcr.io/cybozu/envoy,testdata/contour/kustomization.yaml)
+
 .PHONY: update-dependencies
 update-dependencies:
 	$(MAKE) update-kind
@@ -126,3 +137,4 @@ update-dependencies:
 	$(MAKE) update-coredns-manifests
 	$(MAKE) update-external-dns-manifests
 	$(MAKE) update-contour-manifests
+	$(MAKE) update-digests
