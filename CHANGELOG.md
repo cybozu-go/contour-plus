@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.3] - 2026-07-17
+### Changed
+- Refactor maintenance steps (#146)
+- Regular update 2026/07 (#147)
+
 ## [0.16.2] - 2026-04-15
 ### Fixed
 - Handle wildcard FQDN correctly for CNAME delegation (#142)
@@ -340,7 +345,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.3...HEAD
+[0.16.3]: https://github.com/cybozu-go/contour-plus/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/cybozu-go/contour-plus/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/cybozu-go/contour-plus/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/cybozu-go/contour-plus/compare/v0.15.0...v0.16.0
