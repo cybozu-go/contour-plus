@@ -107,8 +107,6 @@ update-hashes: ## Update commit hashes and file checksums for the pinned depende
 
 .PHONY: version
 version: login-gh ## Update dependent versions
-	$(call update-version,actions/checkout,ACTIONS_CHECKOUT_VERSION,1)
-	$(call update-version,actions/setup-go,ACTIONS_SETUP_GO_VERSION,1)
 	$(call update-version,cybozu-go/golang-custom-analyzer,CUSTOM_CHECKER_VERSION)
 	$(call update-version-ghcr,cert-manager,CERT_MANAGER_VERSION)
 	$(call update-version-ghcr,contour,CONTOUR_VERSION)
@@ -156,14 +154,8 @@ version: login-gh ## Update dependent versions
 	aqua install
 
 
-.PHONY: update-actions
-update-actions:
-	$(call update-trusted-action,actions/checkout,$(ACTIONS_CHECKOUT_VERSION))
-	$(call update-trusted-action,actions/setup-go,$(ACTIONS_SETUP_GO_VERSION))
-
 .PHONY: maintenance
 maintenance: ## Update dependent manifests
-	$(MAKE) update-actions
 	$(MAKE) download-crds
 
 .PHONY: list-actions
@@ -275,11 +267,4 @@ define update-aqua-package
 	if [ -n "$$NEW_VERSION" ]; then \
 		$(YQ) -i '(.packages[] | select(.name | test("^$1@"))).name = "$1@'"$$NEW_VERSION"'"' aqua.yaml; \
 	fi
-endef
-
-# usage update-trusted-action OWNER/REPO VERSION
-define update-trusted-action
-	for i in $(shell ls $(WORKFLOWS_DIR)); do \
-		$(YQ) -i '(.. | select(has("uses")) | select(.uses | contains("$1"))).uses = "$1@v$2"' $(WORKFLOWS_DIR)/$$i; \
-	done
 endef
