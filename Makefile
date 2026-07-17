@@ -107,9 +107,6 @@ update-hashes: ## Update commit hashes and file checksums for the pinned depende
 
 .PHONY: version
 version: login-gh ## Update dependent versions
-	$(call update-version,actions/checkout,ACTIONS_CHECKOUT_VERSION,1)
-	$(call update-version,actions/create-release,ACTIONS_CREATE_RELEASE_VERSION,1)
-	$(call update-version,actions/setup-go,ACTIONS_SETUP_GO_VERSION,1)
 	$(call update-version,cybozu-go/golang-custom-analyzer,CUSTOM_CHECKER_VERSION)
 	$(call update-version-ghcr,cert-manager,CERT_MANAGER_VERSION)
 	$(call update-version-ghcr,contour,CONTOUR_VERSION)
@@ -157,15 +154,8 @@ version: login-gh ## Update dependent versions
 	aqua install
 
 
-.PHONY: update-actions
-update-actions:
-	$(call update-trusted-action,actions/checkout,$(ACTIONS_CHECKOUT_VERSION))
-	$(call update-trusted-action,actions/create-release,$(ACTIONS_CREATE_RELEASE_VERSION))
-	$(call update-trusted-action,actions/setup-go,$(ACTIONS_SETUP_GO_VERSION))
-
 .PHONY: maintenance
 maintenance: ## Update dependent manifests
-	$(MAKE) update-actions
 	$(MAKE) download-crds
 
 .PHONY: list-actions
@@ -245,6 +235,30 @@ define update-sha256
 	sed -i -e "s/$2 := .*/$2 := $${NEW_SHA256}/g" Makefile.versions
 endef
 
+# Accept header covering both OCI and legacy Docker manifest (list) media types
+MANIFEST_ACCEPT := application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json
+
+# usage: get-ghcr-image-digest NAME TAG (e.g. cert-manager 1.20.3.1)
+# resolve TAG's manifest digest for a cybozu ghcr.io image directly from the registry API (no local pull)
+define get-ghcr-image-digest
+$(eval ghcr_token := $(shell curl -sSf "https://ghcr.io/token?scope=repository%3Acybozu%2F$1%3Apull&service=ghcr.io" | jq -r '.token'))
+$(eval image_digest := $(shell curl -sSf -H "Authorization: Bearer $(ghcr_token)" -H "Accept: $(MANIFEST_ACCEPT)" -D - -o /dev/null "https://ghcr.io/v2/cybozu/$1/manifests/$2" | grep -i '^docker-content-digest:' | tr -d '\r' | cut -d' ' -f2))
+endef
+
+# usage: get-dockerhub-image-digest REPO TAG (e.g. kindest/node v1.35.5)
+# resolve TAG's manifest digest for a Docker Hub image directly from the registry API (no local pull)
+define get-dockerhub-image-digest
+$(eval dockerhub_token := $(shell curl -sSf "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$1:pull" | jq -r '.token'))
+$(eval image_digest := $(shell curl -sSf -H "Authorization: Bearer $(dockerhub_token)" -H "Accept: $(MANIFEST_ACCEPT)" -D - -o /dev/null "https://registry-1.docker.io/v2/$1/manifests/$2" | grep -i '^docker-content-digest:' | tr -d '\r' | cut -d' ' -f2))
+endef
+
+# usage: update-ghcr-image-digest NAME TAG SELECTOR FILE
+# resolve NAME:TAG's ghcr.io digest and record it on the images entry matching SELECTOR (by name or newName) in a kustomization.yaml
+define update-ghcr-image-digest
+	$(call get-ghcr-image-digest,$1,$2)
+	$(YQ) -i '(.images[] | select(.name=="$3" or .newName=="$3")).digest = "$(image_digest)"' $4
+endef
+
 # usage: update-aqua-package NAME (e.g. cli/cli, kubernetes-sigs/controller-tools/controller-gen)
 # bump an aqua.yaml package to its latest release
 # "aqua g" prints nothing when the pinned version is already the latest, so skip the update in that case
@@ -253,11 +267,4 @@ define update-aqua-package
 	if [ -n "$$NEW_VERSION" ]; then \
 		$(YQ) -i '(.packages[] | select(.name | test("^$1@"))).name = "$1@'"$$NEW_VERSION"'"' aqua.yaml; \
 	fi
-endef
-
-# usage update-trusted-action OWNER/REPO VERSION
-define update-trusted-action
-	for i in $(shell ls $(WORKFLOWS_DIR)); do \
-		$(YQ) -i '(.. | select(has("uses")) | select(.uses | contains("$1"))).uses = "$1@v$2"' $(WORKFLOWS_DIR)/$$i; \
-	done
 endef

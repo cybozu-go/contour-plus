@@ -8,23 +8,26 @@ CRD_DIR := $(PARENT_DIR)/config/crd/third
 install-crds:
 	$(KUBECTL) apply -f $(CRD_DIR)
 
-.PHONY: update-cert-manager-manifests
-update-cert-manager-manifests:
+.PHONY: download-cert-manager-manifests
+download-cert-manager-manifests:
 	mkdir -p testdata/cert-manager/upstream
 	curl -sSLf -o /tmp/cert-manager-upstream.yaml https://github.com/jetstack/cert-manager/releases/download/$(call upstream-tag,$(CERT_MANAGER_VERSION))/cert-manager.yaml
 	echo "$(CERTMANAGER_MANIFEST_SHA256)  /tmp/cert-manager-upstream.yaml" | sha256sum --check
 	$(YQ) eval 'select(.$(KIND) != "CustomResourceDefinition")' /tmp/cert-manager-upstream.yaml > testdata/cert-manager/upstream/cert-manager.yaml
 	rm /tmp/cert-manager-upstream.yaml
+
+.PHONY: update-cert-manager-manifests
+update-cert-manager-manifests:
 	$(YQ) -i "(.images[] | select(.name==\"ghcr.io/cybozu/cert-manager\")).newTag = \"$(CERT_MANAGER_VERSION)\"" testdata/cert-manager/kustomization.yaml
 
 .PHONY: install-cert-manager
-install-cert-manager:
+install-cert-manager: download-cert-manager-manifests
 	$(KUSTOMIZE) build testdata/cert-manager | $(KUBECTL) apply -f -
 	$(KUBECTL) -n cert-manager wait pod --for=condition=Ready -l app.kubernetes.io/instance=cert-manager --timeout=5m
 	$(KUBECTL) apply -f testdata/cert-manager/clusterissuer.yaml
 
-.PHONY: update-coredns-manifests
-update-coredns-manifests:
+.PHONY: download-coredns-manifests
+download-coredns-manifests:
 	mkdir -p testdata/coredns/upstream
 	curl -sSLf -o testdata/coredns/upstream/etcd.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/$(EXTERNAL_DNS_COMMIT)/docs/snippets/tutorials/coredns/etcd.yaml
 	curl -sSLf -o testdata/coredns/upstream/values-coredns.yaml https://raw.githubusercontent.com/kubernetes-sigs/external-dns/$(EXTERNAL_DNS_COMMIT)/docs/snippets/tutorials/coredns/values-coredns.yaml
@@ -37,17 +40,20 @@ update-coredns-manifests:
 	$(HELM) repo add coredns https://coredns.github.io/helm
 	$(HELM) repo update
 	$(HELM) template -n external-dns -f testdata/coredns/upstream/values-coredns.yaml coredns coredns/coredns > testdata/coredns/upstream/coredns.yaml
+
+.PHONY: update-coredns-manifests
+update-coredns-manifests:
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/etcd\")).newTag = \"$(ETCD_VERSION)\"" testdata/coredns/kustomization.yaml
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/coredns\")).newTag = \"$(COREDNS_VERSION)\"" testdata/coredns/kustomization.yaml
 
 .PHONY: install-coredns
-install-coredns:
+install-coredns: download-coredns-manifests
 	$(KUSTOMIZE) build testdata/coredns | $(KUBECTL) apply -f -
 	$(KUBECTL) rollout status statefulset/etcd -n external-dns --timeout=5m
 	$(KUBECTL) rollout status deployment/coredns -n external-dns --timeout=5m
 
-.PHONY: update-external-dns-manifests
-update-external-dns-manifests:
+.PHONY: download-external-dns-manifests
+download-external-dns-manifests:
 	mkdir -p testdata/external-dns/upstream
 	d=$$(mktemp -d); \
 	git init $$d/external-dns; \
@@ -55,15 +61,18 @@ update-external-dns-manifests:
 	git -C $$d/external-dns fetch --depth 1 origin $(EXTERNAL_DNS_COMMIT); \
 	git -C $$d/external-dns checkout FETCH_HEAD; \
 	cp -r $$d/external-dns/kustomize/. $(THIS_MK_DIR)/testdata/external-dns/upstream
+
+.PHONY: update-external-dns-manifests
+update-external-dns-manifests:
 	$(YQ) -i "(.images[] | select(.name==\"ghcr.io/cybozu/external-dns\")).newTag = \"$(EXTERNAL_DNS_VERSION)\"" testdata/external-dns/kustomization.yaml
 
 .PHONY: install-external-dns
-install-external-dns:
+install-external-dns: download-external-dns-manifests
 	$(KUSTOMIZE) build testdata/external-dns | $(KUBECTL) apply -f -
 	$(KUBECTL) rollout status deployment/external-dns -n external-dns --timeout=5m
 
-.PHONY: update-contour-manifests
-update-contour-manifests:
+.PHONY: download-contour-manifests
+download-contour-manifests:
 	mkdir -p testdata/contour/upstream
 	d=$$(mktemp -d); \
 	git init $$d/contour; \
@@ -71,11 +80,14 @@ update-contour-manifests:
 	git -C $$d/contour fetch --depth 1 origin $(CONTOUR_COMMIT); \
 	git -C $$d/contour checkout FETCH_HEAD; \
 	cp -r $$d/contour/examples/contour/. $(THIS_MK_DIR)/testdata/contour/upstream
+
+.PHONY: update-contour-manifests
+update-contour-manifests:
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/contour\")).newTag = \"$(CONTOUR_VERSION)\"" testdata/contour/kustomization.yaml
 	$(YQ) -i "(.images[] | select(.newName==\"ghcr.io/cybozu/envoy\")).newTag = \"$(ENVOY_VERSION)\"" testdata/contour/kustomization.yaml
 
 .PHONY: install-contour
-install-contour:
+install-contour: download-contour-manifests
 	$(KUSTOMIZE) build testdata/contour | $(KUBECTL) apply -f -
 	$(KUBECTL) rollout status deployment/contour -n projectcontour --timeout=5m
 	$(KUBECTL) rollout status daemonset/envoy -n projectcontour --timeout=5m
@@ -87,7 +99,7 @@ install-contour-plus:
 	$(KUBECTL) rollout status deployment/contour-plus -n projectcontour --timeout=5m
 
 .PHONY: start
-start: update-dependencies
+start:
 	$(KIND) create cluster --config testdata/cluster.yaml
 	$(KUBECTL) apply -f testdata/namespace.yaml
 	$(MAKE) install-crds
@@ -119,6 +131,17 @@ e2e: reload
 update-kind:
 	$(YQ) -i '.nodes[].image = "kindest/node:v${KINDEST_NODE_VERSION}"' testdata/cluster.yaml
 
+.PHONY: update-digests
+update-digests:
+	$(call get-dockerhub-image-digest,kindest/node,v$(KINDEST_NODE_VERSION))
+	$(YQ) -i '.nodes[].image = "kindest/node:v$(KINDEST_NODE_VERSION)@$(image_digest)"' testdata/cluster.yaml
+	$(call update-ghcr-image-digest,cert-manager,$(CERT_MANAGER_VERSION),ghcr.io/cybozu/cert-manager,testdata/cert-manager/kustomization.yaml)
+	$(call update-ghcr-image-digest,etcd,$(ETCD_VERSION),ghcr.io/cybozu/etcd,testdata/coredns/kustomization.yaml)
+	$(call update-ghcr-image-digest,coredns,$(COREDNS_VERSION),ghcr.io/cybozu/coredns,testdata/coredns/kustomization.yaml)
+	$(call update-ghcr-image-digest,external-dns,$(EXTERNAL_DNS_VERSION),ghcr.io/cybozu/external-dns,testdata/external-dns/kustomization.yaml)
+	$(call update-ghcr-image-digest,contour,$(CONTOUR_VERSION),ghcr.io/cybozu/contour,testdata/contour/kustomization.yaml)
+	$(call update-ghcr-image-digest,envoy,$(ENVOY_VERSION),ghcr.io/cybozu/envoy,testdata/contour/kustomization.yaml)
+
 .PHONY: update-dependencies
 update-dependencies:
 	$(MAKE) update-kind
@@ -126,3 +149,4 @@ update-dependencies:
 	$(MAKE) update-coredns-manifests
 	$(MAKE) update-external-dns-manifests
 	$(MAKE) update-contour-manifests
+	$(MAKE) update-digests
