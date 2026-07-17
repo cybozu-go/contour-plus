@@ -18,7 +18,7 @@ Supported environments
 - Contour
   - 1.33
 - ExternalDNS
-  - 0.20
+  - 0.21
 - cert-manager
   - 1.20
 
