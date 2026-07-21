@@ -4,6 +4,7 @@ linters:
     - depguard
     - ginkgolinter
     - govet
+    - modernize
     - staticcheck
   settings:
     depguard:

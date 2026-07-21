@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -300,7 +299,7 @@ func (w *CertificateApplyWorker) recordApply(viaQueue viaQueueValue, applyResult
 func applyCertificate(ctx context.Context, k8sClient client.Client, obj *cmv1.Certificate) error {
 	//nolint:staticcheck // SA1019: client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	return k8sClient.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        ptr.To(true),
+		Force:        new(true),
 		FieldManager: "contour-plus",
 	})
 }
