@@ -67,7 +67,6 @@ func (f *failingPatchClient) Patch(ctx context.Context, obj client.Object, patch
 }
 
 func testCertificateApplyWorker() {
-
 	ctx := context.Background()
 
 	scheme := runtime.NewScheme()

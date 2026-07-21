@@ -468,7 +468,6 @@ func testHTTPProxyReconcile() {
 		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
 		Expect(issuerRef["kind"]).Should(Equal(IssuerKind))
 		Expect(issuerRef["name"]).Should(Equal("custom-issuer"))
-
 	})
 
 	It(`should create Certificate with Issuer specified in "cert-manager.io/cluster-issuer"`, func() {

@@ -308,7 +308,6 @@ func ensureCertificateIsStable(g Gomega, certName string) {
 	Consistently(func() string {
 		return snapshotCertRV(g, certName)
 	}, 10*time.Second, 1*time.Second).Should(Equal(initial), "possible infinite loop detected")
-
 }
 
 func snapshotCertRV(g Gomega, name string) string {

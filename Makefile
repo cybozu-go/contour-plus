@@ -168,7 +168,6 @@ check-generate: ## Check for commit omissions of auto-generated files
 
 .PHONY: lint
 lint: ## Run lint tools
-	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
 	golangci-lint run
 
 .PHONY: test

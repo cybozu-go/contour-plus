@@ -24,8 +24,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-type viaQueueValue string
-type applyResultValue string
+type (
+	viaQueueValue    string
+	applyResultValue string
+)
 
 const (
 	certificateApplierName                  = "certificate-apply"
