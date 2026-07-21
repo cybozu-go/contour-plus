@@ -8,9 +8,6 @@ WORKFLOWS_DIR := $(PROJECT_DIR)/.github/workflows
 KUSTOMIZE := $(shell aqua which kustomize)
 CONTROLLER_GEN := $(shell aqua which controller-gen)
 SETUP_ENVTEST := $(shell aqua which setup-envtest)
-STATICCHECK := $(shell aqua which staticcheck)
-CUSTOMCHECKER := $(BIN_DIR)/custom-checker
-GOIMPORTS := $(shell aqua which goimports)
 KIND := $(shell aqua which kind)
 GH := $(shell aqua which gh)
 YQ := $(shell aqua which yq)
@@ -38,7 +35,6 @@ setup: download-tools download-crds ## Setup
 .PHONY: download-tools
 download-tools:
 	aqua install
-	GOBIN=$(BIN_DIR) go install github.com/cybozu-go/golang-custom-analyzer/cmd/custom-checker@v$(CUSTOM_CHECKER_VERSION)
 
 .PHONY: download-crds
 download-crds:
@@ -107,7 +103,6 @@ update-hashes: ## Update commit hashes and file checksums for the pinned depende
 
 .PHONY: version
 version: login-gh ## Update dependent versions
-	$(call update-version,cybozu-go/golang-custom-analyzer,CUSTOM_CHECKER_VERSION)
 	$(call update-version-ghcr,cert-manager,CERT_MANAGER_VERSION)
 	$(call update-version-ghcr,contour,CONTOUR_VERSION)
 	$(call update-version-ghcr,external-dns,EXTERNAL_DNS_VERSION)
@@ -123,8 +118,6 @@ version: login-gh ## Update dependent versions
 	$(call update-aqua-package,mikefarah/yq)
 	$(call update-aqua-package,kubernetes-sigs/controller-tools/controller-gen)
 	$(call update-aqua-package,kubernetes-sigs/controller-runtime/setup-envtest)
-	$(call update-aqua-package,dominikh/go-tools/staticcheck)
-	$(call update-aqua-package,golang/tools/goimports)
 
 	# kustomize follows the version bundled in the Argo CD image, since that's
 	# what renders our manifests for deployment
@@ -170,16 +163,13 @@ list-actions: ## List used GitHub Actions
 check-generate: ## Check for commit omissions of auto-generated files
 	$(MAKE) manifests
 	$(MAKE) generate
-	$(GOIMPORTS) -w -local github.com/cybozu-go/contour-plus .
 	go mod tidy
 	git diff --exit-code --name-only
 
 .PHONY: lint
 lint: ## Run lint tools
 	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
-	$(STATICCHECK) ./...
-	test -z "$$($(CUSTOMCHECKER) -restrictpkg.packages=html/template,log $$(go list -tags='$(GOTAGS)' ./... ) 2>&1 | tee /dev/stderr)"
-	go vet ./...
+	golangci-lint run
 
 .PHONY: test
 test: ## Run unit tests

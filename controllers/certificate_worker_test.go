@@ -47,12 +47,12 @@ func (c *applyAsUpdateClient) Patch(
 	// - if the object exists, Update
 	// - if not, Create
 	existing := obj.DeepCopyObject().(client.Object)
-	err := c.Client.Get(ctx, client.ObjectKeyFromObject(obj), existing)
+	err := c.Get(ctx, client.ObjectKeyFromObject(obj), existing)
 	if err == nil {
-		return c.Client.Update(ctx, obj)
+		return c.Update(ctx, obj)
 	}
 	if k8serrors.IsNotFound(err) {
-		return c.Client.Create(ctx, obj)
+		return c.Create(ctx, obj)
 	}
 	return err
 }

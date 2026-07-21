@@ -1276,11 +1276,11 @@ func testHTTPProxyReconcile() {
 		tcdSpec := tcd.UnstructuredContent()["spec"].(map[string]interface{})
 		delegations := tcdSpec["delegations"].([]interface{})
 		delegation := delegations[0].(map[string]interface{})
-		Expect(len(delegations)).Should(Equal(1))
+		Expect(delegations).Should(HaveLen(1))
 		secretName := delegation["secretName"].(string)
 		Expect(secretName).Should(Equal(certName))
 		targetNamespaces := delegation["targetNamespaces"].([]interface{})
-		Expect(len(targetNamespaces)).Should(Equal(1))
+		Expect(targetNamespaces).Should(HaveLen(1))
 		Expect(targetNamespaces[0].(string)).Should(Equal(hpKey.Namespace))
 
 		By("ensuring Certificate is not created in the HTTPProxy namespace")

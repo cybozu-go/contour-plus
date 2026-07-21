@@ -212,7 +212,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	if err != nil {
 		return err
 	}
-	//lint:ignore SA1019 client.Apply migration deferred to cert-manager v1.20+ upgrade PR
+	//nolint:staticcheck // SA1019: client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
 		Force:        ptr.To(true),
 		FieldManager: "contour-plus",
@@ -268,7 +268,7 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 		return err
 	}
 
-	//lint:ignore SA1019 client.Apply migration deferred to cert-manager v1.20+ upgrade PR
+	//nolint:staticcheck // SA1019: client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	if err := r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
 		Force:        ptr.To(true),
 		FieldManager: "contour-plus",
@@ -452,7 +452,7 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	if err != nil {
 		return err
 	}
-	//lint:ignore SA1019 client.Apply migration deferred to cert-manager v1.20+ upgrade PR
+	//nolint:staticcheck // SA1019: client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
 		Force:        ptr.To(true),
 		FieldManager: "contour-plus",

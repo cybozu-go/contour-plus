@@ -3,9 +3,6 @@ CONTOUR_VERSION := 1.33.5.1
 ENVTEST_K8S_VERSION := 1.35.0
 EXTERNAL_DNS_VERSION := 0.21.0.2
 
-# Versions for go install
-CUSTOM_CHECKER_VERSION := 0.1.6
-
 # Commit SHAs for git-cloned external repositories (must be updated together with the version)
 EXTERNAL_DNS_COMMIT := 066a11e2158f87689a01f0ff39493037da958171
 CONTOUR_COMMIT := 2713ad0e0ebd5d192a53803cef4c1c3a69692b1c

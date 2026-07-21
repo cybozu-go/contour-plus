@@ -234,7 +234,10 @@ func testTLS(g Gomega, name string) {
 
 	err = os.WriteFile(caFileLocal, caBytes, 0o644)
 	g.Expect(err).NotTo(HaveOccurred())
-	defer os.Remove(caFileLocal)
+	defer func() {
+		err := os.Remove(caFileLocal)
+		g.Expect(err).NotTo(HaveOccurred())
+	}()
 
 	// copy CA cert from local file to the client container and reload.
 	dockerSafe(g, nil,
@@ -277,7 +280,7 @@ func testTLS(g Gomega, name string) {
 	)
 	val := strings.TrimSpace(string(valBytes))
 
-	fmt.Fprintf(GinkgoWriter, "TLS response body: %q\n", val)
+	_, _ = fmt.Fprintf(GinkgoWriter, "TLS response body: %q\n", val)
 	g.Expect(val).To(Equal("Hello"), "response body from TLS endpoint should not be empty")
 }
 
