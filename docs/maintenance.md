@@ -8,7 +8,7 @@
    $ make version
    ```
    This also updates the tools managed by [aqua](https://aquaproj.github.io/) in `aqua.yaml`
-   (`gh`, `yq`, `kubectl`, `kustomize`, `helm`, `kind`, `controller-gen`, `setup-envtest`, `staticcheck`, `goimports`),
+   (`gh`, `yq`, `kubectl`, `kustomize`, `helm`, `kind`, `controller-gen`, `setup-envtest`, `golangci-lint`),
    bumps the registry `ref` to the latest [aqua-registry release](https://github.com/aquaproj/aqua-registry/releases),
    and regenerates `aqua-checksums.json` accordingly. Note two exceptions that aren't bumped to their own latest release:
    - `kustomize` is pinned to the version bundled in the Argo CD image, since that's what renders our manifests for deployment.

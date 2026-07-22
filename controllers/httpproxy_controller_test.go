@@ -115,10 +115,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
-		endPoints := deSpec["endpoints"].([]interface{})
-		endPoint := endPoints[0].(map[string]interface{})
-		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]any)
+		endPoints := deSpec["endpoints"].([]any)
+		endPoint := endPoints[0].(map[string]any)
+		Expect(endPoint["targets"]).Should(Equal([]any{"10.0.0.0"}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("ensuring additional DNSEndpoint does not exist")
@@ -137,11 +137,11 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		Expect(crtSpec["dnsNames"]).Should(Equal([]any{dnsName}))
 		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
-		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+		Expect(crtSpec["usages"]).Should(Equal([]any{
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
@@ -212,10 +212,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
-		endPoints := deSpec["endpoints"].([]interface{})
-		endPoint := endPoints[0].(map[string]interface{})
-		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]any)
+		endPoints := deSpec["endpoints"].([]any)
+		endPoint := endPoints[0].(map[string]any)
+		Expect(endPoint["targets"]).Should(Equal([]any{"10.0.0.0"}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("ensuring additional DNSEndpoint has been created")
@@ -227,10 +227,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), dObjKey, dde)
 		}, 5*time.Second).Should(Succeed())
-		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]interface{})
-		dEndPoints := ddeSpec["endpoints"].([]interface{})
-		dEndPoint := dEndPoints[0].(map[string]interface{})
-		Expect(dEndPoint["targets"]).Should(Equal([]interface{}{"_acme-challenge." + dnsName + "." + testDelegationName}))
+		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]any)
+		dEndPoints := ddeSpec["endpoints"].([]any)
+		dEndPoint := dEndPoints[0].(map[string]any)
+		Expect(dEndPoint["targets"]).Should(Equal([]any{"_acme-challenge." + dnsName + "." + testDelegationName}))
 		Expect(dEndPoint["dnsName"]).Should(Equal("_acme-challenge." + dnsName))
 		Expect(dEndPoint["recordType"]).Should(Equal("CNAME"))
 	})
@@ -270,10 +270,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
-		endPoints := deSpec["endpoints"].([]interface{})
-		endPoint := endPoints[0].(map[string]interface{})
-		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]any)
+		endPoints := deSpec["endpoints"].([]any)
+		endPoint := endPoints[0].(map[string]any)
+		Expect(endPoint["targets"]).Should(Equal([]any{"10.0.0.0"}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("ensuring additional DNSEndpoint has been created")
@@ -285,10 +285,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), dObjKey, dde)
 		}, 5*time.Second).Should(Succeed())
-		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]interface{})
-		dEndPoints := ddeSpec["endpoints"].([]interface{})
-		dEndPoint := dEndPoints[0].(map[string]interface{})
-		Expect(dEndPoint["targets"]).Should(Equal([]interface{}{"_acme-challenge." + dnsName + "." + customDelegationName}))
+		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]any)
+		dEndPoints := ddeSpec["endpoints"].([]any)
+		dEndPoint := dEndPoints[0].(map[string]any)
+		Expect(dEndPoint["targets"]).Should(Equal([]any{"_acme-challenge." + dnsName + "." + customDelegationName}))
 		Expect(dEndPoint["dnsName"]).Should(Equal("_acme-challenge." + dnsName))
 		Expect(dEndPoint["recordType"]).Should(Equal("CNAME"))
 	})
@@ -327,10 +327,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
-		endPoints := deSpec["endpoints"].([]interface{})
-		endPoint := endPoints[0].(map[string]interface{})
-		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]any)
+		endPoints := deSpec["endpoints"].([]any)
+		endPoint := endPoints[0].(map[string]any)
+		Expect(endPoint["targets"]).Should(Equal([]any{"10.0.0.0"}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("ensuring additional DNSEndpoint has been created")
@@ -342,10 +342,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), dObjKey, dde)
 		}, 5*time.Second).Should(Succeed())
-		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]interface{})
-		dEndPoints := ddeSpec["endpoints"].([]interface{})
-		dEndPoint := dEndPoints[0].(map[string]interface{})
-		Expect(dEndPoint["targets"]).Should(Equal([]interface{}{"_acme-challenge." + dnsName + "." + testDelegationName}))
+		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]any)
+		dEndPoints := ddeSpec["endpoints"].([]any)
+		dEndPoint := dEndPoints[0].(map[string]any)
+		Expect(dEndPoint["targets"]).Should(Equal([]any{"_acme-challenge." + dnsName + "." + testDelegationName}))
 		Expect(dEndPoint["dnsName"]).Should(Equal("_acme-challenge." + dnsName))
 		Expect(dEndPoint["recordType"]).Should(Equal("CNAME"))
 	})
@@ -383,10 +383,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
-		endPoints := deSpec["endpoints"].([]interface{})
-		endPoint := endPoints[0].(map[string]interface{})
-		Expect(endPoint["targets"]).Should(Equal([]interface{}{"10.0.0.0"}))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]any)
+		endPoints := deSpec["endpoints"].([]any)
+		endPoint := endPoints[0].(map[string]any)
+		Expect(endPoint["targets"]).Should(Equal([]any{"10.0.0.0"}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("ensuring additional DNSEndpoint has been created")
@@ -398,10 +398,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), dObjKey, dde)
 		}, 5*time.Second).Should(Succeed())
-		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]interface{})
-		dEndPoints := ddeSpec["endpoints"].([]interface{})
-		dEndPoint := dEndPoints[0].(map[string]interface{})
-		Expect(dEndPoint["targets"]).Should(Equal([]interface{}{"_acme-challenge." + dnsName + "." + testDelegationName}))
+		ddeSpec := dde.UnstructuredContent()["spec"].(map[string]any)
+		dEndPoints := ddeSpec["endpoints"].([]any)
+		dEndPoint := dEndPoints[0].(map[string]any)
+		Expect(dEndPoint["targets"]).Should(Equal([]any{"_acme-challenge." + dnsName + "." + testDelegationName}))
 		Expect(dEndPoint["dnsName"]).Should(Equal("_acme-challenge." + dnsName))
 		Expect(dEndPoint["recordType"]).Should(Equal("CNAME"))
 	})
@@ -431,8 +431,8 @@ func testHTTPProxyReconcile() {
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		issuerRef := crtSpec["issuerRef"].(map[string]any)
 		Expect(issuerRef["kind"]).Should(Equal(ClusterIssuerKind))
 		Expect(issuerRef["name"]).Should(Equal("test-issuer"))
 	})
@@ -464,11 +464,10 @@ func testHTTPProxyReconcile() {
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used")
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		issuerRef := crtSpec["issuerRef"].(map[string]any)
 		Expect(issuerRef["kind"]).Should(Equal(IssuerKind))
 		Expect(issuerRef["name"]).Should(Equal("custom-issuer"))
-
 	})
 
 	It(`should create Certificate with Issuer specified in "cert-manager.io/cluster-issuer"`, func() {
@@ -499,8 +498,8 @@ func testHTTPProxyReconcile() {
 		}, 5*time.Second).Should(Succeed())
 
 		By("confirming that specified issuer used, cluster-issuer is precedence over issuer")
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		issuerRef := crtSpec["issuerRef"].(map[string]any)
 		Expect(issuerRef["kind"]).Should(Equal(ClusterIssuerKind))
 		Expect(issuerRef["name"]).Should(Equal("custom-cluster-issuer"))
 	})
@@ -534,10 +533,10 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
 
-		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
-		endPoints := deSpec["endpoints"].([]interface{})
-		endPoint := endPoints[0].(map[string]interface{})
-		Expect(endPoint["targets"]).Should(Equal([]interface{}{dummyLoadBalancerIP}))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]any)
+		endPoints := deSpec["endpoints"].([]any)
+		endPoint := endPoints[0].(map[string]any)
+		Expect(endPoint["targets"]).Should(Equal([]any{dummyLoadBalancerIP}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("confirming that Certificate does not exist")
@@ -571,7 +570,7 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}, 5*time.Second).Should(Succeed())
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
 		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 
 		By("confirming that DNSEndpoint does not exist")
@@ -611,10 +610,10 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, de)
 		}, 5*time.Second).Should(Succeed())
-		deSpec := de.UnstructuredContent()["spec"].(map[string]interface{})
-		endPoints := deSpec["endpoints"].([]interface{})
-		endPoint := endPoints[0].(map[string]interface{})
-		Expect(endPoint["targets"]).Should(Equal([]interface{}{dummyLoadBalancerIP}))
+		deSpec := de.UnstructuredContent()["spec"].(map[string]any)
+		endPoints := deSpec["endpoints"].([]any)
+		endPoint := endPoints[0].(map[string]any)
+		Expect(endPoint["targets"]).Should(Equal([]any{dummyLoadBalancerIP}))
 		Expect(endPoint["dnsName"]).Should(Equal(dnsName))
 
 		By("confirming that Certificate does not exist")
@@ -647,8 +646,8 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: hpKey.Name}, crt)
 		}).Should(Succeed())
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		issuerRef := crtSpec["issuerRef"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		issuerRef := crtSpec["issuerRef"].(map[string]any)
 		Expect(issuerRef["name"]).Should(Equal("custom-issuer"))
 		Expect(issuerRef["kind"]).Should(Equal(IssuerKind))
 	})
@@ -779,11 +778,11 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		Expect(crtSpec["dnsNames"]).Should(Equal([]any{dnsName}))
 		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
-		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+		Expect(crtSpec["usages"]).Should(Equal([]any{
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
@@ -820,11 +819,11 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		Expect(crtSpec["dnsNames"]).Should(Equal([]any{dnsName}))
 		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
-		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+		Expect(crtSpec["usages"]).Should(Equal([]any{
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
@@ -862,11 +861,11 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		Expect(crtSpec["dnsNames"]).Should(Equal([]interface{}{dnsName}))
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		Expect(crtSpec["dnsNames"]).Should(Equal([]any{dnsName}))
 		Expect(crtSpec["secretName"]).Should(Equal(testSecretName))
 		Expect(crtSpec["commonName"]).Should(Equal(dnsName))
-		Expect(crtSpec["usages"]).Should(Equal([]interface{}{
+		Expect(crtSpec["usages"]).Should(Equal([]any{
 			usageDigitalSignature,
 			usageKeyEncipherment,
 			usageServerAuth,
@@ -903,8 +902,8 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		keySpec := crtSpec["privateKey"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		keySpec := crtSpec["privateKey"].(map[string]any)
 		Expect(keySpec["algorithm"]).Should(Equal("ECDSA"))
 		Expect(keySpec["size"]).Should(BeNil())
 	})
@@ -939,8 +938,8 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		keySpec := crtSpec["privateKey"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		keySpec := crtSpec["privateKey"].(map[string]any)
 		Expect(keySpec["algorithm"]).Should(Equal("ECDSA"))
 		Expect(keySpec["size"]).Should(Equal(int64(384)))
 	})
@@ -975,8 +974,8 @@ func testHTTPProxyReconcile() {
 			return k8sClient.Get(context.Background(), objKey, crt)
 		}).Should(Succeed())
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
-		keySpec := crtSpec["privateKey"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
+		keySpec := crtSpec["privateKey"].(map[string]any)
 		Expect(keySpec["algorithm"]).Should(Equal("RSA"))
 		Expect(keySpec["size"]).Should(BeNil())
 	})
@@ -1020,11 +1019,11 @@ func testHTTPProxyReconcile() {
 		Expect(crtAnnotations["example.com/propagate-me"]).To(Equal("yes"))
 		Expect(crtAnnotations).ToNot(HaveKey("example.com/do-not-propagate-me"))
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
 		Expect(crtSpec).ToNot(BeNil())
-		secretTemplate := crtSpec["secretTemplate"].(map[string]interface{})
+		secretTemplate := crtSpec["secretTemplate"].(map[string]any)
 		Expect(secretTemplate).ToNot(BeNil())
-		secretAnnotations := secretTemplate["annotations"].(map[string]interface{})
+		secretAnnotations := secretTemplate["annotations"].(map[string]any)
 		Expect(secretAnnotations).ToNot(BeNil())
 		Expect(secretAnnotations["example.com/propagate-me"]).To(Equal("yes"))
 		Expect(secretAnnotations).ToNot(HaveKey("example.com/do-not-propagate-me"))
@@ -1082,11 +1081,11 @@ func testHTTPProxyReconcile() {
 		Expect(crtLabels["example.com/propagate-me"]).To(Equal("yes"))
 		Expect(crtLabels).ToNot(HaveKey("example.com/do-not-propagate"))
 
-		crtSpec := crt.UnstructuredContent()["spec"].(map[string]interface{})
+		crtSpec := crt.UnstructuredContent()["spec"].(map[string]any)
 		Expect(crtSpec).ToNot(BeNil())
-		secretTemplate := crtSpec["secretTemplate"].(map[string]interface{})
+		secretTemplate := crtSpec["secretTemplate"].(map[string]any)
 		Expect(secretTemplate).ToNot(BeNil())
-		secretLabels := secretTemplate["labels"].(map[string]interface{})
+		secretLabels := secretTemplate["labels"].(map[string]any)
 		Expect(secretLabels).ToNot(BeNil())
 		Expect(secretLabels["example.com/propagate-me"]).To(Equal("yes"))
 		Expect(secretLabels).ToNot(HaveKey("example.com/do-not-propagate"))
@@ -1273,14 +1272,14 @@ func testHTTPProxyReconcile() {
 		Eventually(func() error {
 			return k8sClient.Get(context.Background(), objKey, tcd)
 		}, 5*time.Second).Should(Succeed())
-		tcdSpec := tcd.UnstructuredContent()["spec"].(map[string]interface{})
-		delegations := tcdSpec["delegations"].([]interface{})
-		delegation := delegations[0].(map[string]interface{})
-		Expect(len(delegations)).Should(Equal(1))
+		tcdSpec := tcd.UnstructuredContent()["spec"].(map[string]any)
+		delegations := tcdSpec["delegations"].([]any)
+		delegation := delegations[0].(map[string]any)
+		Expect(delegations).Should(HaveLen(1))
 		secretName := delegation["secretName"].(string)
 		Expect(secretName).Should(Equal(certName))
-		targetNamespaces := delegation["targetNamespaces"].([]interface{})
-		Expect(len(targetNamespaces)).Should(Equal(1))
+		targetNamespaces := delegation["targetNamespaces"].([]any)
+		Expect(targetNamespaces).Should(HaveLen(1))
 		Expect(targetNamespaces[0].(string)).Should(Equal(hpKey.Namespace))
 
 		By("ensuring Certificate is not created in the HTTPProxy namespace")

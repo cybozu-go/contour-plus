@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -205,16 +204,16 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	obj.SetNamespace(targetNamespace)
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
-	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+	obj.UnstructuredContent()["spec"] = map[string]any{
 		"endpoints": makeEndpoints(fqdn, serviceIPs),
 	}
 	err = r.trackResourceOwnership(hp, obj)
 	if err != nil {
 		return err
 	}
-	//lint:ignore SA1019 client.Apply migration deferred to cert-manager v1.20+ upgrade PR
+	//nolint:staticcheck // SA1019: client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        ptr.To(true),
+		Force:        new(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
@@ -260,7 +259,7 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 	obj.SetNamespace(targetNamespace)
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
-	obj.UnstructuredContent()["spec"] = map[string]interface{}{
+	obj.UnstructuredContent()["spec"] = map[string]any{
 		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain),
 	}
 
@@ -268,9 +267,9 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 		return err
 	}
 
-	//lint:ignore SA1019 client.Apply migration deferred to cert-manager v1.20+ upgrade PR
+	//nolint:staticcheck // SA1019: client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	if err := r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        ptr.To(true),
+		Force:        new(true),
 		FieldManager: "contour-plus",
 	}); err != nil {
 		return err
@@ -332,7 +331,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 	}
 
 	if r.CSRRevisionLimit > 0 {
-		certificateSpec.RevisionHistoryLimit = ptr.To(int32(r.CSRRevisionLimit))
+		certificateSpec.RevisionHistoryLimit = new(int32(r.CSRRevisionLimit))
 	}
 	if value, ok := hp.Annotations[revisionHistoryLimitAnnotation]; ok {
 		limit, err := strconv.ParseUint(value, 10, 32)
@@ -340,7 +339,7 @@ func (r *HTTPProxyReconciler) reconcileCertificate(ctx context.Context, hp *proj
 			log.Error(err, "invalid revisionHistoryLimit", "value", value)
 			return nil
 		}
-		certificateSpec.RevisionHistoryLimit = ptr.To(int32(limit))
+		certificateSpec.RevisionHistoryLimit = new(int32(limit))
 	}
 	secretTemplate := &cmv1.CertificateSecretTemplate{}
 	annotations := r.generateObjectAnnotations(hp)
@@ -430,8 +429,8 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 		return nil
 	}
 	certificateName := getCertificateName(r, hp)
-	delegationSpec := map[string]interface{}{
-		"delegations": []map[string]interface{}{
+	delegationSpec := map[string]any{
+		"delegations": []map[string]any{
 			{
 				"secretName": certificateName,
 				"targetNamespaces": []string{
@@ -452,9 +451,9 @@ func (r *HTTPProxyReconciler) reconcileTLSCertificateDelegation(ctx context.Cont
 	if err != nil {
 		return err
 	}
-	//lint:ignore SA1019 client.Apply migration deferred to cert-manager v1.20+ upgrade PR
+	//nolint:staticcheck // SA1019: client.Apply migration deferred to cert-manager v1.20+ upgrade PR
 	err = r.Patch(ctx, obj, client.Apply, &client.PatchOptions{
-		Force:        ptr.To(true),
+		Force:        new(true),
 		FieldManager: "contour-plus",
 	})
 	if err != nil {
@@ -737,11 +736,11 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return b.Complete(r)
 }
 
-func makeEndpoints(hostname string, ips []net.IP) []map[string]interface{} {
+func makeEndpoints(hostname string, ips []net.IP) []map[string]any {
 	ipv4Targets, ipv6Targets := ipsToTargets(ips)
-	var endpoints []map[string]interface{}
+	var endpoints []map[string]any
 	if len(ipv4Targets) != 0 {
-		endpoints = append(endpoints, map[string]interface{}{
+		endpoints = append(endpoints, map[string]any{
 			"dnsName":    hostname,
 			"targets":    ipv4Targets,
 			"recordType": "A",
@@ -749,7 +748,7 @@ func makeEndpoints(hostname string, ips []net.IP) []map[string]interface{} {
 		})
 	}
 	if len(ipv6Targets) != 0 {
-		endpoints = append(endpoints, map[string]interface{}{
+		endpoints = append(endpoints, map[string]any{
 			"dnsName":    hostname,
 			"targets":    ipv6Targets,
 			"recordType": "AAAA",
@@ -772,10 +771,10 @@ func ipsToTargets(ips []net.IP) ([]string, []string) {
 	return ipv4Targets, ipv6Targets
 }
 
-func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]interface{} {
+func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]any {
 	fqdn := strings.Trim(hostname, ".")
 	fqdn = strings.TrimPrefix(fqdn, "*.")
-	return []map[string]interface{}{
+	return []map[string]any{
 		{
 			"dnsName":    "_acme-challenge." + fqdn,
 			"targets":    []string{"_acme-challenge." + fqdn + "." + delegatedDomain},

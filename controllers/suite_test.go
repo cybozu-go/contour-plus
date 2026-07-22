@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/config"
@@ -140,7 +139,7 @@ func setupManager() (*runtime.Scheme, manager.Manager) {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scm,
 		Controller: config.Controller{
-			SkipNameValidation: ptr.To(true),
+			SkipNameValidation: new(true),
 		},
 	})
 	Expect(err).ShouldNot(HaveOccurred())
