@@ -75,13 +75,9 @@ func generateEnvDoc(fs *pflag.FlagSet, replacer *strings.Replacer) string {
 	_, _ = w.Write([]byte("In addition to flags, the following environment variables are read:\n\n"))
 	fs.VisitAll(func(f *pflag.Flag) {
 		envName := "CP_" + strings.ToUpper(replacer.Replace(f.Name))
-		if _, err := fmt.Fprintf(w, "\t\t%s\t%s\n", envName, f.Usage); err != nil {
-			panic(err)
-		}
+		fmt.Fprintf(w, "\t\t%s\t%s\n", envName, f.Usage)
 	})
-	if err := w.Flush(); err != nil {
-		panic(err)
-	}
+	w.Flush()
 	return buf.String()
 }
 
