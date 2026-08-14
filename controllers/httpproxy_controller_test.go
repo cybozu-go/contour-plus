@@ -1666,6 +1666,8 @@ func TestMakeDelegationEndpoint(t *testing.T) {
 		delegatedDomain string
 		expectDNSName   string
 		expectTarget    string
+		ttl             uint64
+		expectTTL       uint64
 	}{
 		{
 			name:            "Hostname without trailing dot",
@@ -1695,10 +1697,19 @@ func TestMakeDelegationEndpoint(t *testing.T) {
 			expectDNSName:   "_acme-challenge.example.com",
 			expectTarget:    "_acme-challenge.example.com.delegated.com",
 		},
+		{
+			name:            "Custom TTL",
+			hostname:        "example.com",
+			delegatedDomain: "delegated.com",
+			expectDNSName:   "_acme-challenge.example.com",
+			expectTarget:    "_acme-challenge.example.com.delegated.com",
+			ttl:             100,
+			expectTTL:       100,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			actuals := makeDelegationEndpoint(tc.hostname, tc.delegatedDomain)
+			actuals := makeDelegationEndpoint(tc.hostname, tc.delegatedDomain, tc.ttl)
 			if len(actuals) != 1 {
 				t.Errorf("HTTPProxyReconciler.makeDelegationEndpoint() = %v, want 1 item", len(actuals))
 			}
@@ -1712,6 +1723,9 @@ func TestMakeDelegationEndpoint(t *testing.T) {
 			}
 			if actualTargets[0] != tc.expectTarget {
 				t.Errorf("HTTPProxyReconciler.makeDelegationEndpoint() target = %v, want %v", actualTargets[0], tc.expectTarget)
+			}
+			if actual["recordTTL"] != tc.expectTTL {
+				t.Errorf("HTTPProxyReconciler.makeDelegationEndpoint() ttl = %v, want %v", actual["recordTTL"], tc.expectTTL)
 			}
 		})
 	}
@@ -1865,6 +1879,59 @@ func TestGetDNSEndpointName(t *testing.T) {
 			actual := getDNSEndpointName(tc.reconciler, tc.proxy)
 			if actual != tc.expectName {
 				t.Errorf("HTTPProxyReconciler.getDNSEndpointName() = %v, want %v", actual, tc.expectName)
+			}
+		})
+	}
+}
+
+func TestGetTTL(t *testing.T) {
+	tests := []struct {
+		name      string
+		proxy     *projectcontourv1.HTTPProxy
+		expectTTL uint64
+	}{
+		{
+			name: "Default TTL",
+			proxy: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+			},
+			expectTTL: DefaultDNSTTL,
+		},
+		{
+			name: "Custom TTL",
+			proxy: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Annotations: map[string]string{
+						dnsTTLAnnotation: "600",
+					},
+				},
+			},
+			expectTTL: 600,
+		},
+		{
+			name: "Invalid custom TTL",
+			proxy: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Annotations: map[string]string{
+						dnsTTLAnnotation: "-600",
+					},
+				},
+			},
+			expectTTL: DefaultDNSTTL,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := getTTL(tc.proxy, dnsTTLAnnotation, DefaultDNSTTL)
+			if actual != tc.expectTTL {
+				t.Errorf("HTTPProxyReconciler.getTTL() = %v, want %v", actual, tc.expectTTL)
 			}
 		})
 	}

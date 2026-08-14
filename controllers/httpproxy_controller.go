@@ -44,6 +44,8 @@ const (
 	dnsNamespaceAnnotation            = "contour-plus.cybozu.com/dns-namespace"
 	issuerNamespaceAnnotation         = "contour-plus.cybozu.com/issuer-namespace"
 	ownerAnnotation                   = "contour-plus.cybozu.com/owned-by"
+	dnsTTLAnnotation                  = "contour-plus.cybozu.com/dns-ttl"
+	dnsDelegationTTLAnnotation        = "contour-plus.cybozu.com/dns-delegation-ttl"
 	finalizerName                     = "contour-plus.cybozu.com/finalizer"
 )
 
@@ -166,6 +168,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	if hp.Spec.VirtualHost == nil {
 		return nil
 	}
+
 	fqdn := hp.Spec.VirtualHost.Fqdn
 	if len(fqdn) == 0 {
 		return nil
@@ -198,6 +201,8 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 		targetNamespace = ns
 	}
 
+	ttl := getTTL(hp, dnsTTLAnnotation, r.DefaultDNSTTL)
+
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(externalDNSGroupVersion.WithKind(DNSEndpointKind))
 	obj.SetName(dnsEndpointName)
@@ -205,7 +210,7 @@ func (r *HTTPProxyReconciler) reconcileDNSEndpoint(ctx context.Context, hp *proj
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = map[string]any{
-		"endpoints": makeEndpoints(fqdn, serviceIPs),
+		"endpoints": makeEndpoints(fqdn, serviceIPs, ttl),
 	}
 	err = r.trackResourceOwnership(hp, obj)
 	if err != nil {
@@ -247,6 +252,8 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 		return nil
 	}
 
+	ttl := getTTL(hp, dnsDelegationTTLAnnotation, r.DefaultDNSDelegationTTL)
+
 	dnsEndpointName := getDNSEndpointName(r, hp)
 	targetNamespace := hp.Namespace
 	if ns, ok := hp.Annotations[dnsNamespaceAnnotation]; ok && slices.Contains(r.AllowedDNSNamespaces, ns) {
@@ -260,7 +267,7 @@ func (r *HTTPProxyReconciler) reconcileDelegationDNSEndpoint(ctx context.Context
 	obj.SetAnnotations(r.generateObjectAnnotations(hp))
 	obj.SetLabels(r.generateObjectLabels(hp))
 	obj.UnstructuredContent()["spec"] = map[string]any{
-		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain),
+		"endpoints": makeDelegationEndpoint(fqdn, delegatedDomain, ttl),
 	}
 
 	if err := r.trackResourceOwnership(hp, obj); err != nil {
@@ -736,7 +743,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return b.Complete(r)
 }
 
-func makeEndpoints(hostname string, ips []net.IP) []map[string]any {
+func makeEndpoints(hostname string, ips []net.IP, ttl uint64) []map[string]any {
 	ipv4Targets, ipv6Targets := ipsToTargets(ips)
 	var endpoints []map[string]any
 	if len(ipv4Targets) != 0 {
@@ -744,7 +751,7 @@ func makeEndpoints(hostname string, ips []net.IP) []map[string]any {
 			"dnsName":    hostname,
 			"targets":    ipv4Targets,
 			"recordType": "A",
-			"recordTTL":  3600,
+			"recordTTL":  ttl,
 		})
 	}
 	if len(ipv6Targets) != 0 {
@@ -752,7 +759,7 @@ func makeEndpoints(hostname string, ips []net.IP) []map[string]any {
 			"dnsName":    hostname,
 			"targets":    ipv6Targets,
 			"recordType": "AAAA",
-			"recordTTL":  3600,
+			"recordTTL":  ttl,
 		})
 	}
 	return endpoints
@@ -771,7 +778,7 @@ func ipsToTargets(ips []net.IP) ([]string, []string) {
 	return ipv4Targets, ipv6Targets
 }
 
-func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]any {
+func makeDelegationEndpoint(hostname, delegatedDomain string, ttl uint64) []map[string]any {
 	fqdn := strings.Trim(hostname, ".")
 	fqdn = strings.TrimPrefix(fqdn, "*.")
 	return []map[string]any{
@@ -779,7 +786,7 @@ func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]any {
 			"dnsName":    "_acme-challenge." + fqdn,
 			"targets":    []string{"_acme-challenge." + fqdn + "." + delegatedDomain},
 			"recordType": "CNAME",
-			"recordTTL":  60,
+			"recordTTL":  ttl,
 		},
 	}
 }
@@ -809,4 +816,15 @@ func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) 
 		return r.Prefix + hp.Name
 	}
 	return r.Prefix + hp.Namespace + "-" + hp.Name
+}
+
+func getTTL(hp *projectcontourv1.HTTPProxy, annotationKey string, defaultTTL uint64) uint64 {
+	if value, ok := hp.Annotations[annotationKey]; ok {
+		parsedTTL, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return defaultTTL
+		}
+		return parsedTTL
+	}
+	return defaultTTL
 }

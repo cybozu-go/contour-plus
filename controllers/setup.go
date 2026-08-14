@@ -34,6 +34,8 @@ type ReconcilerOptions struct {
 	CertificateApplyLimit          float64
 	CertificateApplyRetryBaseDelay time.Duration
 	CertificateApplyRetryMaxDelay  time.Duration
+	DefaultDNSTTL                  uint64
+	DefaultDNSDelegationTTL        uint64
 }
 
 // SetupScheme initializes a schema
