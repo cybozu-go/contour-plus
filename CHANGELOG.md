@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.4] - 2026-08-19
+### Fixed
+- reduce TTL for ACME delegation record (#151)
+
 ## [0.16.3] - 2026-07-17
 ### Changed
 - Refactor maintenance steps (#146)
@@ -345,7 +349,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.3...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.4...HEAD
+[0.16.4]: https://github.com/cybozu-go/contour-plus/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/cybozu-go/contour-plus/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/cybozu-go/contour-plus/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/cybozu-go/contour-plus/compare/v0.16.0...v0.16.1
