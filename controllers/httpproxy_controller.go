@@ -779,7 +779,7 @@ func makeDelegationEndpoint(hostname, delegatedDomain string) []map[string]any {
 			"dnsName":    "_acme-challenge." + fqdn,
 			"targets":    []string{"_acme-challenge." + fqdn + "." + delegatedDomain},
 			"recordType": "CNAME",
-			"recordTTL":  3600,
+			"recordTTL":  60,
 		},
 	}
 }
