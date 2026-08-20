@@ -34,26 +34,10 @@ func init() {
 
 	fs := rootCmd.Flags()
 	fs.String("metrics-addr", ":8180", "Bind address for the metrics endpoint")
-	fs.StringSlice("crds", []string{controllers.DNSEndpointKind, controllers.CertificateKind}, "List of CRD names to be created")
-	fs.String("name-prefix", "", "Prefix of CRD names to be created")
-	fs.String("service-name", "", "NamespacedName of the Contour LoadBalancer Service")
-	fs.String("default-issuer-name", "", "Issuer name used by default")
-	fs.String("default-issuer-kind", controllers.ClusterIssuerKind, "Issuer kind used by default")
-	fs.String("default-delegated-domain", "", "Delegated domain used by default")
-	fs.StringSlice("allowed-delegated-domains", []string{}, "List of allowed delegated domains")
-	fs.Bool("allow-custom-delegations", false, "Allow custom delegated domains via annotations")
-	fs.Uint("csr-revision-limit", 0, "Maximum number of CertificateRequest revisions to keep")
-	fs.String("ingress-class-name", "", "Ingress class name that watched by Contour Plus. If not specified, then all classes are watched")
 	fs.Bool("leader-election", true, "Enable/disable leader election")
-	fs.StringSlice("propagated-annotations", []string{}, "List of annotation keys to be propagated from HTTPProxy to generated resources")
-	fs.StringSlice("propagated-labels", []string{}, "List of label keys to be propagated from HTTPProxy to generated resources")
-	fs.StringSlice("allowed-dns-namespaces", []string{}, "List of namespaces where DNSEndpoint resources can be created. If empty, no namespaces are allowed")
-	fs.StringSlice("allowed-issuer-namespaces", []string{}, "List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed")
-	fs.Float64("certificate-apply-limit", 0, "Maximum number of certificate apply operations allowed per second (0 disables rate limiting)")
-	fs.Duration("certificate-apply-retry-base-delay", controllers.DefaultRetryBaseDelay, "Base delay for certificate apply exponential backoff retry")
-	fs.Duration("certificate-apply-retry-max-delay", controllers.DefaultRetryMaxDelay, "Maximum delay for certificate apply exponential backoff retry")
-	fs.Int32("default-dns-ttl", controllers.DefaultDNSTTL, "Default TTL value for DNSEndpoint A records")
-	fs.Int32("default-dns-delegation-ttl", controllers.DefaultDNSDelegationTTL, "Default TTL value for DNSEndpoint CNAME delgation records")
+
+	controllers.BindFlags(fs)
+
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
