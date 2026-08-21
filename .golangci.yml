@@ -1,12 +1,11 @@
 version: "2"
 linters:
+  default: standard
   enable:
     - depguard
     - ginkgolinter
-    - govet
     - modernize
     - nilerr
-    - staticcheck
   exclusions:
     generated: lax
     presets:
