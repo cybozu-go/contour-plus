@@ -79,8 +79,8 @@ func run() error {
 	opts.AllowedDNSNamespaces = viper.GetStringSlice("allowed-dns-namespaces")
 	opts.AllowedIssuerNamespaces = viper.GetStringSlice("allowed-issuer-namespaces")
 
-	opts.DefaultDNSTTL = viper.GetUint64("default-dns-ttl")
-	opts.DefaultDNSDelegationTTL = viper.GetUint64("default-dns-delegation-ttl")
+	opts.DefaultDNSTTL = viper.GetInt32("default-dns-ttl")
+	opts.DefaultDNSDelegationTTL = viper.GetInt32("default-dns-delegation-ttl")
 
 	opts.CertificateApplyLimit = viper.GetFloat64("certificate-apply-limit")
 	if opts.CertificateApplyLimit < 0 {

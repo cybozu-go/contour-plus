@@ -743,7 +743,7 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return b.Complete(r)
 }
 
-func makeEndpoints(hostname string, ips []net.IP, ttl uint64) []map[string]any {
+func makeEndpoints(hostname string, ips []net.IP, ttl int32) []map[string]any {
 	ipv4Targets, ipv6Targets := ipsToTargets(ips)
 	var endpoints []map[string]any
 	if len(ipv4Targets) != 0 {
@@ -778,7 +778,7 @@ func ipsToTargets(ips []net.IP) ([]string, []string) {
 	return ipv4Targets, ipv6Targets
 }
 
-func makeDelegationEndpoint(hostname, delegatedDomain string, ttl uint64) []map[string]any {
+func makeDelegationEndpoint(hostname, delegatedDomain string, ttl int32) []map[string]any {
 	fqdn := strings.Trim(hostname, ".")
 	fqdn = strings.TrimPrefix(fqdn, "*.")
 	return []map[string]any{
@@ -818,13 +818,13 @@ func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) 
 	return r.Prefix + hp.Namespace + "-" + hp.Name
 }
 
-func getTTL(hp *projectcontourv1.HTTPProxy, annotationKey string, defaultTTL uint64) uint64 {
+func getTTL(hp *projectcontourv1.HTTPProxy, annotationKey string, defaultTTL int32) int32 {
 	if value, ok := hp.Annotations[annotationKey]; ok {
-		parsedTTL, err := strconv.ParseUint(value, 10, 64)
-		if err != nil {
+		parsedTTL, err := strconv.ParseInt(value, 10, 32)
+		if err != nil || parsedTTL < 0 {
 			return defaultTTL
 		}
-		return parsedTTL
+		return int32(parsedTTL)
 	}
 	return defaultTTL
 }

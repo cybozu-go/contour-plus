@@ -1666,8 +1666,8 @@ func TestMakeDelegationEndpoint(t *testing.T) {
 		delegatedDomain string
 		expectDNSName   string
 		expectTarget    string
-		ttl             uint64
-		expectTTL       uint64
+		ttl             int32
+		expectTTL       int32
 	}{
 		{
 			name:            "Hostname without trailing dot",
@@ -1888,7 +1888,7 @@ func TestGetTTL(t *testing.T) {
 	tests := []struct {
 		name      string
 		proxy     *projectcontourv1.HTTPProxy
-		expectTTL uint64
+		expectTTL int32
 	}{
 		{
 			name: "Default TTL",
@@ -1921,6 +1921,19 @@ func TestGetTTL(t *testing.T) {
 					Namespace: "bar",
 					Annotations: map[string]string{
 						dnsTTLAnnotation: "-600",
+					},
+				},
+			},
+			expectTTL: DefaultDNSTTL,
+		},
+		{
+			name: "Overflowing custom TTL",
+			proxy: &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Annotations: map[string]string{
+						dnsTTLAnnotation: "2147483648",
 					},
 				},
 			},
