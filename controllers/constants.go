@@ -18,3 +18,9 @@ const (
 	usageKeyEncipherment  = "key encipherment"
 	usageServerAuth       = "server auth"
 )
+
+// Constants for TTL values
+const (
+	DefaultDNSTTL           = 3600
+	DefaultDNSDelegationTTL = 60
+)

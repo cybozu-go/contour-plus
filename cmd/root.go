@@ -52,6 +52,8 @@ func init() {
 	fs.Float64("certificate-apply-limit", 0, "Maximum number of certificate apply operations allowed per second (0 disables rate limiting)")
 	fs.Duration("certificate-apply-retry-base-delay", controllers.DefaultRetryBaseDelay, "Base delay for certificate apply exponential backoff retry")
 	fs.Duration("certificate-apply-retry-max-delay", controllers.DefaultRetryMaxDelay, "Maximum delay for certificate apply exponential backoff retry")
+	fs.Int32("default-dns-ttl", controllers.DefaultDNSTTL, "Default TTL value for DNSEndpoint A records")
+	fs.Int32("default-dns-delegation-ttl", controllers.DefaultDNSDelegationTTL, "Default TTL value for DNSEndpoint CNAME delgation records")
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}

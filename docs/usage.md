@@ -29,6 +29,8 @@ If both is specified, command-line flags take precedence.
 | `propagated-labels     `  | `CP_PROPAGATED_LABELS`       | ""                | Comma-separated list of label keys that should be propagated to the resources contour-plus generates      |
 | `allowed-dns-namespaces`    | `CP_ALLOWED_DNS_NAMESPACES`    | ""                | List of namespaces where DNSEndpoint resources can be created. If empty, no namespaces are allowed |
 | `allowed-issuer-namespaces` | `CP_ALLOWED_ISSUER_NAMESPACES` | ""                | List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed |
+| `default-dns-ttl`                   | `CP_DEFAULT_DNS_TTL`            | 3600     | Default TTL value for DNSEndpoint A records |
+| `default-dns-delegation-ttl`        | `CP_DEFAULT_DNS_DELEGATION_TTL` | 60       | Default TTL value for DNSEndpoint CNAME delgation records |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.
@@ -140,6 +142,8 @@ contour-plus interprets following annotations for HTTPProxy.
 - `contour-plus.cybozu.com/delegated-domain: "acme.example.com"` - With this, contour-plus generates a [DNSEndpoint][] to create a CNAME record pointing to the delegation domain for use when performing DNS-01 DCV during the Certificate creation.
 - `contour-plus.cybozu.com/dns-namespace` - The namespace in which contour-plus will place a DNSEndpoint.
 - `contour-plus.cybozu.com/issuer-namespace` - The namespace in which contour-plus will place a Certificate.
+- `contour-plus.cybozu.com/dns-ttl` - The TTL for the DNSEndpoint A record.
+- `contour-plus.cybozu.com/dns-delegation-ttl` - The TTL for the DNSEndpoint CNAME delegation record.
 
 If both of `cert-manager.io/issuer` and `cert-manager.io/cluster-issuer` exist, `cluster-issuer` takes precedence.
 
