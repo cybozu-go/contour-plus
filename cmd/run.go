@@ -80,7 +80,13 @@ func run() error {
 	opts.AllowedIssuerNamespaces = viper.GetStringSlice("allowed-issuer-namespaces")
 
 	opts.DefaultDNSTTL = viper.GetInt32("default-dns-ttl")
+	if opts.DefaultDNSTTL < 0 {
+		return errors.New("default-dns-ttl must be a positive integer")
+	}
 	opts.DefaultDNSDelegationTTL = viper.GetInt32("default-dns-delegation-ttl")
+	if opts.DefaultDNSDelegationTTL < 0 {
+		return errors.New("default-dns-delegation-ttl must be a positive integer")
+	}
 
 	opts.CertificateApplyLimit = viper.GetFloat64("certificate-apply-limit")
 	if opts.CertificateApplyLimit < 0 {
