@@ -1,14 +1,11 @@
 package cmd
 
 import (
-	"errors"
 	"os"
-	"strings"
 
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -27,82 +24,17 @@ func init() {
 func run() error {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOpts)))
 
-	opts := controllers.ReconcilerOptions{
-		Prefix:            viper.GetString("name-prefix"),
-		DefaultIssuerName: viper.GetString("default-issuer-name"),
+	var opts controllers.ReconcilerOptions
+	if err := viper.Unmarshal(&opts); err != nil {
+		return err
 	}
 
-	crds := viper.GetStringSlice("crds")
-	if len(crds) == 0 {
-		return errors.New("at least one service need to be enabled")
-	}
-	for _, crd := range crds {
-		switch crd {
-		case controllers.DNSEndpointKind:
-			opts.CreateDNSEndpoint = true
-		case controllers.CertificateKind:
-			opts.CreateCertificate = true
-		default:
-			return errors.New("unsupported CRD: " + crd)
-		}
+	if err := opts.Finalize(); err != nil {
+		return err
 	}
 
-	serviceName := viper.GetString("service-name")
-	nsname := strings.Split(serviceName, "/")
-	if len(nsname) != 2 || nsname[0] == "" || nsname[1] == "" {
-		return errors.New("service-name should be valid string as namespaced-name")
-	}
-	opts.ServiceKey = client.ObjectKey{
-		Namespace: nsname[0],
-		Name:      nsname[1],
-	}
-
-	defaultIssuerKind := viper.GetString("default-issuer-kind")
-	switch defaultIssuerKind {
-	case controllers.IssuerKind, controllers.ClusterIssuerKind:
-	default:
-		return errors.New("unsupported Issuer kind: " + defaultIssuerKind)
-	}
-	opts.DefaultIssuerKind = defaultIssuerKind
-
-	opts.IngressClassName = viper.GetString("ingress-class-name")
-
-	opts.CSRRevisionLimit = viper.GetUint("csr-revision-limit")
-
-	opts.PropagatedAnnotations = viper.GetStringSlice("propagated-annotations")
-	opts.PropagatedLabels = viper.GetStringSlice("propagated-labels")
-
-	opts.DefaultDelegatedDomain = viper.GetString("default-delegated-domain")
-	opts.AllowCustomDelegations = viper.GetBool("allow-custom-delegations")
-	opts.AllowedDelegatedDomains = viper.GetStringSlice("allowed-delegated-domains")
-
-	opts.AllowedDNSNamespaces = viper.GetStringSlice("allowed-dns-namespaces")
-	opts.AllowedIssuerNamespaces = viper.GetStringSlice("allowed-issuer-namespaces")
-
-	opts.DefaultDNSTTL = viper.GetInt32("default-dns-ttl")
-	if opts.DefaultDNSTTL < 0 {
-		return errors.New("default-dns-ttl must be a positive integer")
-	}
-	opts.DefaultDNSDelegationTTL = viper.GetInt32("default-dns-delegation-ttl")
-	if opts.DefaultDNSDelegationTTL < 0 {
-		return errors.New("default-dns-delegation-ttl must be a positive integer")
-	}
-
-	opts.CertificateApplyLimit = viper.GetFloat64("certificate-apply-limit")
-	if opts.CertificateApplyLimit < 0 {
-		return errors.New("certificate-apply-limit must be greater than or equal to 0")
-	}
-
-	opts.CertificateApplyRetryBaseDelay = viper.GetDuration("certificate-apply-retry-base-delay")
-	if opts.CertificateApplyRetryBaseDelay <= 0 {
-		return errors.New("certificate-apply-retry-base-delay must be greater than 0")
-	}
-	opts.CertificateApplyRetryMaxDelay = viper.GetDuration("certificate-apply-retry-max-delay")
-	if opts.CertificateApplyRetryMaxDelay <= 0 {
-		return errors.New("certificate-apply-retry-max-delay must be greater than 0")
-	}
-	if opts.CertificateApplyRetryMaxDelay < opts.CertificateApplyRetryBaseDelay {
-		return errors.New("certificate-apply-retry-max-delay must be greater than or equal to certificate-apply-retry-base-delay")
+	if err := opts.Validate(); err != nil {
+		return err
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
