@@ -13,6 +13,7 @@ GH := $(shell aqua which gh)
 YQ := $(shell aqua which yq)
 KUBECTL := $(shell aqua which kubectl)
 HELM := $(shell aqua which helm)
+GOLANGCI_LINT := $(shell aqua which golangci-lint)
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/cybozu-go/contour-plus:latest
@@ -168,7 +169,7 @@ check-generate: ## Check for commit omissions of auto-generated files
 
 .PHONY: lint
 lint: ## Run lint tools
-	golangci-lint run
+	$(GOLANGCI_LINT) run
 
 .PHONY: test
 test: ## Run unit tests
