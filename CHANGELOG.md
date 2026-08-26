@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.5] - 2026-08-26
+### Added
+- Add support for tuning TTLs on DNS records (#153)
+
+### Changed
+- Refactor `ReconcilerOptions` to separate concerns from `cmd` (#154)
+- Remove default linters from linters.enable (#155)
+- Fix golangci-lint reference in Makefile (#156)
+
 ## [0.16.4] - 2026-08-19
 ### Fixed
 - reduce TTL for ACME delegation record (#151)
@@ -349,7 +358,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.4...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.5...HEAD
+[0.16.5]: https://github.com/cybozu-go/contour-plus/compare/v0.16.4...v0.16.5
 [0.16.4]: https://github.com/cybozu-go/contour-plus/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/cybozu-go/contour-plus/compare/v0.16.2...v0.16.3
 [0.16.2]: https://github.com/cybozu-go/contour-plus/compare/v0.16.1...v0.16.2
