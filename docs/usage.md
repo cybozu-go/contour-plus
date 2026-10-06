@@ -31,6 +31,8 @@ If both is specified, command-line flags take precedence.
 | `allowed-issuer-namespaces` | `CP_ALLOWED_ISSUER_NAMESPACES` | ""                | List of namespaces where Certificate resources can be created. If empty, no namespaces are allowed |
 | `default-dns-ttl`                   | `CP_DEFAULT_DNS_TTL`            | 3600     | Default TTL value for DNSEndpoint A records |
 | `default-dns-delegation-ttl`        | `CP_DEFAULT_DNS_DELEGATION_TTL` | 60       | Default TTL value for DNSEndpoint CNAME delgation records |
+| `allowed-fqdn-suffixes`        | `CP_ALLOWED_FQDN_SUFFIXES`       | "" | List of domain name suffixes that are allowed to be used in HTTPProxy |
+| `allowed-fqdn-regexps`  | `CP_ALLOWED_FQDN_REGEXPS` | "" | List regular expressions for domain names that are allowed to be used in HTTPProxy |
 
 By default, contour-plus creates [DNSEndpoint][] when `spec.virtualhost.fqdn` of an HTTPProxy is not empty,
 and creates [Certificate][] when `spec.virtualhost.tls.secretName` is not empty and not namespaced.

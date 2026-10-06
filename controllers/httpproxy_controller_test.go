@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -93,6 +94,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -156,6 +160,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -190,6 +197,9 @@ func testHTTPProxyReconcile() {
 			DefaultDelegatedDomain: testDelegationName,
 			CreateDNSEndpoint:      true,
 			CreateCertificate:      true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -246,6 +256,9 @@ func testHTTPProxyReconcile() {
 			AllowCustomDelegations:  true,
 			CreateDNSEndpoint:       true,
 			CreateCertificate:       true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -303,6 +316,9 @@ func testHTTPProxyReconcile() {
 			AllowCustomDelegations: true,
 			CreateDNSEndpoint:      true,
 			CreateCertificate:      true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -359,6 +375,9 @@ func testHTTPProxyReconcile() {
 			DefaultDelegatedDomain: testDelegationName,
 			CreateDNSEndpoint:      true,
 			CreateCertificate:      true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -410,6 +429,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerName: "test-issuer",
 			DefaultIssuerKind: ClusterIssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -441,6 +463,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerName: "test-issuer",
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -474,6 +499,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerName: "test-issuer",
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -510,6 +538,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -551,6 +582,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: false,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -586,6 +620,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateDNSEndpoint: true,
 			CreateCertificate: false,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -626,6 +663,9 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -655,6 +695,9 @@ func testHTTPProxyReconcile() {
 			ServiceKey:        testServiceKey,
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -681,6 +724,9 @@ func testHTTPProxyReconcile() {
 			CreateDNSEndpoint: true,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -727,6 +773,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 			IngressClassName:  "class-name",
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -755,6 +804,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 			CSRRevisionLimit:  1,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -794,6 +846,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerName: "test-issuer",
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -836,6 +891,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
 			CSRRevisionLimit:  1,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -877,6 +935,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerName: "test-issuer",
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -912,6 +973,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerName: "test-issuer",
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -948,6 +1012,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerName: "test-issuer",
 			DefaultIssuerKind: IssuerKind,
 			CreateCertificate: true,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -987,6 +1054,9 @@ func testHTTPProxyReconcile() {
 			CreateDNSEndpoint: true,
 			PropagatedAnnotations: []string{
 				"example.com/propagate-me",
+			},
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
 			},
 		})).ShouldNot(HaveOccurred())
 
@@ -1047,6 +1117,9 @@ func testHTTPProxyReconcile() {
 			CreateDNSEndpoint: true,
 			PropagatedLabels: []string{
 				"example.com/propagate-me",
+			},
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
 			},
 		})).ShouldNot(HaveOccurred())
 
@@ -1118,6 +1191,9 @@ func testHTTPProxyReconcile() {
 			ServiceKey:           testServiceKey,
 			CreateDNSEndpoint:    true,
 			AllowedDNSNamespaces: []string{deNs},
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1172,6 +1248,9 @@ func testHTTPProxyReconcile() {
 			CreateDNSEndpoint:      true,
 			DefaultDelegatedDomain: testDelegationName,
 			AllowedDNSNamespaces:   []string{deNs},
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1240,6 +1319,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind:       IssuerKind,
 			DefaultIssuerName:       "test-issuer",
 			AllowedIssuerNamespaces: []string{certNs},
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1318,6 +1400,9 @@ func testHTTPProxyReconcile() {
 			ServiceKey:           testServiceKey,
 			CreateDNSEndpoint:    true,
 			AllowedDNSNamespaces: []string{},
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1357,6 +1442,9 @@ func testHTTPProxyReconcile() {
 			DefaultIssuerKind:       IssuerKind,
 			DefaultIssuerName:       "test-issuer",
 			AllowedIssuerNamespaces: []string{},
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		})).ShouldNot(HaveOccurred())
 
 		stopMgr := startTestManager(mgr)
@@ -1396,6 +1484,9 @@ func testHTTPProxyReconcile() {
 			CertificateApplyLimit:          1,
 			CertificateApplyRetryBaseDelay: 1 * time.Millisecond,
 			CertificateApplyRetryMaxDelay:  10 * time.Millisecond,
+			AllowedFQDNRegexpsCompiled: []regexp.Regexp{
+				*regexp.MustCompile(`.*`),
+			},
 		}
 
 		err := SetupReconciler(mgr, scm, opts)
@@ -1823,6 +1914,90 @@ func TestGetDNSEndpointName(t *testing.T) {
 			actual := getDNSEndpointName(tc.reconciler, tc.proxy)
 			if actual != tc.expectName {
 				t.Errorf("HTTPProxyReconciler.getDNSEndpointName() = %v, want %v", actual, tc.expectName)
+			}
+		})
+	}
+}
+
+func TestIsAllowedFQDN(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name          string
+		reconciler    *HTTPProxyReconciler
+		fqdn          string
+		expectAllowed bool
+	}{
+		{
+			name:          "Allow all FQDNs",
+			reconciler:    &HTTPProxyReconciler{},
+			fqdn:          "foo.example.com",
+			expectAllowed: true,
+		},
+		{
+			name: "Allowed FQDN by suffix",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			fqdn:          "foo.example.com",
+			expectAllowed: true,
+		},
+		{
+			name: "Denied FQDN by suffix",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			fqdn: "foo.bar.com",
+		},
+		{
+			name: "Undefined virtualhost",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			expectAllowed: true,
+		},
+		{
+			name: "Allowed FQDN by regexp",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNRegexpsCompiled: []regexp.Regexp{*regexp.MustCompile(`^foo\.example\.com$`)},
+				},
+			},
+			fqdn:          "foo.example.com",
+			expectAllowed: true,
+		},
+		{
+			name: "Denied FQDN by regexp",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNRegexpsCompiled: []regexp.Regexp{*regexp.MustCompile(`^foo\.example\.com$`)},
+				},
+			},
+			fqdn: "bar.example.com",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			hp := &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+			}
+			if tc.fqdn != "" {
+				hp.Spec.VirtualHost = &projectcontourv1.VirtualHost{
+					Fqdn: tc.fqdn,
+				}
+			}
+			actual := isAllowedFQDN(tc.reconciler, hp)
+			if actual != tc.expectAllowed {
+				t.Errorf("HTTPProxyReconciler.isAllowedFQDN() = %v, want %v", actual, tc.expectAllowed)
 			}
 		})
 	}
