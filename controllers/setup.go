@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,6 +30,9 @@ type ReconcilerOptions struct {
 	AllowedDelegatedDomains        []string         `mapstructure:"allowed-delegated-domains"`
 	AllowedDNSNamespaces           []string         `mapstructure:"allowed-dns-namespaces"`
 	AllowedIssuerNamespaces        []string         `mapstructure:"allowed-issuer-namespaces"`
+	AllowedFQDNSuffixes            []string         `mapstructure:"allowed-fqdn-suffixes"`
+	AllowedFQDNRegexps             []string         `mapstructure:"allowed-fqdn-regexps"`
+	AllowedFQDNRegexpsCompiled     []regexp.Regexp  `mapstructure:"-"`
 	CRDs                           []string         `mapstructure:"crds"`
 	PropagatedAnnotations          []string         `mapstructure:"propagated-annotations"`
 	PropagatedLabels               []string         `mapstructure:"propagated-labels"`
@@ -64,6 +68,8 @@ func BindFlags(fs *pflag.FlagSet) {
 	fs.Duration("certificate-apply-retry-max-delay", DefaultRetryMaxDelay, "Maximum delay for certificate apply exponential backoff retry")
 	fs.Int32("default-dns-ttl", DefaultDNSTTL, "Default TTL value for DNSEndpoint A records")
 	fs.Int32("default-dns-delegation-ttl", DefaultDNSDelegationTTL, "Default TTL value for DNSEndpoint CNAME delgation records")
+	fs.StringSlice("allowed-fqdn-suffixes", []string{}, "List of allowed FQDN suffixes for HTTPProxy")
+	fs.StringSlice("allowed-fqdn-regexps", []string{}, "List of allowed FQDN regex patterns for HTTPProxy")
 }
 
 // Finalize finalizes the ReconcilerOptions by setting derived fields.
@@ -85,6 +91,13 @@ func (o *ReconcilerOptions) Finalize() error {
 	o.ServiceKey = client.ObjectKey{
 		Namespace: nsName[0],
 		Name:      nsName[1],
+	}
+	for _, regex := range o.AllowedFQDNRegexps {
+		compiled, err := regexp.Compile(regex)
+		if err != nil {
+			return errors.New("failed to compile allowed-domain-names-regex: " + regex + ", error: " + err.Error())
+		}
+		o.AllowedFQDNRegexpsCompiled = append(o.AllowedFQDNRegexpsCompiled, *compiled)
 	}
 	return nil
 }
