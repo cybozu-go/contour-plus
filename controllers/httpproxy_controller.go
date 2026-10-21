@@ -16,7 +16,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -662,10 +661,10 @@ func (r *HTTPProxyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 		requests := make([]reconcile.Request, len(hpList.Items))
 		for i, hp := range hpList.Items {
-			requests[i] = reconcile.Request{NamespacedName: types.NamespacedName{
+			requests[i] = reconcile.Request{
 				Name:      hp.Name,
 				Namespace: hp.Namespace,
-			}}
+			}
 		}
 		return requests
 	}

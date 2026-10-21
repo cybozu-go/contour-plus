@@ -23,7 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -101,10 +100,8 @@ func testCertificateApplyWorker() {
 			Expect(worker.RegisterMetrics(reg)).To(Succeed())
 
 			desired := &cmv1.Certificate{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: key.Namespace,
-					Name:      key.Name,
-				},
+				Namespace: key.Namespace,
+				Name:      key.Name,
 				Spec: cmv1.CertificateSpec{
 					SecretName: "test-secret",
 					DNSNames:   []string{"example.com"},
@@ -141,12 +138,10 @@ func testCertificateApplyWorker() {
 		It("applies directly when only metadata (annotations) change", func() {
 			// current object in cluster
 			current := &cmv1.Certificate{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: key.Namespace,
-					Name:      key.Name,
-					Annotations: map[string]string{
-						"foo": "bar",
-					},
+				Namespace: key.Namespace,
+				Name:      key.Name,
+				Annotations: map[string]string{
+					"foo": "bar",
 				},
 				Spec: cmv1.CertificateSpec{
 					SecretName: "test-secret",
@@ -195,10 +190,8 @@ func testCertificateApplyWorker() {
 
 		It("queues when Spec changes (re-issuance required)", func() {
 			current := &cmv1.Certificate{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: key.Namespace,
-					Name:      key.Name,
-				},
+				Namespace: key.Namespace,
+				Name:      key.Name,
 				Spec: cmv1.CertificateSpec{
 					SecretName: "test-secret",
 					DNSNames:   []string{"example.com"},
@@ -267,10 +260,8 @@ func testCertificateApplyWorker() {
 			}
 
 			cert := &cmv1.Certificate{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: key.Namespace,
-					Name:      key.Name,
-				},
+				Namespace: key.Namespace,
+				Name:      key.Name,
 				Spec: cmv1.CertificateSpec{
 					SecretName: "test-secret",
 					DNSNames:   []string{"example.com"},
@@ -333,12 +324,10 @@ func testCertificateApplyWorker() {
 
 			// Certificate annotated with ownerAnnotation so enqueueHTTPProxy can find the HTTPProxy key
 			cert := &cmv1.Certificate{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "default",
-					Name:      "cert-with-owner",
-					Annotations: map[string]string{
-						ownerAnnotation: "default/test-httpproxy",
-					},
+				Namespace: "default",
+				Name:      "cert-with-owner",
+				Annotations: map[string]string{
+					ownerAnnotation: "default/test-httpproxy",
 				},
 				Spec: cmv1.CertificateSpec{
 					SecretName: "test-secret",
