@@ -11,9 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	projectcontourv1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -67,9 +65,7 @@ func testHTTPProxyReconcile() {
 		ctx = context.Background()
 		// Let apiserver generate a unique name to avoid collisions.
 		n := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{
-				GenerateName: testNamespacePrefix,
-			},
+			GenerateName: testNamespacePrefix,
 		}
 		Expect(k8sClient.Create(ctx, n)).To(Succeed())
 		ns = n.Name
@@ -82,7 +78,7 @@ func testHTTPProxyReconcile() {
 		Expect(k8sClient.DeleteAllOf(ctx, dnsEndpoint(), client.InNamespace(ns))).To(Succeed())
 		Expect(k8sClient.DeleteAllOf(ctx, tlsCertificateDelegation(), client.InNamespace(ns))).To(Succeed())
 
-		n := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: ns}}
+		n := &corev1.Namespace{Name: ns}
 		_ = k8sClient.Delete(ctx, n) // this actually does not remove the namespace, it just puts it into terminating state
 	})
 
@@ -1104,7 +1100,7 @@ func testHTTPProxyReconcile() {
 
 	It("should create a DNSEndpoint in the specified namespace", func() {
 		deNsObj := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+			GenerateName: testNamespacePrefix,
 		}
 		Expect(k8sClient.Create(context.Background(), deNsObj)).ShouldNot(HaveOccurred())
 		deNs := deNsObj.Name
@@ -1157,7 +1153,7 @@ func testHTTPProxyReconcile() {
 
 	It("should create DNSEndpoint and delegation DNSEndpoint in the specified namespace", func() {
 		deNsObj := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+			GenerateName: testNamespacePrefix,
 		}
 		Expect(k8sClient.Create(context.Background(), deNsObj)).ShouldNot(HaveOccurred())
 		deNs := deNsObj.Name
@@ -1224,7 +1220,7 @@ func testHTTPProxyReconcile() {
 
 	It("should create Certificate and TLSCertificateDelegation in the specified namespace", func() {
 		certNsObj := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+			GenerateName: testNamespacePrefix,
 		}
 		Expect(k8sClient.Create(context.Background(), certNsObj)).ShouldNot(HaveOccurred())
 		certNs := certNsObj.Name
@@ -1304,7 +1300,7 @@ func testHTTPProxyReconcile() {
 
 	It("should not create DNSEndpoint if the namespace is not allowed", func() {
 		deNsObj := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+			GenerateName: testNamespacePrefix,
 		}
 		Expect(k8sClient.Create(context.Background(), deNsObj)).ShouldNot(HaveOccurred())
 		deNs := deNsObj.Name
@@ -1342,7 +1338,7 @@ func testHTTPProxyReconcile() {
 
 	It("should not create Certificate if the issuer namespace is not allowed", func() {
 		certNsObj := &corev1.Namespace{
-			ObjectMeta: ctrl.ObjectMeta{GenerateName: testNamespacePrefix},
+			GenerateName: testNamespacePrefix,
 		}
 		Expect(k8sClient.Create(context.Background(), certNsObj)).ShouldNot(HaveOccurred())
 		certNs := certNsObj.Name
@@ -1467,12 +1463,10 @@ func testHTTPProxyReconcile() {
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
 	return &projectcontourv1.HTTPProxy{
-		ObjectMeta: v1.ObjectMeta{
-			Namespace: hpKey.Namespace,
-			Name:      hpKey.Name,
-			Annotations: map[string]string{
-				testACMETLSAnnotation: "true",
-			},
+		Namespace: hpKey.Namespace,
+		Name:      hpKey.Name,
+		Annotations: map[string]string{
+			testACMETLSAnnotation: "true",
 		},
 		Spec: projectcontourv1.HTTPProxySpec{
 			VirtualHost: &projectcontourv1.VirtualHost{
@@ -1495,9 +1489,7 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Annotation is not set",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{},
-				},
+				Annotations: map[string]string{},
 			},
 			want: false,
 		},
@@ -1505,10 +1497,8 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Spec is not set",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{},
-				},
-				Spec: projectcontourv1.HTTPProxySpec{},
+				Annotations: map[string]string{},
+				Spec:        projectcontourv1.HTTPProxySpec{},
 			},
 			want: false,
 		},
@@ -1516,11 +1506,9 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Both annotation are set",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						ingressClassNameAnnotation:        "class-name",
-						contourIngressClassNameAnnotation: "class-name",
-					},
+				Annotations: map[string]string{
+					ingressClassNameAnnotation:        "class-name",
+					contourIngressClassNameAnnotation: "class-name",
 				},
 			},
 			want: true,
@@ -1529,11 +1517,9 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Both annotation and spec are set",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						ingressClassNameAnnotation:        "class-name",
-						contourIngressClassNameAnnotation: "class-name",
-					},
+				Annotations: map[string]string{
+					ingressClassNameAnnotation:        "class-name",
+					contourIngressClassNameAnnotation: "class-name",
 				},
 				Spec: projectcontourv1.HTTPProxySpec{
 					IngressClassName: "class-name",
@@ -1545,11 +1531,9 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Both annotation are set but not matched",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						ingressClassNameAnnotation:        "class-name",
-						contourIngressClassNameAnnotation: "wrong",
-					},
+				Annotations: map[string]string{
+					ingressClassNameAnnotation:        "class-name",
+					contourIngressClassNameAnnotation: "wrong",
 				},
 			},
 			want: false,
@@ -1558,11 +1542,9 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Both annotation and spec are set but not matched",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						ingressClassNameAnnotation:        "class-name",
-						contourIngressClassNameAnnotation: "wrong",
-					},
+				Annotations: map[string]string{
+					ingressClassNameAnnotation:        "class-name",
+					contourIngressClassNameAnnotation: "wrong",
 				},
 				Spec: projectcontourv1.HTTPProxySpec{
 					IngressClassName: "class-name",
@@ -1574,10 +1556,8 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             fmt.Sprintf("Annotation %s is set", ingressClassNameAnnotation),
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						ingressClassNameAnnotation: "class-name",
-					},
+				Annotations: map[string]string{
+					ingressClassNameAnnotation: "class-name",
 				},
 			},
 			want: true,
@@ -1586,10 +1566,8 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             fmt.Sprintf("Annotation %s is set but not matched", ingressClassNameAnnotation),
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						ingressClassNameAnnotation: "wrong",
-					},
+				Annotations: map[string]string{
+					ingressClassNameAnnotation: "wrong",
 				},
 			},
 			want: false,
@@ -1598,10 +1576,8 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             fmt.Sprintf("Annotation %s is set", contourIngressClassNameAnnotation),
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						contourIngressClassNameAnnotation: "class-name",
-					},
+				Annotations: map[string]string{
+					contourIngressClassNameAnnotation: "class-name",
 				},
 			},
 			want: true,
@@ -1610,10 +1586,8 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             fmt.Sprintf("Annotation %s is set but not matched", contourIngressClassNameAnnotation),
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{
-						contourIngressClassNameAnnotation: "wrong",
-					},
+				Annotations: map[string]string{
+					contourIngressClassNameAnnotation: "wrong",
 				},
 			},
 			want: false,
@@ -1622,9 +1596,7 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Spec is set",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{},
-				},
+				Annotations: map[string]string{},
 				Spec: projectcontourv1.HTTPProxySpec{
 					IngressClassName: "class-name",
 				},
@@ -1635,9 +1607,7 @@ func TestIsClassNameMatched(t *testing.T) {
 			name:             "Spec is set but not matched",
 			ingressClassName: "class-name",
 			hp: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Annotations: map[string]string{},
-				},
+				Annotations: map[string]string{},
 				Spec: projectcontourv1.HTTPProxySpec{
 					IngressClassName: "wrong",
 				},
@@ -1648,9 +1618,7 @@ func TestIsClassNameMatched(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					IngressClassName: tt.ingressClassName,
-				},
+				IngressClassName: tt.ingressClassName,
 			}
 			if got := r.isClassNameMatched(tt.hp); got != tt.want {
 				t.Errorf("HTTPProxyReconciler.isClassNameMatched() = %v, want %v", got, tt.want)
@@ -1742,25 +1710,19 @@ func TestGetCertificateName(t *testing.T) {
 			name:       "Default name",
 			reconciler: &HTTPProxyReconciler{},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
+				Name:      "foo",
+				Namespace: "bar",
 			},
 			expectName: "foo",
 		},
 		{
 			name: "Default name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					Prefix: "prefix-",
-				},
+				Prefix: "prefix-",
 			},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
+				Name:      "foo",
+				Namespace: "bar",
 			},
 			expectName: "prefix-foo",
 		},
@@ -1768,12 +1730,10 @@ func TestGetCertificateName(t *testing.T) {
 			name:       "Namespaced name",
 			reconciler: &HTTPProxyReconciler{},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						issuerNamespaceAnnotation: "custom-issuer",
-					},
+				Name:      "foo",
+				Namespace: "bar",
+				Annotations: map[string]string{
+					issuerNamespaceAnnotation: "custom-issuer",
 				},
 			},
 			expectName: "bar-foo",
@@ -1781,17 +1741,13 @@ func TestGetCertificateName(t *testing.T) {
 		{
 			name: "Namespaced name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					Prefix: "prefix-",
-				},
+				Prefix: "prefix-",
 			},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						issuerNamespaceAnnotation: "custom-issuer",
-					},
+				Name:      "foo",
+				Namespace: "bar",
+				Annotations: map[string]string{
+					issuerNamespaceAnnotation: "custom-issuer",
 				},
 			},
 			expectName: "prefix-bar-foo",
@@ -1819,25 +1775,19 @@ func TestGetDNSEndpointName(t *testing.T) {
 			name:       "Default name",
 			reconciler: &HTTPProxyReconciler{},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
+				Name:      "foo",
+				Namespace: "bar",
 			},
 			expectName: "foo",
 		},
 		{
 			name: "Default name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					Prefix: "prefix-",
-				},
+				Prefix: "prefix-",
 			},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
+				Name:      "foo",
+				Namespace: "bar",
 			},
 			expectName: "prefix-foo",
 		},
@@ -1845,12 +1795,10 @@ func TestGetDNSEndpointName(t *testing.T) {
 			name:       "Namespaced name",
 			reconciler: &HTTPProxyReconciler{},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						dnsNamespaceAnnotation: "custom-issuer",
-					},
+				Name:      "foo",
+				Namespace: "bar",
+				Annotations: map[string]string{
+					dnsNamespaceAnnotation: "custom-issuer",
 				},
 			},
 			expectName: "bar-foo",
@@ -1858,17 +1806,13 @@ func TestGetDNSEndpointName(t *testing.T) {
 		{
 			name: "Namespaced name with prefix",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					Prefix: "prefix-",
-				},
+				Prefix: "prefix-",
 			},
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						dnsNamespaceAnnotation: "custom-issuer",
-					},
+				Name:      "foo",
+				Namespace: "bar",
+				Annotations: map[string]string{
+					dnsNamespaceAnnotation: "custom-issuer",
 				},
 			},
 			expectName: "prefix-bar-foo",
@@ -1893,22 +1837,18 @@ func TestGetTTL(t *testing.T) {
 		{
 			name: "Default TTL",
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
+				Name:      "foo",
+				Namespace: "bar",
 			},
 			expectTTL: DefaultDNSTTL,
 		},
 		{
 			name: "Custom TTL",
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						dnsTTLAnnotation: "600",
-					},
+				Name:      "foo",
+				Namespace: "bar",
+				Annotations: map[string]string{
+					dnsTTLAnnotation: "600",
 				},
 			},
 			expectTTL: 600,
@@ -1916,12 +1856,10 @@ func TestGetTTL(t *testing.T) {
 		{
 			name: "Invalid custom TTL",
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						dnsTTLAnnotation: "-600",
-					},
+				Name:      "foo",
+				Namespace: "bar",
+				Annotations: map[string]string{
+					dnsTTLAnnotation: "-600",
 				},
 			},
 			expectTTL: DefaultDNSTTL,
@@ -1929,12 +1867,10 @@ func TestGetTTL(t *testing.T) {
 		{
 			name: "Overflowing custom TTL",
 			proxy: &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-					Annotations: map[string]string{
-						dnsTTLAnnotation: "2147483648",
-					},
+				Name:      "foo",
+				Namespace: "bar",
+				Annotations: map[string]string{
+					dnsTTLAnnotation: "2147483648",
 				},
 			},
 			expectTTL: DefaultDNSTTL,
