@@ -13,12 +13,12 @@ resources:
 images:
   - name: ghcr.io/projectcontour/contour
     newName: ghcr.io/cybozu/contour
-    newTag: 1.33.5.1
-    digest: sha256:ab15421380bf018838a6f4586ff27897cf915bda7f38b004935ebc20b2277797
+    newTag: 1.33.7.2
+    digest: sha256:5da16a2b04e49f6655f767bb6f8cb8b18f8399254907ef0a8484301a868acae7
   - name: docker.io/envoyproxy/envoy
     newName: ghcr.io/cybozu/envoy
-    newTag: 1.35.13.1
-    digest: sha256:53fac0f1471fe09c9ee18119078ea0e9e74f3aa019cb1f566f2694b0e2c0e749
+    newTag: 1.38.4.3
+    digest: sha256:e092be24267f331c518c27d740b749fe672dcbd16bcd3e08e2ae763df948478f
 patches:
   - target:
       group: apps

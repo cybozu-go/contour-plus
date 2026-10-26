@@ -6,5 +6,5 @@ patches:
   - path: deployment.yaml
 images:
   - name: ghcr.io/cybozu/cert-manager
-    newTag: 1.20.3.1
-    digest: sha256:2bb2e1bff68eb28c6400cc7b5b696f440467b53583f0b08c29b881a68c772490
+    newTag: 1.21.2.1
+    digest: sha256:0a289faaf7031baa117a7aef6179721323b5071ce915985e30d94f1c85507348
