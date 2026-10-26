@@ -7,4 +7,4 @@ patches:
 images:
   - name: ghcr.io/cybozu/cert-manager
     newTag: 1.21.2.1
-    digest: sha256:0a289faaf7031baa117a7aef6179721323b5071ce915985e30d94f1c85507348
+    digest: sha256:c34e07cab22cbe07554b26b431292c8c0ef7254cd24491d9ee22fec93b7eb1ee
