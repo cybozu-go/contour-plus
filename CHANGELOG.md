@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.6] - 2026-10-27
+### Changed
+- Declare GITHUB_TOKEN permissions in all workflows (#158)
+- Introduce Takumi Guard (#159)
+- Use anonymous Takumi Guard for pull requests from forks (#160)
+- Migrate kustomize patch (#162)
+- Update dependencies (#163, #164)
+
 ## [0.16.5] - 2026-08-26
 ### Added
 - Add support for tuning TTLs on DNS records (#153)
@@ -358,7 +366,8 @@ The [quay.io/cybozu/contour-plus](https://quay.io/repository/cybozu/contour-plus
     - for [ExternalDNS][] v0.5.14
     - for [cert-manager][] v0.8.0
 
-[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.5...HEAD
+[Unreleased]: https://github.com/cybozu-go/contour-plus/compare/v0.16.6...HEAD
+[0.16.6]: https://github.com/cybozu-go/contour-plus/compare/v0.16.5...v0.16.6
 [0.16.5]: https://github.com/cybozu-go/contour-plus/compare/v0.16.4...v0.16.5
 [0.16.4]: https://github.com/cybozu-go/contour-plus/compare/v0.16.3...v0.16.4
 [0.16.3]: https://github.com/cybozu-go/contour-plus/compare/v0.16.2...v0.16.3
