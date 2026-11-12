@@ -1464,6 +1464,66 @@ func testHTTPProxyReconcile() {
 			return crt.Spec.PrivateKey != nil && crt.Spec.PrivateKey.Algorithm == cmv1.ECDSAKeyAlgorithm
 		}).WithTimeout(5 * time.Second).Should(BeTrue())
 	})
+
+	It("should not create DNSEndpoint and Certificate when FQDN is not allowed by suffix", func() {
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:          testServiceKey,
+			DefaultIssuerName:   "test-issuer",
+			DefaultIssuerKind:   IssuerKind,
+			CreateDNSEndpoint:   true,
+			CreateCertificate:   true,
+			AllowedFQDNSuffixes: []string{"example.org"},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
+
+		By("confirming that DNSEndpoint and Certificate do not exist")
+		time.Sleep(time.Second)
+		endpointList := dnsEndpointList()
+		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(endpointList.Items).Should(BeEmpty())
+
+		crtList := certificateList()
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+	})
+
+	It("should not create DNSEndpoint and Certificate when FQDN is not allowed by regexp", func() {
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:                 testServiceKey,
+			DefaultIssuerName:          "test-issuer",
+			DefaultIssuerKind:          IssuerKind,
+			CreateDNSEndpoint:          true,
+			CreateCertificate:          true,
+			AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^.+\.example\.org$`)},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
+
+		By("confirming that DNSEndpoint and Certificate do not exist")
+		time.Sleep(time.Second)
+		endpointList := dnsEndpointList()
+		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(endpointList.Items).Should(BeEmpty())
+
+		crtList := certificateList()
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+	})
 }
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
