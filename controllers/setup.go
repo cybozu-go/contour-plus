@@ -32,7 +32,7 @@ type ReconcilerOptions struct {
 	AllowedIssuerNamespaces        []string         `mapstructure:"allowed-issuer-namespaces"`
 	AllowedFQDNSuffixes            []string         `mapstructure:"allowed-fqdn-suffixes"`
 	AllowedFQDNRegexps             []string         `mapstructure:"allowed-fqdn-regexps"`
-	AllowedFQDNRegexpsCompiled     []regexp.Regexp  `mapstructure:"-"`
+	AllowedFQDNRegexpsCompiled     []*regexp.Regexp  `mapstructure:"-"`
 	CRDs                           []string         `mapstructure:"crds"`
 	PropagatedAnnotations          []string         `mapstructure:"propagated-annotations"`
 	PropagatedLabels               []string         `mapstructure:"propagated-labels"`
@@ -97,7 +97,7 @@ func (o *ReconcilerOptions) Finalize() error {
 		if err != nil {
 			return errors.New("failed to compile allowed-fqdn-regexps: " + regex + ", error: " + err.Error())
 		}
-		o.AllowedFQDNRegexpsCompiled = append(o.AllowedFQDNRegexpsCompiled, *compiled)
+		o.AllowedFQDNRegexpsCompiled = append(o.AllowedFQDNRegexpsCompiled, compiled)
 	}
 	return nil
 }
