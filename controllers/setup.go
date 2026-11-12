@@ -68,8 +68,8 @@ func BindFlags(fs *pflag.FlagSet) {
 	fs.Duration("certificate-apply-retry-max-delay", DefaultRetryMaxDelay, "Maximum delay for certificate apply exponential backoff retry")
 	fs.Int32("default-dns-ttl", DefaultDNSTTL, "Default TTL value for DNSEndpoint A records")
 	fs.Int32("default-dns-delegation-ttl", DefaultDNSDelegationTTL, "Default TTL value for DNSEndpoint CNAME delgation records")
-	fs.StringSlice("allowed-fqdn-suffixes", []string{}, "List of allowed FQDN suffixes for HTTPProxy")
-	fs.StringSlice("allowed-fqdn-regexps", []string{}, "List of allowed FQDN regex patterns for HTTPProxy")
+	fs.StringArray("allowed-fqdn-suffixes", []string{}, "List of allowed FQDN suffixes for HTTPProxy")
+	fs.StringArray("allowed-fqdn-regexps", []string{}, "List of allowed FQDN regex patterns for HTTPProxy")
 }
 
 // Finalize finalizes the ReconcilerOptions by setting derived fields.
@@ -95,7 +95,7 @@ func (o *ReconcilerOptions) Finalize() error {
 	for _, regex := range o.AllowedFQDNRegexps {
 		compiled, err := regexp.Compile(regex)
 		if err != nil {
-			return errors.New("failed to compile allowed-domain-names-regex: " + regex + ", error: " + err.Error())
+			return errors.New("failed to compile allowed-fqdn-regexps: " + regex + ", error: " + err.Error())
 		}
 		o.AllowedFQDNRegexpsCompiled = append(o.AllowedFQDNRegexpsCompiled, *compiled)
 	}
