@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -1459,6 +1460,66 @@ func testHTTPProxyReconcile() {
 			return crt.Spec.PrivateKey != nil && crt.Spec.PrivateKey.Algorithm == cmv1.ECDSAKeyAlgorithm
 		}).WithTimeout(5 * time.Second).Should(BeTrue())
 	})
+
+	It("should not create DNSEndpoint and Certificate when FQDN is not allowed by suffix", func() {
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:          testServiceKey,
+			DefaultIssuerName:   "test-issuer",
+			DefaultIssuerKind:   IssuerKind,
+			CreateDNSEndpoint:   true,
+			CreateCertificate:   true,
+			AllowedFQDNSuffixes: []string{"example.org"},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
+
+		By("confirming that DNSEndpoint and Certificate do not exist")
+		time.Sleep(time.Second)
+		endpointList := dnsEndpointList()
+		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(endpointList.Items).Should(BeEmpty())
+
+		crtList := certificateList()
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+	})
+
+	It("should not create DNSEndpoint and Certificate when FQDN is not allowed by regexp", func() {
+		scm, mgr := setupManager()
+
+		Expect(SetupReconciler(mgr, scm, ReconcilerOptions{
+			ServiceKey:                 testServiceKey,
+			DefaultIssuerName:          "test-issuer",
+			DefaultIssuerKind:          IssuerKind,
+			CreateDNSEndpoint:          true,
+			CreateCertificate:          true,
+			AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^.+\.example\.org$`)},
+		})).ShouldNot(HaveOccurred())
+
+		stopMgr := startTestManager(mgr)
+		defer stopMgr()
+
+		By("creating HTTPProxy")
+		hpKey := client.ObjectKey{Name: "foo", Namespace: ns}
+		Expect(k8sClient.Create(context.Background(), newDummyHTTPProxy(hpKey))).ShouldNot(HaveOccurred())
+
+		By("confirming that DNSEndpoint and Certificate do not exist")
+		time.Sleep(time.Second)
+		endpointList := dnsEndpointList()
+		Expect(k8sClient.List(context.Background(), endpointList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(endpointList.Items).Should(BeEmpty())
+
+		crtList := certificateList()
+		Expect(k8sClient.List(context.Background(), crtList, client.InNamespace(ns))).ShouldNot(HaveOccurred())
+		Expect(crtList.Items).Should(BeEmpty())
+	})
 }
 
 func newDummyHTTPProxy(hpKey client.ObjectKey) *projectcontourv1.HTTPProxy {
@@ -1823,6 +1884,153 @@ func TestGetDNSEndpointName(t *testing.T) {
 			actual := getDNSEndpointName(tc.reconciler, tc.proxy)
 			if actual != tc.expectName {
 				t.Errorf("HTTPProxyReconciler.getDNSEndpointName() = %v, want %v", actual, tc.expectName)
+			}
+		})
+	}
+}
+
+func TestHasSuffix(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		fqdn   string
+		suffix string
+		expect bool
+	}{
+		{
+			name:   "FQDN has suffix",
+			fqdn:   "foo.example.com",
+			suffix: "example.com",
+			expect: true,
+		},
+		{
+			name:   "FQDN does not have suffix",
+			fqdn:   "badexample.com",
+			suffix: "example.com",
+		},
+		{
+			name:   "FQDN exactly matches suffix",
+			fqdn:   "example.com",
+			suffix: "example.com",
+			expect: true,
+		},
+		{
+			name:   "Suffix has leading dot",
+			fqdn:   "foo.example.com",
+			suffix: ".example.com",
+			expect: true,
+		},
+		{
+			name:   "Suffix has leading dot, fqdn exactly matches suffix",
+			fqdn:   "example.com",
+			suffix: ".example.com",
+			expect: true,
+		},
+		{
+			name:   "FQDN has extra suffix",
+			fqdn:   "foo.example.com.jp",
+			suffix: "example.com",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			actual := hasSuffix(tc.fqdn, tc.suffix)
+			if actual != tc.expect {
+				t.Errorf("hasSuffix(%q, %q) = %v, want %v", tc.fqdn, tc.suffix, actual, tc.expect)
+			}
+		})
+	}
+}
+
+func TestIsAllowedFQDN(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name          string
+		reconciler    *HTTPProxyReconciler
+		fqdn          string
+		expectAllowed bool
+	}{
+		{
+			name:          "Allow all FQDNs",
+			reconciler:    &HTTPProxyReconciler{},
+			fqdn:          "foo.example.com",
+			expectAllowed: true,
+		},
+		{
+			name: "Allowed FQDN by suffix",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			fqdn:          "foo.example.com",
+			expectAllowed: true,
+		},
+		{
+			name: "Denied FQDN by suffix",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			fqdn: "foo.bar.com",
+		},
+		{
+			name: "Denied FQDN by suffix partial match",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			fqdn: "badexample.com",
+		},
+		{
+			name: "Undefined virtualhost",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			expectAllowed: true,
+		},
+		{
+			name: "Allowed FQDN by regexp",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^foo\.example\.com$`)},
+				},
+			},
+			fqdn:          "foo.example.com",
+			expectAllowed: true,
+		},
+		{
+			name: "Denied FQDN by regexp",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^foo\.example\.com$`)},
+				},
+			},
+			fqdn: "bar.example.com",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			hp := &projectcontourv1.HTTPProxy{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+			}
+			if tc.fqdn != "" {
+				hp.Spec.VirtualHost = &projectcontourv1.VirtualHost{
+					Fqdn: tc.fqdn,
+				}
+			}
+			actual := isAllowedFQDN(tc.reconciler, hp)
+			if actual != tc.expectAllowed {
+				t.Errorf("HTTPProxyReconciler.isAllowedFQDN() = %v, want %v", actual, tc.expectAllowed)
 			}
 		})
 	}
