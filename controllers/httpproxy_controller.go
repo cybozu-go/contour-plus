@@ -823,6 +823,12 @@ func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) 
 	return r.Prefix + hp.Namespace + "-" + hp.Name
 }
 
+func hasSuffix(fqdn, suffix string) bool {
+	normalizedSuffix := strings.TrimSuffix(strings.TrimPrefix(suffix, "."), ".")
+	normalizedFQDN := strings.TrimSuffix(strings.TrimPrefix(fqdn, "."), ".")
+	return normalizedFQDN == normalizedSuffix || strings.HasSuffix(normalizedFQDN, "."+normalizedSuffix)
+}
+
 func isAllowedFQDN(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) bool {
 	// if no virtualhost is specified, skip the check.
 	if hp.Spec.VirtualHost == nil {
@@ -831,8 +837,8 @@ func isAllowedFQDN(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) bool 
 	if len(r.AllowedFQDNSuffixes) == 0 && len(r.AllowedFQDNRegexpsCompiled) == 0 {
 		return true
 	}
-	for _, allowedSuffixes := range r.AllowedFQDNSuffixes {
-		if strings.HasSuffix(hp.Spec.VirtualHost.Fqdn, allowedSuffixes) {
+	for _, allowedSuffix := range r.AllowedFQDNSuffixes {
+		if hasSuffix(hp.Spec.VirtualHost.Fqdn, allowedSuffix) {
 			return true
 		}
 	}

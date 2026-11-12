@@ -1975,6 +1975,60 @@ func TestGetDNSEndpointName(t *testing.T) {
 	}
 }
 
+func TestHasSuffix(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		fqdn   string
+		suffix string
+		expect bool
+	}{
+		{
+			name:   "FQDN has suffix",
+			fqdn:   "foo.example.com",
+			suffix: "example.com",
+			expect: true,
+		},
+		{
+			name:   "FQDN does not have suffix",
+			fqdn:   "badexample.com",
+			suffix: "example.com",
+		},
+		{
+			name:   "FQDN exactly matches suffix",
+			fqdn:   "example.com",
+			suffix: "example.com",
+			expect: true,
+		},
+		{
+			name:   "Suffix has leading dot",
+			fqdn:   "foo.example.com",
+			suffix: ".example.com",
+			expect: true,
+		},
+		{
+			name:   "Suffix has leading dot, fqdn exactly matches suffix",
+			fqdn:   "example.com",
+			suffix: ".example.com",
+			expect: true,
+		},
+		{
+			name:   "FQDN has extra suffix",
+			fqdn:   "foo.example.com.jp",
+			suffix: "example.com",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			actual := hasSuffix(tc.fqdn, tc.suffix)
+			if actual != tc.expect {
+				t.Errorf("hasSuffix(%q, %q) = %v, want %v", tc.fqdn, tc.suffix, actual, tc.expect)
+			}
+		})
+	}
+}
+
 func TestIsAllowedFQDN(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -2007,6 +2061,15 @@ func TestIsAllowedFQDN(t *testing.T) {
 				},
 			},
 			fqdn: "foo.bar.com",
+		},
+		{
+			name: "Denied FQDN by suffix partial match",
+			reconciler: &HTTPProxyReconciler{
+				ReconcilerOptions: ReconcilerOptions{
+					AllowedFQDNSuffixes: []string{"example.com"},
+				},
+			},
+			fqdn: "badexample.com",
 		},
 		{
 			name: "Undefined virtualhost",
