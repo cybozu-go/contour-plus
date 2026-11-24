@@ -1960,9 +1960,7 @@ func TestIsAllowedFQDN(t *testing.T) {
 		{
 			name: "Allowed FQDN by suffix",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					AllowedFQDNSuffixes: []string{"example.com"},
-				},
+				AllowedFQDNSuffixes: []string{"example.com"},
 			},
 			fqdn:          "foo.example.com",
 			expectAllowed: true,
@@ -1970,36 +1968,28 @@ func TestIsAllowedFQDN(t *testing.T) {
 		{
 			name: "Denied FQDN by suffix",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					AllowedFQDNSuffixes: []string{"example.com"},
-				},
+				AllowedFQDNSuffixes: []string{"example.com"},
 			},
 			fqdn: "foo.bar.com",
 		},
 		{
 			name: "Denied FQDN by suffix partial match",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					AllowedFQDNSuffixes: []string{"example.com"},
-				},
+				AllowedFQDNSuffixes: []string{"example.com"},
 			},
 			fqdn: "badexample.com",
 		},
 		{
 			name: "Undefined virtualhost",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					AllowedFQDNSuffixes: []string{"example.com"},
-				},
+				AllowedFQDNSuffixes: []string{"example.com"},
 			},
 			expectAllowed: true,
 		},
 		{
 			name: "Allowed FQDN by regexp",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^foo\.example\.com$`)},
-				},
+				AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^foo\.example\.com$`)},
 			},
 			fqdn:          "foo.example.com",
 			expectAllowed: true,
@@ -2007,9 +1997,7 @@ func TestIsAllowedFQDN(t *testing.T) {
 		{
 			name: "Denied FQDN by regexp",
 			reconciler: &HTTPProxyReconciler{
-				ReconcilerOptions: ReconcilerOptions{
-					AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^foo\.example\.com$`)},
-				},
+				AllowedFQDNRegexpsCompiled: []*regexp.Regexp{regexp.MustCompile(`^foo\.example\.com$`)},
 			},
 			fqdn: "bar.example.com",
 		},
@@ -2018,10 +2006,8 @@ func TestIsAllowedFQDN(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			hp := &projectcontourv1.HTTPProxy{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "bar",
-				},
+				Name:      "foo",
+				Namespace: "bar",
 			}
 			if tc.fqdn != "" {
 				hp.Spec.VirtualHost = &projectcontourv1.VirtualHost{
