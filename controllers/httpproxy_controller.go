@@ -103,6 +103,11 @@ func (r *HTTPProxyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
+	if !isAllowedFQDN(r, hp) {
+		log.Info("HTTPProxy FQDN value is not allowed, skipping", "fqdn", hp.Spec.VirtualHost.Fqdn)
+		return ctrl.Result{}, nil
+	}
+
 	if err := r.reconcileDNSEndpoint(ctx, hp, log); err != nil {
 		log.Error(err, "unable to reconcile DNSEndpoint")
 		return ctrl.Result{}, err
@@ -815,6 +820,33 @@ func getDNSEndpointName(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) 
 		return r.Prefix + hp.Name
 	}
 	return r.Prefix + hp.Namespace + "-" + hp.Name
+}
+
+func hasSuffix(fqdn, suffix string) bool {
+	normalizedSuffix := strings.TrimSuffix(strings.TrimPrefix(suffix, "."), ".")
+	normalizedFQDN := strings.TrimSuffix(strings.TrimPrefix(fqdn, "."), ".")
+	return normalizedFQDN == normalizedSuffix || strings.HasSuffix(normalizedFQDN, "."+normalizedSuffix)
+}
+
+func isAllowedFQDN(r *HTTPProxyReconciler, hp *projectcontourv1.HTTPProxy) bool {
+	// if no virtualhost is specified, skip the check.
+	if hp.Spec.VirtualHost == nil {
+		return true
+	}
+	if len(r.AllowedFQDNSuffixes) == 0 && len(r.AllowedFQDNRegexpsCompiled) == 0 {
+		return true
+	}
+	for _, allowedSuffix := range r.AllowedFQDNSuffixes {
+		if hasSuffix(hp.Spec.VirtualHost.Fqdn, allowedSuffix) {
+			return true
+		}
+	}
+	for _, allowedRegexp := range r.AllowedFQDNRegexpsCompiled {
+		if allowedRegexp.MatchString(hp.Spec.VirtualHost.Fqdn) {
+			return true
+		}
+	}
+	return false
 }
 
 func getTTL(hp *projectcontourv1.HTTPProxy, annotationKey string, defaultTTL int32) int32 {
